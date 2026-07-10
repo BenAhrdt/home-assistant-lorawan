@@ -911,12 +911,18 @@ class LoRaWANPanel extends HTMLElement {
 
   async _handleDeviceSettingsSubmit(event) {
     event.preventDefault();
+    if (this._deviceSettings?.saving) return;
     const formData = new FormData(event.currentTarget);
     const hours = Number(formData.get("offline_after_hours"));
     if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
       window.alert("Bitte eine ganze Zahl zwischen 1 und 8760 eingeben.");
       return;
     }
+    this._deviceSettings.saving = true;
+    const controls = event.currentTarget.querySelectorAll("input, button");
+    controls.forEach((control) => { control.disabled = true; });
+    const saveButton = event.currentTarget.querySelector('button[type="submit"]');
+    if (saveButton) saveButton.textContent = "Speichert…";
     try {
       await this._hass.callService("lorawan", "configure_device", {
         dev_eui: this._deviceSettings.devEui,
@@ -928,6 +934,9 @@ class LoRaWANPanel extends HTMLElement {
       await this._loadDevices();
       await this._loadStatus();
     } catch (error) {
+      this._deviceSettings.saving = false;
+      controls.forEach((control) => { control.disabled = false; });
+      if (saveButton) saveButton.textContent = "Speichern";
       window.alert("Speichern fehlgeschlagen.");
     }
   }
@@ -978,15 +987,15 @@ class LoRaWANPanel extends HTMLElement {
             </label>
             <label class="checkbox">
               <input name="create_raw_sensors" type="checkbox" ${settings.raw ? "checked" : ""} />
-              Raw-Diagnose erstellen
+              Raw-Diagnose aktivieren
             </label>
             <label class="checkbox">
               <input name="create_remaining_sensors" type="checkbox" ${settings.remaining ? "checked" : ""} />
-              Verbleibende Payload-Diagnose erstellen
+              Verbleibende Payload-Diagnose aktivieren
             </label>
             <div class="actions">
-              <button class="save" type="submit">Speichern</button>
-              <button type="button" data-device-settings-cancel>Abbrechen</button>
+              <button class="save" type="submit" ${settings.saving ? "disabled" : ""}>${settings.saving ? "Speichert…" : "Speichern"}</button>
+              <button type="button" data-device-settings-cancel ${settings.saving ? "disabled" : ""}>Abbrechen</button>
             </div>
           </form>
         </div>
@@ -1140,10 +1149,10 @@ class LoRaWANPanel extends HTMLElement {
     try {
       const status = await this._hass.callWS({ type: "lorawan/status" });
       this._status = status;
-      if (this._activeTab !== "downlinks") {
+      if (this._activeTab !== "downlinks" && !this._deviceSettings) {
         this._render();
       }
-      if (this._activeTab === "devices") {
+      if (this._activeTab === "devices" && !this._deviceSettings) {
         await this._loadDevices();
       }
     } catch (error) {
@@ -1152,7 +1161,7 @@ class LoRaWANPanel extends HTMLElement {
         connected: false,
         last_error: "Status nicht verfuegbar",
       };
-      this._render();
+      if (!this._deviceSettings) this._render();
     }
   }
 
@@ -1163,10 +1172,10 @@ class LoRaWANPanel extends HTMLElement {
     try {
       const devices = await this._hass.callWS({ type: "lorawan/devices" });
       this._devices = devices.devices || [];
-      if (this._activeTab !== "downlinks") this._render();
+      if (this._activeTab !== "downlinks" && !this._deviceSettings) this._render();
     } catch (error) {
       this._devices = [];
-      if (this._activeTab !== "downlinks") this._render();
+      if (this._activeTab !== "downlinks" && !this._deviceSettings) this._render();
     }
   }
 

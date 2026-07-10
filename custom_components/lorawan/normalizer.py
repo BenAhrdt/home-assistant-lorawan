@@ -87,9 +87,9 @@ def _normalize_chirpstack(topic: str, payload: dict[str, Any]) -> LoRaWANMessage
         dev_eui=dev_eui,
         device_id=str(info.get("deviceName") or dev_eui),
         device_name=str(info.get("deviceName") or dev_eui),
-        device_type=str(info.get("deviceProfileName") or "") or _first_string(
+        device_type=_first_string(
             decoded_payload,
-            ("devicetype", "Device", "Hardware_mode", "model_id"),
+            ("devicetype", "device", "Device", "Hardware_mode", "model_id"),
         ),
         network="chirpstack",
     )
@@ -163,36 +163,24 @@ def _raw_values(payload: str | None, raw_json: dict[str, Any]) -> list[LoRaWANVa
         LoRaWANValue(
             key="raw_json",
             raw_key="raw.json",
-            name="Raw JSON",
+            name="Uplink Raw JSON",
             value=raw_json,
         )
     ]
     if payload:
         values.extend(
             [
-                LoRaWANValue("raw_base64", "Raw Base64", payload, "raw.base64"),
-                LoRaWANValue("raw_hex", "Raw Hex", _base64_to_hex(payload), "raw.hex"),
-                LoRaWANValue("raw_string", "Raw String", _base64_to_string(payload), "raw.string"),
+                LoRaWANValue("raw_base64", "Uplink Raw Base64", payload, "raw.base64"),
+                LoRaWANValue("raw_hex", "Uplink Raw Hex", _base64_to_hex(payload), "raw.hex"),
+                LoRaWANValue("raw_string", "Uplink Raw String", _base64_to_string(payload), "raw.string"),
             ]
         )
     return values
 
 
 def _remaining_values(raw_json: dict[str, Any]) -> list[LoRaWANValue]:
-    """Return the remaining transport metadata as one diagnostic value.
-
-    Decoded values are already exposed as individual entities and radio metadata is
-    attached to them. Keeping the unconsumed MQTT data together avoids creating a
-    long, mostly redundant list of diagnostic entities per device.
-    """
-    return [
-        LoRaWANValue(
-            key="remaining_json",
-            raw_key="remaining.json",
-            name="Weitere MQTT-Daten",
-            value=raw_json,
-        )
-    ]
+    """Return unconsumed transport metadata as individual diagnostic values."""
+    return _flatten_values(raw_json, "remaining")
 
 
 def _without_paths(

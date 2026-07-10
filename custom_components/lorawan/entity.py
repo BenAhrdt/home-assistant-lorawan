@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.core import callback
 
 from .const import DOMAIN, SIGNAL_UPDATE_ENTITY
 from .models import LoRaWANDevice, LoRaWANValue
@@ -44,6 +45,19 @@ class LoRaWANEntity(Entity):
         return value.name if value else None
 
     @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return whether diagnostic entities are enabled by default."""
+        value = self.value
+        device = self.device
+        if value is None or device is None:
+            return True
+        if value.key.startswith("raw_") or value.key.startswith("downlink_raw_"):
+            return self.runtime.create_raw_sensors_for_device(device.dev_eui)
+        if value.key.startswith("remaining_"):
+            return self.runtime.create_remaining_sensors_for_device(device.dev_eui)
+        return True
+
+    @property
     def device_info(self) -> DeviceInfo | None:
         """Return Home Assistant device info."""
         device = self.device
@@ -76,6 +90,9 @@ class LoRaWANEntity(Entity):
         attributes.update(value.attributes)
         if isinstance(value.value, dict):
             attributes["raw_json"] = value.value
+        display_value = state_value(value.value)
+        if display_value != value.value:
+            attributes["full_value"] = value.value
         return attributes
 
     async def async_added_to_hass(self) -> None:
@@ -92,6 +109,7 @@ class LoRaWANEntity(Entity):
             self._unsub_update()
             self._unsub_update = None
 
+    @callback
     def _handle_update_signal(self, entity_key: str) -> None:
         if entity_key == self.entity_key:
             self.async_write_ha_state()
@@ -99,8 +117,10 @@ class LoRaWANEntity(Entity):
 
 def state_value(value: Any) -> Any:
     """Return a Home Assistant state-safe value."""
-    if isinstance(value, dict):
-        return "received"
-    if isinstance(value, list):
-        return json.dumps(value, ensure_ascii=False)
-    return value
+    if isinstance(value, (dict, list)):
+        display = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    elif isinstance(value, str):
+        display = value.encode("unicode_escape", errors="backslashreplace").decode()
+    else:
+        return value
+    return f"{display[:29]}..." if len(display) > 32 else display

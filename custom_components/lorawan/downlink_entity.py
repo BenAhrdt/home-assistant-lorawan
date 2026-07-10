@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.helpers.entity import DeviceInfo, Entity
+from homeassistant.core import callback
 
-from .const import DOMAIN
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
+from .const import DOMAIN, SIGNAL_UPDATE_DOWNLINK_CONTROLS
 from .runtime import LoRaWANRuntime
 
 
@@ -40,7 +43,22 @@ class LoRaWANDownlinkEntity(Entity):
 
     @property
     def available(self) -> bool:
-        return self.control is not None and self.runtime.connected
+        return self.control is not None
 
     def _send(self, value: Any) -> None:
         self.runtime.send_downlink_control(self.entity_key, value)
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_UPDATE_DOWNLINK_CONTROLS,
+                self._async_update_control,
+            )
+        )
+
+    @callback
+    def _async_update_control(self) -> None:
+        if self.control is None:
+            return
+        self.async_write_ha_state()

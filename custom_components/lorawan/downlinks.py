@@ -124,10 +124,27 @@ def _builtin_profiles() -> list[dict[str, Any]]:
 
 BUILTIN_PROFILES = _builtin_profiles()
 
+INTERNAL_BASE_PROFILE: dict[str, Any] = {
+    "deviceType": "internalBaseDevice",
+    "sendWithUplink": "disabled",
+    "downlinkParameter": [
+        {"name": "push", "type": "json", "networks": ["ttn", "chirpstack"]},
+        {"name": "replace", "type": "json", "networks": ["ttn"]},
+        {
+            "name": "CustomSend",
+            "type": "string",
+            "networks": ["ttn", "chirpstack"],
+        },
+    ],
+}
+
 
 def merged_profiles(configured: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """Merge user profiles over built-ins by device type, honoring tombstones."""
-    profiles = {profile["deviceType"]: deepcopy(profile) for profile in BUILTIN_PROFILES}
+    profiles = {
+        INTERNAL_BASE_PROFILE["deviceType"]: deepcopy(INTERNAL_BASE_PROFILE),
+        **{profile["deviceType"]: deepcopy(profile) for profile in BUILTIN_PROFILES},
+    }
     for profile in configured or []:
         if profile.get("deviceType"):
             device_type = str(profile["deviceType"])
@@ -139,10 +156,27 @@ def merged_profiles(configured: list[dict[str, Any]] | None) -> list[dict[str, A
 
 
 def profile_for_device(profiles: list[dict[str, Any]], device_type: str | None) -> dict[str, Any] | None:
-    """Return the profile matching a device type, ignoring capitalization."""
+    """Return the longest profile prefix matching a device type.
+
+    This mirrors the ioBroker adapter: for example, ``Dragino XY`` matches
+    ``Dragino`` and a longer, more specific profile wins over a shorter one.
+    """
     wanted = str(device_type or "").casefold()
+    matches = [
+        profile
+        for profile in profiles
+        if profile.get("deviceType") != INTERNAL_BASE_PROFILE["deviceType"]
+        and wanted.startswith(str(profile.get("deviceType", "")).casefold())
+        and profile.get("deviceType")
+    ]
+    if matches:
+        return max(matches, key=lambda profile: len(str(profile["deviceType"])))
     return next(
-        (profile for profile in profiles if str(profile.get("deviceType", "")).casefold() == wanted),
+        (
+            profile
+            for profile in profiles
+            if profile.get("deviceType") == INTERNAL_BASE_PROFILE["deviceType"]
+        ),
         None,
     )
 
@@ -175,7 +209,7 @@ def parameter_payload(parameter: dict[str, Any], value: Any) -> str:
         payload = raw[: int(data["lengthInByte"])].rjust(int(data["lengthInByte"]), b"\0").hex()
         payload = f"{data['front']}{payload}{data['end']}"
     elif kind == "string":
-        payload = f"{data['front']}{value}{data['end']}".encode().hex()
+        payload = f"{data['front']}{value}{data['end']}"
     else:
         raise ValueError(f"Nicht unterstützter Downlink-Typ: {kind}")
     _validate_hex(payload)

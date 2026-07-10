@@ -11,8 +11,8 @@
           "ssl": "Use SSL",
           "username": "Username",
           "password": "Password",
-          "create_raw_sensors": "Raw-Diagnose erstellen",
-          "create_remaining_sensors": "Verbleibende Payload-Diagnose erstellen",
+          "create_raw_sensors": "Raw-Diagnose aktivieren",
+          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
           "offline_after_hours": "Mark devices offline after hours"
         }
       }
@@ -32,8 +32,8 @@
           "ssl": "Use SSL",
           "username": "Username",
           "password": "Password",
-          "create_raw_sensors": "Raw-Diagnose erstellen",
-          "create_remaining_sensors": "Verbleibende Payload-Diagnose erstellen",
+          "create_raw_sensors": "Raw-Diagnose aktivieren",
+          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
           "offline_after_hours": "Mark devices offline after hours"
         }
       }

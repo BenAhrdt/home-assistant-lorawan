@@ -441,19 +441,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
 
     await runtime.async_start()
+    _remove_stale_downlink_entities(hass, entry, runtime)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True
 
 
+def _remove_stale_downlink_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    runtime: LoRaWANRuntime,
+) -> None:
+    """Remove registered downlink controls that no longer match a device profile."""
+    runtime.downlink_controls_for_platform("number")
+    valid_unique_ids = set(runtime.downlink_controls)
+    registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if (
+            entity.config_entry_id == entry.entry_id
+            and entity.unique_id.startswith(prefix)
+            and "_downlink_" in entity.unique_id
+            and "_downlink_next_send" not in entity.unique_id
+            and "_downlink_last_send_" not in entity.unique_id
+            and entity.unique_id not in valid_unique_ids
+        ):
+            registry.async_remove(entity.entity_id)
+
+
 async def async_update_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload LoRaWAN when config entry options change."""
-    _remove_disabled_diagnostic_entities(hass, entry)
+    _sync_diagnostic_entity_status(hass, entry)
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-def _remove_disabled_diagnostic_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove deselected diagnostic entities instead of leaving them unavailable."""
+def _sync_diagnostic_entity_status(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Enable or disable existing diagnostic entities from the configuration."""
     data = dict(entry.data)
     raw_overrides = data.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
     remaining_overrides = data.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
@@ -463,7 +486,7 @@ def _remove_disabled_diagnostic_entities(hass: HomeAssistant, entry: ConfigEntry
         if not entity.unique_id.startswith(prefix):
             continue
         dev_eui, _, value_key = entity.unique_id[len(prefix) :].partition("_")
-        if value_key.startswith("raw_"):
+        if value_key.startswith("raw_") or value_key.startswith("downlink_raw_"):
             enabled = raw_overrides.get(
                 _clean_dev_eui(dev_eui), data.get(CONF_CREATE_RAW_SENSORS, True)
             )
@@ -477,19 +500,20 @@ def _remove_disabled_diagnostic_entities(hass: HomeAssistant, entry: ConfigEntry
             )
         else:
             continue
-        if not enabled:
-            registry.async_remove(entity.entity_id)
+        disabled_by = None if enabled else er.RegistryEntryDisabler.INTEGRATION
+        if entity.disabled_by != disabled_by:
+            registry.async_update_entity(entity.entity_id, disabled_by=disabled_by)
 
 
 def _remove_obsolete_remaining_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove legacy flattened remaining-payload entities from the registry."""
+    """Remove the obsolete combined remaining-payload entity from the registry."""
     registry = er.async_get(hass)
     prefix = f"{entry.entry_id}_"
     for entity in list(registry.entities.values()):
         if not entity.unique_id.startswith(prefix):
             continue
         _, _, value_key = entity.unique_id[len(prefix) :].partition("_")
-        if value_key.startswith("remaining_") and value_key != "remaining_json":
+        if value_key in {"remaining_json", "downlink_last_send_json"}:
             registry.async_remove(entity.entity_id)
 
 

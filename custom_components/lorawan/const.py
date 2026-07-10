@@ -27,5 +27,7 @@ DEFAULT_TOPIC_FILTERS = [
 SIGNAL_ADD_SENSOR = f"{DOMAIN}_add_sensor"
 SIGNAL_ADD_BINARY_SENSOR = f"{DOMAIN}_add_binary_sensor"
 SIGNAL_ADD_DOWNLINK_CONTROL = f"{DOMAIN}_add_downlink_control"
+SIGNAL_REMOVE_DOWNLINK_CONTROL = f"{DOMAIN}_remove_downlink_control"
 SIGNAL_DEVICE_ADDED = f"{DOMAIN}_device_added"
 SIGNAL_UPDATE_ENTITY = f"{DOMAIN}_update_entity"
+SIGNAL_UPDATE_DOWNLINK_CONTROLS = f"{DOMAIN}_update_downlink_controls"

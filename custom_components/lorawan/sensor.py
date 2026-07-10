@@ -72,6 +72,11 @@ class LoRaWANSensor(LoRaWANEntity, SensorEntity):
     def entity_category(self) -> EntityCategory | None:
         """Mark raw payload sensors as diagnostic."""
         value = self.value
-        if value and (value.key.startswith("raw_") or value.key.startswith("remaining_")):
+        if value and (
+            value.key.startswith("raw_")
+            or value.key.startswith("downlink_raw_")
+            or value.key.startswith("remaining_")
+            or value.key.startswith("downlink_")
+        ):
             return EntityCategory.DIAGNOSTIC
         return None

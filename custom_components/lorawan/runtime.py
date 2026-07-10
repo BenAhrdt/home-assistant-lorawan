@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import base64
 import logging
 import re
 from collections import deque
@@ -14,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from paho.mqtt import client as mqtt_client
@@ -33,13 +35,21 @@ from .const import (
     DEFAULT_TOPIC_FILTERS,
     SIGNAL_ADD_BINARY_SENSOR,
     SIGNAL_ADD_DOWNLINK_CONTROL,
+    SIGNAL_REMOVE_DOWNLINK_CONTROL,
     SIGNAL_ADD_SENSOR,
     SIGNAL_DEVICE_ADDED,
+    SIGNAL_UPDATE_DOWNLINK_CONTROLS,
     SIGNAL_UPDATE_ENTITY,
 )
 from .models import LoRaWANDevice, LoRaWANMessage, LoRaWANValue
 from .normalizer import normalize_message
-from .downlinks import downlink_message, merged_profiles, parameter_payload, profile_for_device
+from .downlinks import (
+    INTERNAL_BASE_PROFILE,
+    downlink_message,
+    merged_profiles,
+    parameter_payload,
+    profile_for_device,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,6 +118,8 @@ class LoRaWANRuntime:
         self.unsupported_message_count = 0
         self.lns_counts = {"ttn": 0, "chirpstack": 0}
         self.last_seen_by_device: dict[str, str] = {}
+        self.last_downlink_by_device: dict[str, dict[str, Any]] = {}
+        self.next_downlink_by_device: dict[str, dict[str, Any]] = {}
         self._store = Store(
             hass,
             STORAGE_VERSION,
@@ -164,6 +176,7 @@ class LoRaWANRuntime:
         result = self._mqtt_client.publish(topic, json.dumps(payload), qos=0)
         if result.rc != mqtt_client.MQTT_ERR_SUCCESS:
             raise RuntimeError(f"Downlink konnte nicht veröffentlicht werden (MQTT-Code {result.rc})")
+        self._store_downlink_diagnostics(device, payload_hex, payload)
         _LOGGER.info("Published LoRaWAN downlink for %s on %s", device.dev_eui, topic)
 
     def _on_mqtt_connect(
@@ -257,6 +270,11 @@ class LoRaWANRuntime:
     def _store_message(self, message: LoRaWANMessage) -> None:
         device = message.device
         is_new_device = device.dev_eui not in self.devices
+        existing_device = self.devices.get(device.dev_eui)
+        if existing_device is not None and existing_device.device_type:
+            # A type already learned from an earlier uplink or entered manually
+            # is authoritative. Uplinks only initialize an empty device type.
+            device.device_type = existing_device.device_type
         self.devices[device.dev_eui] = device
         self._refresh_downlink_controls()
         self.last_seen_by_device[device.dev_eui] = self.last_message_at or _utc_now()
@@ -268,16 +286,16 @@ class LoRaWANRuntime:
                 device.dev_eui,
             )
         values = [self._device_online_value(device, True)]
+        values.extend(self._downlink_diagnostic_values(device))
         values.extend(message.decoded)
-        if self.create_raw_sensors_for_device(device.dev_eui):
-            values.extend(message.raw)
-        if self.create_remaining_sensors_for_device(device.dev_eui):
-            values.extend(message.remaining)
+        values.extend(message.raw)
+        values.extend(message.remaining)
 
         for value in values:
             if not value.key.startswith("device_"):
                 value.attributes.update(message.attributes)
             self._store_value(device, value)
+        self._send_queued_downlink(device)
         self.hass.async_create_task(self.async_save_cache())
 
     @callback
@@ -314,6 +332,8 @@ class LoRaWANRuntime:
                     self._is_device_online(device.dev_eui),
                 ),
             )
+            for value in self._downlink_diagnostic_values(device):
+                self._store_value(device, value)
 
     def _is_device_online(self, dev_eui: str) -> bool:
         """Return true if a device has reported within the configured window."""
@@ -360,6 +380,120 @@ class LoRaWANRuntime:
                 "offline_after_hours": self.offline_after_hours_for_device(device.dev_eui),
             },
         )
+
+    def _downlink_diagnostic_values(self, device: LoRaWANDevice) -> list[LoRaWANValue]:
+        """Return the queued and most recently sent downlink diagnostics."""
+        last = self.last_downlink_by_device.get(device.dev_eui, {})
+        values = [
+            LoRaWANValue(
+                key="downlink_next_send",
+                name="Next Send Hex",
+                value=self.next_downlink_by_device.get(device.dev_eui, {}).get("hex", "0"),
+                raw_key="downlink.nextSend.hex",
+            ),
+            LoRaWANValue(
+                key="downlink_last_send_hex",
+                name="Last Send Hex",
+                value=last.get("hex", "0"),
+                raw_key="downlink.lastSend.hex",
+            ),
+        ]
+        payload_hex = str(last.get("hex", ""))
+        payload_json = last.get("json")
+        if payload_hex or payload_json:
+            try:
+                raw_bytes = bytes.fromhex(payload_hex)
+            except ValueError:
+                raw_bytes = b""
+            values.extend(
+                [
+                    LoRaWANValue(
+                        key="downlink_raw_json",
+                        name="Downlink Raw JSON",
+                        value=payload_json or {},
+                        raw_key="downlink.raw.json",
+                    ),
+                    LoRaWANValue(
+                        key="downlink_raw_base64",
+                        name="Downlink Raw Base64",
+                        value=base64.b64encode(raw_bytes).decode(),
+                        raw_key="downlink.raw.base64",
+                    ),
+                    LoRaWANValue(
+                        key="downlink_raw_hex",
+                        name="Downlink Raw Hex",
+                        value=payload_hex,
+                        raw_key="downlink.raw.hex",
+                    ),
+                    LoRaWANValue(
+                        key="downlink_raw_string",
+                        name="Downlink Raw String",
+                        value=raw_bytes.decode(errors="replace"),
+                        raw_key="downlink.raw.string",
+                    ),
+                ]
+            )
+        return values
+
+    def _store_downlink_diagnostics(
+        self,
+        device: LoRaWANDevice,
+        payload_hex: str,
+        payload_json: dict[str, Any],
+    ) -> None:
+        """Store and publish diagnostics after a successful downlink."""
+        self.last_downlink_by_device[device.dev_eui] = {
+            "hex": payload_hex,
+            "json": payload_json,
+        }
+        for value in self._downlink_diagnostic_values(device):
+            self._store_value(device, value)
+        self.hass.async_create_task(self.async_save_cache())
+
+    def _queue_downlink(
+        self,
+        device: LoRaWANDevice,
+        profile: dict[str, Any],
+        payload_hex: str,
+    ) -> None:
+        """Queue a downlink until the next uplink, optionally collecting payloads."""
+        if profile.get("sendWithUplink") == "enabled & collect":
+            payload_hex = (
+                self.next_downlink_by_device.get(device.dev_eui, {}).get("hex", "")
+                + payload_hex
+            )
+        self.next_downlink_by_device[device.dev_eui] = {
+            "hex": payload_hex,
+            "profile": profile,
+        }
+        for value in self._downlink_diagnostic_values(device):
+            self._store_value(device, value)
+        self.hass.async_create_task(self.async_save_cache())
+
+    def _send_queued_downlink(self, device: LoRaWANDevice) -> None:
+        """Send a device's queued payload after receiving an uplink."""
+        queued = self.next_downlink_by_device.pop(device.dev_eui, None)
+        if queued is None:
+            return
+        network = device.network or (
+            "ttn" if "@" in device.application_name else "chirpstack"
+        )
+        try:
+            self.send_downlink(network, device, queued["profile"], queued["hex"])
+        except Exception as err:
+            self.next_downlink_by_device[device.dev_eui] = queued
+            _LOGGER.warning("Queued downlink for %s could not be sent: %s", device.dev_eui, err)
+        for value in self._downlink_diagnostic_values(device):
+            self._store_value(device, value)
+
+    def push_queued_downlink(self, dev_eui: str) -> None:
+        """Immediately send the payload waiting for a device's next uplink."""
+        device = self.devices.get(_clean_dev_eui(dev_eui))
+        if device is None:
+            raise ValueError("Unbekanntes LoRaWAN-Gerät")
+        if device.dev_eui not in self.next_downlink_by_device:
+            raise ValueError("Kein Downlink wartet auf den Versand")
+        self._send_queued_downlink(device)
 
     def entity_key(self, device: LoRaWANDevice, value: LoRaWANValue) -> str:
         """Return the stable internal key for a value."""
@@ -408,19 +542,59 @@ class LoRaWANRuntime:
     def _refresh_downlink_controls(self) -> None:
         """Create control descriptors for every device's matching downlink profile."""
         controls: dict[str, dict[str, Any]] = {}
+        profiles = merged_profiles(self.downlink_profiles)
         for device in self.devices.values():
-            profile = profile_for_device(merged_profiles(self.downlink_profiles), device.device_type)
-            if profile is None:
-                continue
-            for index, parameter in enumerate(profile.get("downlinkParameter", [])):
-                platform = {"number": "number", "boolean": "switch", "button": "button", "ascii": "text", "string": "text"}.get(parameter.get("type"))
+            profile = profile_for_device(profiles, device.device_type)
+            base_profile = next(
+                (
+                    item
+                    for item in profiles
+                    if item.get("deviceType") == INTERNAL_BASE_PROFILE["deviceType"]
+                ),
+                INTERNAL_BASE_PROFILE,
+            )
+            parameters: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+            base_parameter_names = {
+                str(parameter.get("name", ""))
+                for parameter in base_profile.get("downlinkParameter", [])
+            }
+            for parameter in base_profile.get("downlinkParameter", []):
+                networks = parameter.get("networks")
+                if networks and device.network not in networks:
+                    continue
+                parameters[str(parameter.get("name", ""))] = (base_profile, parameter)
+            if profile is not None and profile.get("deviceType") != INTERNAL_BASE_PROFILE["deviceType"]:
+                for parameter in profile.get("downlinkParameter", []):
+                    networks = parameter.get("networks")
+                    if networks and device.network not in networks:
+                        continue
+                    parameters[str(parameter.get("name", ""))] = (profile, parameter)
+            for index, (parameter_profile, parameter) in enumerate(parameters.values()):
+                platform = {"number": "number", "boolean": "switch", "button": "button", "ascii": "text", "string": "text", "json": "text"}.get(parameter.get("type"))
                 if platform is None:
                     continue
                 slug = re.sub(r"[^a-z0-9_]+", "_", str(parameter.get("name", "parameter")).casefold()).strip("_")
-                key = f"{self.entry.entry_id}_{device.dev_eui}_downlink_{index}_{slug or 'parameter'}"
-                controls[key] = {"device": device, "profile": profile, "parameter": parameter, "platform": platform}
+                scope = "base_" if str(parameter.get("name", "")) in base_parameter_names else ""
+                key = f"{self.entry.entry_id}_{device.dev_eui}_downlink_{platform}_{scope}{slug or index}"
+                controls[key] = {"device": device, "profile": parameter_profile, "parameter": parameter, "platform": platform}
         previous_controls = self.downlink_controls
         self.downlink_controls = controls
+        if previous_controls != controls:
+            for key in previous_controls.keys() - controls.keys():
+                async_dispatcher_send(self.hass, SIGNAL_REMOVE_DOWNLINK_CONTROL, self.entry.entry_id, key)
+            registry = er.async_get(self.hass)
+            prefix = f"{self.entry.entry_id}_"
+            for entity in list(registry.entities.values()):
+                if (
+                    entity.config_entry_id == self.entry.entry_id
+                    and entity.unique_id.startswith(prefix)
+                    and "_downlink_" in entity.unique_id
+                    and "_downlink_next_send" not in entity.unique_id
+                    and "_downlink_last_send_" not in entity.unique_id
+                    and entity.unique_id not in controls
+                ):
+                    registry.async_remove(entity.entity_id)
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE_DOWNLINK_CONTROLS)
         for key in controls:
             if key not in previous_controls:
                 async_dispatcher_send(
@@ -439,6 +613,15 @@ class LoRaWANRuntime:
         """Return one downlink control descriptor."""
         return self.downlink_controls.get(entity_key)
 
+    def set_device_type(self, dev_eui: str, device_type: str) -> None:
+        """Set a device type and rebuild its downlink controls."""
+        device = self.devices.get(_clean_dev_eui(dev_eui))
+        if device is None:
+            raise ValueError("Unbekanntes LoRaWAN-Gerät")
+        device.device_type = device_type.strip() or None
+        self._refresh_downlink_controls()
+        self.hass.async_create_task(self.async_save_cache())
+
     def send_downlink_control(self, entity_key: str, value: Any) -> None:
         """Encode and publish a Home Assistant control value as a downlink."""
         control = self.downlink_controls.get(entity_key)
@@ -447,8 +630,47 @@ class LoRaWANRuntime:
         device = control["device"]
         parameter = control["parameter"]
         profile = control["profile"]
+        if parameter.get("type") == "json":
+            try:
+                payload = json.loads(str(value))
+            except json.JSONDecodeError as err:
+                raise ValueError("Downlink muss gültiges JSON sein") from err
+            if not isinstance(payload, dict):
+                raise ValueError("Downlink-JSON muss ein Objekt sein")
+            network = device.network or (
+                "ttn" if "@" in device.application_name else "chirpstack"
+            )
+            if network == "ttn":
+                application, _, tenant = device.application_name.partition("@")
+                app = application or device.application_id
+                mode = "replace" if parameter.get("name") == "replace" else "push"
+                topic = f"v3/{app}{'@' + tenant if tenant else ''}/devices/{device.device_id}/down/{mode}"
+            elif network == "chirpstack":
+                topic = f"application/{device.application_id}/device/{device.dev_eui}/command/down"
+            else:
+                raise ValueError("Unbekannter LoRaWAN-Netzwerkserver")
+            if self._mqtt_client is None or not self.connected:
+                raise RuntimeError("MQTT ist nicht verbunden")
+            self._mqtt_client.publish(topic, json.dumps(payload))
+            payload_hex = ""
+            downlinks = payload.get("downlinks")
+            encoded = (
+                downlinks[0].get("frm_payload")
+                if isinstance(downlinks, list) and downlinks
+                else payload.get("data")
+            )
+            if isinstance(encoded, str):
+                try:
+                    payload_hex = base64.b64decode(encoded).hex().upper()
+                except Exception:
+                    payload_hex = ""
+            self._store_downlink_diagnostics(device, payload_hex, payload)
+            return
         payload = parameter_payload(parameter, value)
         network = device.network or ("ttn" if "@" in device.application_name else "chirpstack")
+        if profile.get("sendWithUplink", "disabled") != "disabled":
+            self._queue_downlink(device, {**profile, **parameter}, payload)
+            return
         self.send_downlink(network, device, {**profile, **parameter}, payload)
 
     async def async_load_cache(self) -> None:
@@ -467,8 +689,6 @@ class LoRaWANRuntime:
         for entity_key, value_data in (data.get("values") or {}).items():
             value = _value_from_json(value_data)
             dev_eui = cached_value_devices.get(entity_key, "")
-            if not self._is_value_enabled(dev_eui, value):
-                continue
             self.values[entity_key] = value
         self.entity_platforms = {
             entity_key: platform
@@ -483,16 +703,8 @@ class LoRaWANRuntime:
         self.last_message_at = data.get("last_message_at")
         self.last_topic = data.get("last_topic")
         self.recent_messages = deque(data.get("recent_messages") or [], maxlen=10)
-
-    def _is_value_enabled(self, dev_eui: str, value: LoRaWANValue) -> bool:
-        """Return whether a value is enabled by the diagnostic sensor settings."""
-        if value.key.startswith("raw_"):
-            return self.create_raw_sensors_for_device(dev_eui)
-        if value.key.startswith("remaining_"):
-            if value.key != "remaining_json":
-                return False
-            return self.create_remaining_sensors_for_device(dev_eui)
-        return True
+        self.last_downlink_by_device = dict(data.get("last_downlink_by_device") or {})
+        self.next_downlink_by_device = dict(data.get("next_downlink_by_device") or {})
 
     async def async_save_cache(self) -> None:
         """Persist the latest devices and values for restart recovery."""
@@ -515,6 +727,8 @@ class LoRaWANRuntime:
                 "last_message_at": self.last_message_at,
                 "last_topic": self.last_topic,
                 "recent_messages": list(self.recent_messages),
+                "last_downlink_by_device": self.last_downlink_by_device,
+                "next_downlink_by_device": self.next_downlink_by_device,
             }
         )
 
