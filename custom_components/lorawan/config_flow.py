@@ -15,7 +15,11 @@ from homeassistant.const import (
 
 from .const import (
     CONF_CREATE_RAW_SENSORS,
+    CONF_CREATE_REMAINING_SENSORS,
+    CONF_DEVICE_CREATE_RAW_SENSORS,
+    CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
+    CONF_DOWNLINK_PROFILES,
     CONF_OFFLINE_AFTER_HOURS,
     CONF_SSL,
     DEFAULT_MQTT_PORT,
@@ -45,8 +49,14 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_USERNAME: user_input.get(CONF_USERNAME, ""),
                     CONF_PASSWORD: user_input.get(CONF_PASSWORD, ""),
                     CONF_CREATE_RAW_SENSORS: user_input[CONF_CREATE_RAW_SENSORS],
+                    CONF_CREATE_REMAINING_SENSORS: user_input[
+                        CONF_CREATE_REMAINING_SENSORS
+                    ],
                     CONF_OFFLINE_AFTER_HOURS: user_input[CONF_OFFLINE_AFTER_HOURS],
                     CONF_DEVICE_OFFLINE_AFTER_HOURS: {},
+                    CONF_DEVICE_CREATE_RAW_SENSORS: {},
+                    CONF_DEVICE_CREATE_REMAINING_SENSORS: {},
+                    CONF_DOWNLINK_PROFILES: [],
                 },
             )
 
@@ -62,6 +72,7 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_USERNAME, default=""): str,
                 vol.Optional(CONF_PASSWORD, default=""): str,
                 vol.Required(CONF_CREATE_RAW_SENSORS, default=True): bool,
+                vol.Required(CONF_CREATE_REMAINING_SENSORS, default=False): bool,
                 vol.Required(
                     CONF_OFFLINE_AFTER_HOURS,
                     default=DEFAULT_OFFLINE_AFTER_HOURS,
@@ -103,11 +114,23 @@ class LoRaWANOptionsFlow(config_entries.OptionsFlow):
                 CONF_USERNAME: user_input.get(CONF_USERNAME, ""),
                 CONF_PASSWORD: user_input.get(CONF_PASSWORD, ""),
                 CONF_CREATE_RAW_SENSORS: user_input[CONF_CREATE_RAW_SENSORS],
+                CONF_CREATE_REMAINING_SENSORS: user_input[
+                    CONF_CREATE_REMAINING_SENSORS
+                ],
                 CONF_OFFLINE_AFTER_HOURS: user_input[CONF_OFFLINE_AFTER_HOURS],
                 CONF_DEVICE_OFFLINE_AFTER_HOURS: current.get(
                     CONF_DEVICE_OFFLINE_AFTER_HOURS,
                     {},
                 ),
+                CONF_DEVICE_CREATE_RAW_SENSORS: current.get(
+                    CONF_DEVICE_CREATE_RAW_SENSORS,
+                    {},
+                ),
+                CONF_DEVICE_CREATE_REMAINING_SENSORS: current.get(
+                    CONF_DEVICE_CREATE_REMAINING_SENSORS,
+                    {},
+                ),
+                CONF_DOWNLINK_PROFILES: current.get(CONF_DOWNLINK_PROFILES, []),
             }
             self.hass.config_entries.async_update_entry(
                 self._config_entry,
@@ -146,6 +169,13 @@ class LoRaWANOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_CREATE_RAW_SENSORS,
                     default=current.get(CONF_CREATE_RAW_SENSORS, True),
+                ): bool,
+                vol.Required(
+                    CONF_CREATE_REMAINING_SENSORS,
+                    default=current.get(
+                        CONF_CREATE_REMAINING_SENSORS,
+                        False,
+                    ),
                 ): bool,
                 vol.Required(
                     CONF_OFFLINE_AFTER_HOURS,

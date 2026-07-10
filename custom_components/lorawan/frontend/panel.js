@@ -2,9 +2,8 @@ class LoRaWANPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._activeTab = "uplinks";
+    this._activeTab = "devices";
     this._rendered = false;
-    this._saveMessage = "";
     this._status = {
       configured: false,
       connected: false,
@@ -20,14 +19,14 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceUnsubscribe = undefined;
     this._deviceSubscribePending = false;
     this._devices = [];
-    this._mqttDirty = false;
-    this._mqttConfig = {
-      host: "",
-      port: 1883,
-      ssl: false,
-      username: "",
-      password: "",
-    };
+    this._deviceSettings = null;
+    this._deviceDiagnostics = null;
+    this._selectedMessage = null;
+    this._downlinks = { devices: [], profiles: [], configured_profiles: [], builtin_profile_types: [] };
+    this._downlinkDevice = "";
+    this._downlinkProfile = "";
+    this._profileEditor = null;
+    this._openParameterEditorIndex = null;
   }
 
   set hass(hass) {
@@ -35,7 +34,10 @@ class LoRaWANPanel extends HTMLElement {
     this._startStatusPolling();
     this._startDeviceSubscription();
     if (!this._rendered) {
-      this._render();
+      this._loadDownlinks();
+    }
+    if (!this._rendered) {
+      if (this._activeTab !== "downlinks") this._render();
     }
   }
 
@@ -69,9 +71,10 @@ class LoRaWANPanel extends HTMLElement {
     this._rendered = true;
 
     const tabs = [
-      ["uplinks", "Uplinks"],
-      ["lns", "LNS / MQTT"],
       ["devices", "Geraete"],
+      ["lns", "LNS / MQTT"],
+      ["uplinks", "Uplinks"],
+      ["downlinks", "Downlinks"],
     ];
 
     this.shadowRoot.innerHTML = `
@@ -231,6 +234,28 @@ class LoRaWANPanel extends HTMLElement {
           font-weight: 500;
         }
 
+        button.action {
+          min-height: 38px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          padding: 0 14px;
+          color: var(--primary-text-color);
+          background: var(--secondary-background-color);
+          font-weight: 500;
+        }
+
+        button.duplicate {
+          border-color: #b58900;
+          color: #6b5100;
+          background: #fff3cd;
+        }
+
+        button.danger {
+          border-color: #ba1a1a;
+          color: #ba1a1a;
+          background: #ffdad6;
+        }
+
         .message {
           color: var(--secondary-text-color);
         }
@@ -259,23 +284,19 @@ class LoRaWANPanel extends HTMLElement {
 
         .list {
           display: grid;
-          gap: 0;
-          border: 1px solid var(--divider-color);
-          border-radius: 8px;
-          overflow: hidden;
-          background: var(--card-background-color);
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 16px;
         }
 
-        .device-row {
-          display: grid;
-          grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) 96px 120px 48px;
-          gap: 16px;
-          align-items: center;
-          min-height: 64px;
-          padding: 12px 16px;
-          border-bottom: 1px solid var(--divider-color);
-          color: inherit;
-          text-decoration: none;
+        .device-card {
+          position: relative;
+          box-sizing: border-box;
+          min-height: 176px;
+          padding: 18px;
+          border: 1px solid var(--divider-color);
+          border-radius: 10px;
+          background: var(--card-background-color);
+          cursor: pointer;
         }
 
         .icon-button {
@@ -297,34 +318,133 @@ class LoRaWANPanel extends HTMLElement {
           background: var(--secondary-background-color);
         }
 
-        .device-row:last-child {
-          border-bottom: 0;
+        .device-name {
+          padding-right: 54px;
+          font-weight: 500;
         }
 
-        .device-name {
-          font-weight: 500;
+        .device-eui {
+          margin-top: 12px;
+          font-size: 0.9em;
+        }
+
+        .device-status {
+          position: absolute;
+          top: 18px;
+          right: 18px;
+        }
+
+        .device-settings {
+          position: absolute;
+          right: 12px;
+          bottom: 12px;
+        }
+
+        .device-json {
+          position: absolute;
+          right: 58px;
+          bottom: 12px;
+          font-family: var(--code-font-family, monospace);
+          font-size: 16px;
         }
 
         .muted {
           color: var(--secondary-text-color);
         }
 
-        .arrow {
-          justify-self: end;
-          color: var(--secondary-text-color);
-          font-size: 24px;
-          text-decoration: none;
+        .diagnostics {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
         }
 
-        @media (max-width: 720px) {
-          .device-row {
-            grid-template-columns: 1fr;
-            gap: 6px;
-          }
+        .tag {
+          border-radius: 12px;
+          padding: 2px 8px;
+          color: var(--secondary-text-color);
+          background: var(--secondary-background-color);
+          font-size: 12px;
+        }
 
-          .arrow {
-            display: none;
-          }
+        .dialog-backdrop {
+          position: fixed;
+          z-index: 10;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          padding: 20px;
+          background: rgba(0, 0, 0, 0.42);
+        }
+
+        .dialog {
+          box-sizing: border-box;
+          width: min(480px, 100%);
+          padding: 24px;
+          border-radius: 12px;
+          background: var(--card-background-color);
+          box-shadow: var(--ha-card-box-shadow, 0 4px 18px rgba(0, 0, 0, 0.3));
+        }
+
+        .dialog form, .profile-editor {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .profile-editor details, .profile-list > details { padding: 12px; border: 1px solid var(--divider-color); border-radius: 8px; background: var(--card-background-color); }
+        .profile-editor details > div, .profile-list details > div { margin-top: 12px; }
+        .profile-list { display: grid; gap: 10px; }
+        .profile-list summary, .profile-editor summary { cursor: pointer; }
+        .profile-list summary strong { font-size: 1.05em; }
+        .profile-content { display: grid; gap: 12px; }
+        .profile-parameters { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+        .profile-parameter { padding: 10px; border-radius: 6px; background: var(--secondary-background-color); }
+        .parameter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+        .status-card {
+          cursor: pointer;
+        }
+
+        .message-list {
+          display: grid;
+          gap: 8px;
+          max-height: 240px;
+          overflow-y: auto;
+        }
+
+        .message-item {
+          width: 100%;
+          border: 1px solid var(--divider-color);
+          border-radius: 6px;
+          padding: 10px;
+          color: var(--primary-text-color);
+          background: var(--card-background-color);
+          text-align: left;
+        }
+
+        .message-item.selected {
+          border-color: var(--primary-color);
+        }
+
+        pre.payload {
+          max-height: 240px;
+          overflow: auto;
+          padding: 12px;
+          border-radius: 6px;
+          background: var(--secondary-background-color);
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+        }
+
+        .downlink-layout { display: grid; grid-template-columns: minmax(280px, 2fr) minmax(260px, 1fr); gap: 16px; }
+        .parameter-list { display: grid; gap: 12px; }
+        .parameter { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 1fr); gap: 12px; align-items: end; }
+        select, textarea { box-sizing: border-box; width: 100%; min-height: 40px; border: 1px solid var(--divider-color); border-radius: 4px; padding: 8px 10px; color: var(--primary-text-color); background: var(--card-background-color); font: inherit; }
+        textarea { min-height: 240px; resize: vertical; font-family: var(--code-font-family, monospace); font-size: 12px; }
+        .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        @media (max-width: 720px) {
+          .list, .downlink-layout { grid-template-columns: 1fr; }
+          .parameter { grid-template-columns: 1fr; }
         }
       </style>
       <div class="page">
@@ -347,6 +467,9 @@ class LoRaWANPanel extends HTMLElement {
         </nav>
         ${this._renderContent()}
       </div>
+      ${this._renderDeviceSettingsDialog()}
+      ${this._renderDeviceDiagnosticsDialog()}
+      ${this._renderMessagesDialog()}
     `;
 
     this.shadowRoot.querySelectorAll("button[data-tab]").forEach((button) => {
@@ -355,19 +478,118 @@ class LoRaWANPanel extends HTMLElement {
       );
     });
     this.shadowRoot
-      .querySelector("form[data-mqtt-form]")
-      ?.addEventListener("submit", (event) => this._handleMqttSubmit(event));
-    this.shadowRoot
-      .querySelector("form[data-mqtt-form]")
-      ?.addEventListener("input", () => {
-        this._mqttDirty = true;
-      });
-    this.shadowRoot
       .querySelectorAll("button[data-device-settings]")
       .forEach((button) => {
         button.addEventListener("click", () =>
           this._handleDeviceSettings(button)
         );
+      });
+    this.shadowRoot
+      .querySelector("form[data-device-settings-form]")
+      ?.addEventListener("submit", (event) => this._handleDeviceSettingsSubmit(event));
+    this.shadowRoot
+      .querySelector("button[data-device-settings-cancel]")
+      ?.addEventListener("click", () => {
+        this._deviceSettings = null;
+        this._render();
+      });
+    this.shadowRoot.querySelector("select[data-downlink-device]")?.addEventListener("change", (event) => {
+      this._downlinkDevice = event.target.value;
+      const device = this._downlinks.devices.find((item) => item.dev_eui === this._downlinkDevice);
+      this._downlinkProfile = device?.device_type || "";
+      if (this._activeTab !== "downlinks") this._render();
+    });
+    this.shadowRoot.querySelector("select[data-downlink-profile]")?.addEventListener("change", (event) => {
+      this._downlinkProfile = event.target.value;
+      this._render();
+    });
+    this.shadowRoot.querySelector("button[data-profile-new]")?.addEventListener("click", () => {
+      this._profileEditor = { deviceType: "Neues Profil", downlinkParameter: [] };
+      this._openParameterEditorIndex = null;
+      this._render();
+    });
+    this.shadowRoot.querySelectorAll("button[data-profile-edit-type]").forEach((button) => button.addEventListener("click", () => {
+      this._downlinkProfile = button.getAttribute("data-profile-edit-type");
+      this._profileEditor = this._cloneProfile(this._selectedDownlinkProfile());
+      this._openParameterEditorIndex = null;
+      this._render();
+    }));
+    this.shadowRoot.querySelectorAll("button[data-profile-duplicate-type]").forEach((button) => button.addEventListener("click", () => {
+      this._duplicateProfile(this._downlinks.profiles.find((profile) => profile.deviceType === button.getAttribute("data-profile-duplicate-type")));
+    }));
+    this.shadowRoot.querySelectorAll("button[data-profile-delete-type]").forEach((button) => button.addEventListener("click", () => {
+      this._deleteProfile(this._downlinks.profiles.find((profile) => profile.deviceType === button.getAttribute("data-profile-delete-type")));
+    }));
+    this.shadowRoot.querySelector("form[data-profile-editor]")?.addEventListener("submit", (event) => this._saveProfile(event));
+    this.shadowRoot.querySelector("button[data-profile-cancel]")?.addEventListener("click", () => { this._profileEditor = null; this._openParameterEditorIndex = null; this._render(); });
+    this.shadowRoot.querySelector("button[data-parameter-add]")?.addEventListener("click", () => {
+      this._profileEditor.downlinkParameter.push({ name: "Neuer Parameter", type: "number", port: this._profileEditor.port || 1, lengthInByte: 1, multiplyfaktor: 1 }); this._render();
+    });
+    this.shadowRoot.querySelector("select[data-profile-send-with-uplink]")?.addEventListener("change", (event) => {
+      this._profileEditor.sendWithUplink = event.target.value;
+      this._render();
+    });
+    this.shadowRoot.querySelectorAll("select[data-parameter-type]").forEach((select) => select.addEventListener("change", (event) => {
+      const index = Number(event.target.getAttribute("data-parameter-type"));
+      if (this._profileEditor?.downlinkParameter[index]) {
+        this._profileEditor.downlinkParameter[index].type = event.target.value;
+        this._openParameterEditorIndex = index;
+        this._render();
+      }
+    }));
+    this.shadowRoot.querySelectorAll("input[data-parameter-visibility]").forEach((input) => input.addEventListener("change", (event) => {
+      const [index, field] = event.target.getAttribute("data-parameter-visibility").split(":");
+      const parameter = this._profileEditor?.downlinkParameter[Number(index)];
+      if (parameter) {
+        parameter[field] = event.target.checked;
+        this._openParameterEditorIndex = Number(index);
+        this._render();
+      }
+    }));
+    this.shadowRoot.querySelectorAll("button[data-parameter-duplicate]").forEach((button) => button.addEventListener("click", () => this._duplicateParameter(Number(button.getAttribute("data-parameter-duplicate")))));
+    this.shadowRoot.querySelectorAll("button[data-parameter-delete]").forEach((button) => button.addEventListener("click", () => this._deleteParameter(Number(button.getAttribute("data-parameter-delete")))));
+    this.shadowRoot.querySelectorAll("button[data-device-json]").forEach((button) => {
+      button.addEventListener("click", () => this._showDeviceDiagnostics(button));
+    });
+    this.shadowRoot
+      .querySelector("button[data-device-diagnostics-close]")
+      ?.addEventListener("click", () => {
+        this._deviceDiagnostics = null;
+        this._render();
+      });
+    this.shadowRoot.querySelectorAll("[data-device-open]").forEach((card) => {
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("button")) {
+          return;
+        }
+        window.location.href = `/config/devices/device/${card.getAttribute("data-device-open")}`;
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          window.location.href = `/config/devices/device/${card.getAttribute("data-device-open")}`;
+        }
+      });
+    });
+    this.shadowRoot
+      .querySelector("[data-show-messages]")
+      ?.addEventListener("click", () => {
+        this._selectedMessage = this._status.recent_messages?.[0] || null;
+        this._render();
+      });
+    this.shadowRoot.querySelectorAll("[data-message-index]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._selectedMessage = this._status.recent_messages?.[
+          Number(button.getAttribute("data-message-index"))
+        ] || null;
+        this._render();
+      });
+    });
+    this.shadowRoot
+      .querySelector("button[data-messages-close]")
+      ?.addEventListener("click", () => {
+        this._selectedMessage = null;
+        this._render();
       });
   }
 
@@ -375,7 +597,7 @@ class LoRaWANPanel extends HTMLElement {
     if (this._activeTab === "lns") {
       return `
         <div class="section">
-          <div class="card">
+          <div class="card status-card" role="button" tabindex="0" data-show-messages title="Letzte Nachrichten anzeigen">
             <h2>Status</h2>
             <dl>
               <dt>Verbindung</dt>
@@ -394,45 +616,6 @@ class LoRaWANPanel extends HTMLElement {
               <dt>Fehler</dt>
               <dd>${this._escape(this._status.last_error || "-")}</dd>
             </dl>
-          </div>
-          <div class="card">
-            <h2>MQTT Broker</h2>
-            <form data-mqtt-form>
-              <label>
-                Host
-                <input name="host" autocomplete="off" required value="${this._escape(
-                  this._mqttConfig.host
-                )}" />
-              </label>
-              <label>
-                Port
-                <input name="port" type="number" min="1" max="65535" value="${this._mqttConfig.port}" required />
-              </label>
-              <label class="checkbox">
-                <input name="ssl" type="checkbox" ${this._mqttConfig.ssl ? "checked" : ""} />
-                SSL
-              </label>
-              <label>
-                Benutzername
-                <input name="username" autocomplete="username" value="${this._escape(
-                  this._mqttConfig.username
-                )}" />
-              </label>
-              <label>
-                Passwort
-                <input
-                  name="password"
-                  type="password"
-                  autocomplete="current-password"
-                  placeholder="${this._status.has_password ? "Gespeichert" : ""}"
-                  value="${this._escape(this._mqttConfig.password)}"
-                />
-              </label>
-              <div class="actions">
-                <button class="save" type="submit">Speichern</button>
-                <span class="message">${this._saveMessage}</span>
-              </div>
-            </form>
           </div>
           <div class="card">
             <h2>Topics</h2>
@@ -471,6 +654,10 @@ class LoRaWANPanel extends HTMLElement {
       `;
     }
 
+    if (this._activeTab === "downlinks") {
+      return this._renderDownlinks();
+    }
+
     return `
       <div class="section">
         <div class="card">
@@ -492,63 +679,380 @@ class LoRaWANPanel extends HTMLElement {
     `;
   }
 
-  async _handleMqttSubmit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    this._mqttConfig = {
-      host: String(formData.get("host") || ""),
-      port: Number(formData.get("port") || 1883),
-      ssl: formData.get("ssl") === "on",
-      username: String(formData.get("username") || ""),
-      password: String(formData.get("password") || ""),
-    };
-    this._saveMessage = "Speichern...";
-    this._render();
+  _selectedDownlinkProfile() {
+    return this._downlinks.profiles.find((profile) => profile.deviceType === this._downlinkProfile) || null;
+  }
 
-    try {
-      const payload = {
-        host: this._mqttConfig.host,
-        port: this._mqttConfig.port,
-        ssl: this._mqttConfig.ssl,
-        username: this._mqttConfig.username,
-      };
-      if (this._mqttConfig.password) {
-        payload.password = this._mqttConfig.password;
-      }
-      await this._hass.callService("lorawan", "configure_mqtt", payload);
-      this._mqttDirty = false;
-      this._saveMessage = "Gespeichert";
-    } catch (error) {
-      this._saveMessage = "Speichern fehlgeschlagen";
+  _cloneProfile(profile) {
+    return profile ? JSON.parse(JSON.stringify(profile)) : null;
+  }
+
+  _copyName(existingNames, name) {
+    const base = `${name || "Neuer Eintrag"} (Kopie)`;
+    let candidate = base;
+    let number = 2;
+    while (existingNames.includes(candidate)) {
+      candidate = `${base} ${number}`;
+      number += 1;
     }
+    return candidate;
+  }
+
+  _duplicateProfile(profile) {
+    if (!profile) return;
+    const copy = this._cloneProfile(profile);
+    copy.deviceType = this._copyName((this._downlinks.profiles || []).map((item) => item.deviceType), profile.deviceType);
+    this._profileEditor = copy;
     this._render();
   }
 
-  async _handleDeviceSettings(button) {
-    const devEui = button.getAttribute("data-device-settings");
-    const currentHours = button.getAttribute("data-device-hours") || "25";
-    const value = window.prompt("Offline nach wie vielen Stunden?", currentHours);
-    if (value === null) {
-      return;
+  _duplicateParameter(index) {
+    const parameters = this._profileEditor?.downlinkParameter;
+    if (!Array.isArray(parameters) || !parameters[index]) return;
+    const copy = JSON.parse(JSON.stringify(parameters[index]));
+    copy.name = this._copyName(parameters.map((item) => item.name), copy.name);
+    parameters.splice(index + 1, 0, copy);
+    this._render();
+  }
+
+  _deleteParameter(index) {
+    const parameters = this._profileEditor?.downlinkParameter;
+    if (!Array.isArray(parameters) || !parameters[index]) return;
+    parameters.splice(index, 1);
+    this._render();
+  }
+
+  async _deleteProfile(profile) {
+    if (!profile) return;
+    const configured = this._downlinks.configured_profiles || [];
+    const isBuiltIn = (this._downlinks.builtin_profile_types || []).includes(profile.deviceType);
+    const message = `Downlink-Profil „${profile.deviceType}“ wirklich löschen?`;
+    if (!window.confirm(message)) return;
+    try {
+      const remaining = configured.filter((item) => item.deviceType !== profile.deviceType);
+      if (isBuiltIn) remaining.push({ deviceType: profile.deviceType, _deleted: true });
+      await this._hass.callService("lorawan", "configure_downlink_profiles", {
+        downlink_profiles: remaining,
+      });
+      if (this._downlinkProfile === profile.deviceType) this._downlinkProfile = "";
+      await this._loadDownlinks();
+    } catch (error) { window.alert(`Profil konnte nicht gelöscht werden: ${error.message || error}`); }
+  }
+
+  _renderDownlinks() {
+    const profiles = this._downlinks.profiles || [];
+    if (this._profileEditor) {
+      const profile = this._profileEditor;
+      return `
+        <div class="card"><h2>Downlink-Profil bearbeiten</h2>
+          <form class="profile-editor" data-profile-editor>
+            <label>Gerätetyp<input name="deviceType" required value="${this._escape(profile.deviceType || "")}" /></label>
+            <label>Mit Uplink senden<select name="sendWithUplink" data-profile-send-with-uplink><option ${profile.sendWithUplink === "disabled" ? "selected" : ""}>disabled</option><option ${profile.sendWithUplink === "enabled" ? "selected" : ""}>enabled</option><option ${profile.sendWithUplink === "enabled & collect" ? "selected" : ""}>enabled & collect</option></select></label>
+            ${profile.sendWithUplink !== "disabled" ? `<label>Port<input name="port" type="number" value="${profile.port || 1}" /></label>
+            <label>Priorität<input name="priority" value="${this._escape(profile.priority || "NORMAL")}" /></label>
+            <label class="checkbox"><input name="confirmed" type="checkbox" ${profile.confirmed ? "checked" : ""} /> Bestätigt</label>` : ""}
+            <h3>Individuelle Downlink-Konfiguration</h3>
+            <button class="action" type="button" data-parameter-add>+ Parameter hinzufügen</button>
+            ${(profile.downlinkParameter || []).map((parameter, index) => this._renderParameterEditor(parameter, index, profile)).join("")}
+            <div class="actions"><button class="save" type="submit">Profil speichern</button><button class="action" type="button" data-profile-cancel>Abbrechen</button></div>
+          </form>
+        </div>`;
     }
-    const hours = Number(value);
+    return `
+      <div class="card">
+        <h2>Gerätespezifische Downlink-Profile</h2>
+        <p class="muted">Profile und Parameter entsprechen dem ioBroker-Adapter. Änderungen gelten als lokale Überschreibung.</p>
+        <div class="profile-actions"><button class="save" type="button" data-profile-new>Eigenes Profil anlegen</button></div>
+        <div class="profile-list">${profiles.map((profile) => `<details><summary><strong>${this._escape(profile.deviceType)}</strong> <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></summary><div class="profile-content"><ul class="profile-parameters">${(profile.downlinkParameter || []).map((parameter) => `<li class="profile-parameter"><strong>${this._escape(parameter.name)}</strong> <span class="muted">${this._escape(parameter.type || "number")}${parameter.unit ? ` · ${this._escape(parameter.unit)}` : ""}</span></li>`).join("")}</ul><div class="actions"><button class="action" type="button" data-profile-edit-type="${this._escape(profile.deviceType)}">Profil bearbeiten</button><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">Duplizieren</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">Löschen</button></div></div></details>`).join("")}</div>
+      </div>`;
+  }
+
+  _renderParameterEditor(parameter, index, profile) {
+    const value = (key, fallback = "") => this._escape(parameter[key] ?? fallback);
+    const checked = (key) => parameter[key] ? "checked" : "";
+    const type = parameter.type || "number";
+    const isValueType = ["number", "ascii", "string"].includes(type);
+    const isNumber = type === "number";
+    return `<details ${this._openParameterEditorIndex === index ? "open" : ""}><summary><strong>${value("name", "Parameter")}</strong> <span class="muted">${value("type", "number")}</span></summary><div class="parameter-fields">
+      <label>Name<input name="p${index}name" value="${value("name")}" /></label>
+      <label>Typ<select name="p${index}type" data-parameter-type="${index}">${["number", "boolean", "button", "ascii", "string"].map((option) => `<option ${type === option ? "selected" : ""}>${option}</option>`).join("")}</select></label>
+      <label>Port<input name="p${index}port" type="number" value="${value("port", profile.port || 1)}" /></label>
+      <label>Priorität<input name="p${index}priority" value="${value("priority", "NORMAL")}" /></label>
+      <label class="checkbox"><input name="p${index}confirmed" type="checkbox" ${checked("confirmed")} /> Bestätigt</label>
+      ${isValueType ? `<label>Führend<input name="p${index}front" value="${value("front")}" /></label>
+      <label>Folgend<input name="p${index}end" value="${value("end")}" /></label>` : ""}
+      ${type !== "boolean" && type !== "button" && type !== "string" ? `<label>Länge (Byte)<input name="p${index}lengthInByte" type="number" min="1" max="20" value="${value("lengthInByte", 3)}" /></label>` : ""}
+      ${type === "boolean" ? `<label>Ein-Folge (Hex)<input name="p${index}on" value="${value("on")}" /></label><label>Aus-Folge (Hex)<input name="p${index}off" value="${value("off")}" /></label>` : ""}
+      ${type === "button" ? `<label>Klick-Folge (Hex)<input name="p${index}onClick" value="${value("onClick")}" /></label>` : ""}
+      ${isNumber ? `<label>Multiplikator<input name="p${index}multiplyfaktor" type="number" step="any" value="${value("multiplyfaktor", 1)}" /></label>
+      <label>Dezimalstellen<input name="p${index}decimalPlaces" type="number" min="0" max="5" value="${value("decimalPlaces", 0)}" /></label>
+      <label>Einheit<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
+      ${type === "ascii" ? `<label>Einheit<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
+      <label>CRC<select name="p${index}crc">${[["noCrc", "keine CRC"], ["CRC-8", "CRC-8"], ["KERMIT", "KERMIT"], ["KERMIT.LittleEndian", "KERMIT (Little Endian)"]].map(([option, label]) => `<option value="${option}" ${value("crc", "noCrc") === option ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      ${isNumber ? `<label class="checkbox"><input name="p${index}swap" type="checkbox" ${checked("swap")} /> Byte-Reihenfolge tauschen</label>
+      <label class="checkbox"><input name="p${index}limitMin" data-parameter-visibility="${index}:limitMin" type="checkbox" ${checked("limitMin")} /> Minimum begrenzen</label>
+      ${parameter.limitMin ? `<label>Min.-Wert<input name="p${index}limitMinValue" type="number" step="any" value="${value("limitMinValue", 0)}" /></label>` : ""}
+      <label class="checkbox"><input name="p${index}limitMax" data-parameter-visibility="${index}:limitMax" type="checkbox" ${checked("limitMax")} /> Maximum begrenzen</label>
+      ${parameter.limitMax ? `<label>Max.-Wert<input name="p${index}limitMaxValue" type="number" step="any" value="${value("limitMaxValue", 0)}" /></label>` : ""}
+      <label class="checkbox"><input name="p${index}withStates" data-parameter-visibility="${index}:withStates" type="checkbox" ${checked("withStates")} /> Statuswerte verwenden</label>
+      ${parameter.withStates ? `<label>Statuswerte<input name="p${index}statesValue" value="${value("statesValue")}" /></label>` : ""}` : ""}
+    </div><div class="actions"><button class="action duplicate" type="button" data-parameter-duplicate="${index}">Parameter duplizieren</button><button class="action danger" type="button" data-parameter-delete="${index}">Parameter löschen</button></div></details>`;
+  }
+
+  _renderDownlinkParameter(parameter) {
+    const name = this._escape(parameter.name);
+    if (parameter.type === "button") {
+      return `<div class="parameter"><div><strong>${name}</strong></div><button type="submit" name="parameter_name" value="${name}">Ausführen</button></div>`;
+    }
+    if (parameter.type === "boolean") {
+      return `<div class="parameter"><div><strong>${name}</strong></div><label class="checkbox"><input type="checkbox" name="${name}" /> Aktiv</label></div>`;
+    }
+    return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><input name="${name}" type="number" step="any" ${parameter.limitMin ? `min="${parameter.limitMinValue}"` : ""} ${parameter.limitMax ? `max="${parameter.limitMaxValue}"` : ""} /><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+  }
+
+  async _sendDownlink(event) {
+    event.preventDefault();
+    const profile = this._selectedDownlinkProfile();
+    const device = this._downlinks.devices.find((item) => item.dev_eui === this._downlinkDevice);
+    const form = new FormData(event.currentTarget);
+    const buttonParameter = event.submitter?.value;
+    const parameterName = buttonParameter || (profile?.downlinkParameter || []).find((item) => item.type !== "button")?.name;
+    const parameter = profile?.downlinkParameter?.find((item) => item.name === parameterName);
+    if (!profile || !device || !parameter) return;
+    const value = parameter.type === "button" ? true : parameter.type === "boolean" ? form.get(parameter.name) === "on" : form.get(parameter.name);
+    try {
+      const result = await this._hass.callWS({ type: "lorawan/send_downlink", dev_eui: device.dev_eui, device_type: profile.deviceType, parameter_name: parameter.name, value });
+      window.alert(`Downlink gesendet: ${result.payload_hex}`);
+    } catch (error) { window.alert(`Downlink konnte nicht gesendet werden: ${error.message || error}`); }
+  }
+
+  async _saveProfile(event) {
+    event.preventDefault();
+    try {
+      const data = new FormData(event.currentTarget);
+      const old = this._cloneProfile(this._profileEditor);
+      if (!old || !Array.isArray(old.downlinkParameter)) {
+        throw new Error("Kein zu speicherndes Downlink-Profil vorhanden");
+      }
+      const number = (name, fallback) => {
+        const value = Number(data.get(name));
+        return Number.isFinite(value) ? value : fallback;
+      };
+      const parameter = (item, index) => {
+        const name = (field) => `p${index}${field}`;
+        const text = (field, fallback = "") => data.has(name(field)) ? String(data.get(name(field)) || "") : fallback;
+        const type = text("type", item.type || "number");
+        const result = {
+          ...item,
+          name: text("name"),
+          type,
+          port: number(name("port"), item.port || old.port || 1),
+          priority: text("priority", item.priority || "NORMAL"),
+          confirmed: data.get(name("confirmed")) === "on",
+          crc: text("crc", item.crc || "noCrc"),
+        };
+        if (["number", "ascii", "string"].includes(type)) {
+          result.front = text("front", item.front || "");
+          result.end = text("end", item.end || "");
+        }
+        if (["number", "ascii"].includes(type)) result.lengthInByte = number(name("lengthInByte"), item.lengthInByte || 3);
+        if (type === "boolean") {
+          result.on = text("on", item.on || "");
+          result.off = text("off", item.off || "");
+        }
+        if (type === "button") result.onClick = text("onClick", item.onClick || "");
+        if (type === "number") {
+          result.multiplyfaktor = number(name("multiplyfaktor"), item.multiplyfaktor ?? 1);
+          result.decimalPlaces = number(name("decimalPlaces"), item.decimalPlaces ?? 0);
+          result.unit = text("unit", item.unit || "");
+          result.swap = data.get(name("swap")) === "on";
+          result.limitMin = data.get(name("limitMin")) === "on";
+          result.limitMax = data.get(name("limitMax")) === "on";
+          result.withStates = data.get(name("withStates")) === "on";
+          if (result.limitMin) result.limitMinValue = number(name("limitMinValue"), item.limitMinValue ?? 0);
+          if (result.limitMax) result.limitMaxValue = number(name("limitMaxValue"), item.limitMaxValue ?? 0);
+          if (result.withStates) result.statesValue = text("statesValue", item.statesValue || "");
+        }
+        if (type === "ascii") result.unit = text("unit", item.unit || "");
+        return result;
+      };
+      const sendWithUplink = String(data.get("sendWithUplink") || "disabled");
+      const profile = {
+        ...old,
+        deviceType: String(data.get("deviceType") || ""),
+        sendWithUplink,
+        downlinkParameter: old.downlinkParameter.map(parameter),
+      };
+      if (sendWithUplink !== "disabled") {
+        profile.port = number("port", old.port || 1);
+        profile.priority = String(data.get("priority") || "NORMAL");
+        profile.confirmed = data.get("confirmed") === "on";
+      }
+      if (!profile.deviceType || !Array.isArray(profile.downlinkParameter)) throw new Error("deviceType und downlinkParameter sind erforderlich");
+      const current = (this._downlinks.configured_profiles || []).filter((item) => item.deviceType !== old.deviceType && item.deviceType !== profile.deviceType);
+      current.push(profile);
+      await this._hass.callService("lorawan", "configure_downlink_profiles", { downlink_profiles: current });
+      this._profileEditor = null;
+      this._downlinkProfile = profile.deviceType;
+      await this._loadDownlinks();
+    } catch (error) { window.alert(`Profil konnte nicht gespeichert werden: ${error.message || error}`); }
+  }
+
+  async _handleDeviceSettings(button) {
+    this._deviceSettings = {
+      devEui: button.getAttribute("data-device-settings"),
+      name: button.getAttribute("data-device-name") || "Gerät",
+      hours: button.getAttribute("data-device-hours") || "25",
+      raw: button.getAttribute("data-device-raw") === "true",
+      remaining: button.getAttribute("data-device-remaining") === "true",
+    };
+    this._render();
+  }
+
+  async _handleDeviceSettingsSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const hours = Number(formData.get("offline_after_hours"));
     if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
       window.alert("Bitte eine ganze Zahl zwischen 1 und 8760 eingeben.");
       return;
     }
-    await this._hass.callService("lorawan", "configure_device", {
-      dev_eui: devEui,
-      offline_after_hours: hours,
-    });
-    await this._loadDevices();
-    await this._loadStatus();
+    try {
+      await this._hass.callService("lorawan", "configure_device", {
+        dev_eui: this._deviceSettings.devEui,
+        offline_after_hours: hours,
+        create_raw_sensors: formData.get("create_raw_sensors") === "on",
+        create_remaining_sensors: formData.get("create_remaining_sensors") === "on",
+      });
+      this._deviceSettings = null;
+      await this._loadDevices();
+      await this._loadStatus();
+    } catch (error) {
+      window.alert("Speichern fehlgeschlagen.");
+    }
+  }
+
+  async _showDeviceDiagnostics(button) {
+    const devEui = button.getAttribute("data-device-json");
+    this._deviceDiagnostics = {
+      name: button.getAttribute("data-device-name") || "Gerät",
+      loading: true,
+      raw: null,
+      remaining: null,
+    };
+    this._render();
+    try {
+      const diagnostics = await this._hass.callWS({
+        type: "lorawan/device_diagnostics",
+        dev_eui: devEui,
+      });
+      this._deviceDiagnostics = {
+        ...this._deviceDiagnostics,
+        loading: false,
+        raw: diagnostics.raw,
+        remaining: diagnostics.remaining,
+      };
+    } catch (error) {
+      this._deviceDiagnostics = {
+        ...this._deviceDiagnostics,
+        loading: false,
+        error: true,
+      };
+    }
+    this._render();
+  }
+
+  _renderDeviceSettingsDialog() {
+    const settings = this._deviceSettings;
+    if (!settings) {
+      return "";
+    }
+    return `
+      <div class="dialog-backdrop" role="presentation">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="Geräteeinstellungen">
+          <h2>${this._escape(settings.name)}</h2>
+          <form data-device-settings-form>
+            <label>
+              Offline nach Stunden
+              <input name="offline_after_hours" type="number" min="1" max="8760" required value="${this._escape(settings.hours)}" />
+            </label>
+            <label class="checkbox">
+              <input name="create_raw_sensors" type="checkbox" ${settings.raw ? "checked" : ""} />
+              Raw-Diagnose erstellen
+            </label>
+            <label class="checkbox">
+              <input name="create_remaining_sensors" type="checkbox" ${settings.remaining ? "checked" : ""} />
+              Verbleibende Payload-Diagnose erstellen
+            </label>
+            <div class="actions">
+              <button class="save" type="submit">Speichern</button>
+              <button type="button" data-device-settings-cancel>Abbrechen</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderMessagesDialog() {
+    if (!this._selectedMessage) {
+      return "";
+    }
+    const messages = this._status.recent_messages || [];
+    const selectedIndex = messages.indexOf(this._selectedMessage);
+    return `
+      <div class="dialog-backdrop" role="presentation">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="Letzte Nachrichten">
+          <h2>Letzte Nachrichten</h2>
+          <div class="message-list">
+            ${messages.map((message, index) => `
+              <button class="message-item ${index === selectedIndex ? "selected" : ""}" type="button" data-message-index="${index}">
+                <strong>${this._formatDate(message.received_at)}</strong><br />
+                <code>${this._escape(message.topic)}</code>
+              </button>
+            `).join("")}
+          </div>
+          <h3>Topic</h3>
+          <code>${this._escape(this._selectedMessage.topic)}</code>
+          <h3>Payload</h3>
+          <pre class="payload">${this._escape(this._selectedMessage.payload)}</pre>
+          <div class="actions">
+            <button type="button" data-messages-close>Schließen</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderDeviceDiagnosticsDialog() {
+    const diagnostics = this._deviceDiagnostics;
+    if (!diagnostics) {
+      return "";
+    }
+    const renderPayload = (title, value) => `
+      <h3>${title}</h3>
+      <pre class="payload">${value === null ? "Nicht aktiviert oder noch kein Uplink empfangen." : this._escape(JSON.stringify(value, null, 2))}</pre>
+    `;
+    return `
+      <div class="dialog-backdrop" role="presentation">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="MQTT-Daten">
+          <h2>${this._escape(diagnostics.name)}</h2>
+          ${diagnostics.loading ? "Daten werden geladen..." : diagnostics.error ? "Daten konnten nicht geladen werden." : `
+            ${renderPayload("Raw JSON", diagnostics.raw)}
+            ${renderPayload("Weitere MQTT-Daten", diagnostics.remaining)}
+          `}
+          <div class="actions">
+            <button type="button" data-device-diagnostics-close>Schließen</button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   _renderDevices() {
     if (!this._devices.length) {
       return `
-        <div class="device-row">
+        <div class="device-card">
           <div>
             <div class="device-name">Keine Geraete gefunden</div>
             <div class="muted">Geraete erscheinen hier nach dem ersten passenden Uplink.</div>
@@ -564,31 +1068,36 @@ class LoRaWANPanel extends HTMLElement {
           .filter(Boolean)
           .join(" · ");
         return `
-          <div class="device-row">
+          <div class="device-card" role="button" tabindex="0" data-device-open="${this._escape(device.id)}">
             <div>
               <div class="device-name">${this._escape(device.name)}</div>
               <div class="muted">${this._escape(subtitle || device.manufacturer || "LoRaWAN")}</div>
+              <div class="device-eui muted">DevEUI<br /><code>${this._escape(identifier)}</code></div>
+              <div class="diagnostics">
+                ${device.create_raw_sensors ? '<span class="tag">Raw</span>' : ""}
+                ${device.create_remaining_sensors ? '<span class="tag">Rest</span>' : ""}
+              </div>
             </div>
-            <div>
-              <div class="muted">DevEUI</div>
-              <code>${this._escape(identifier)}</code>
-            </div>
-            <div>
-              <div class="muted">Entities</div>
-              <div>${device.entity_count || 0}</div>
-            </div>
-            <div>
-              <div class="muted">Offline nach</div>
-              <div>${device.offline_after_hours || device.offline_after_default_hours || 25} h</div>
-            </div>
+            <span class="device-status status" title="${device.online ? "Online" : "Offline"}">
+              <span class="dot ${device.online ? "connected" : "error"}"></span>
+            </span>
             <button
-              class="icon-button"
+              class="icon-button device-settings"
               type="button"
               title="Geräteeinstellungen"
               data-device-settings="${this._escape(identifier)}"
+              data-device-name="${this._escape(device.name)}"
               data-device-hours="${device.offline_after_hours || device.offline_after_default_hours || 25}"
+              data-device-raw="${Boolean(device.create_raw_sensors)}"
+              data-device-remaining="${Boolean(device.create_remaining_sensors)}"
             >⚙</button>
-            <a class="arrow" href="/config/devices/device/${this._escape(device.id)}">›</a>
+            ${device.create_raw_sensors || device.create_remaining_sensors ? `<button
+              class="icon-button device-json"
+              type="button"
+              title="MQTT-Daten anzeigen"
+              data-device-json="${this._escape(identifier)}"
+              data-device-name="${this._escape(device.name)}"
+            >{ }</button>` : ""}
           </div>
         `;
       })
@@ -631,17 +1140,12 @@ class LoRaWANPanel extends HTMLElement {
     try {
       const status = await this._hass.callWS({ type: "lorawan/status" });
       this._status = status;
-      if (!this._mqttDirty) {
-        this._mqttConfig = {
-          ...this._mqttConfig,
-          host: status.host ?? this._mqttConfig.host,
-          port: status.port ?? this._mqttConfig.port,
-          ssl: Boolean(status.ssl),
-          username: status.username || "",
-          password: "",
-        };
+      if (this._activeTab !== "downlinks") {
+        this._render();
       }
-      this._render();
+      if (this._activeTab === "devices") {
+        await this._loadDevices();
+      }
     } catch (error) {
       this._status = {
         ...this._status,
@@ -659,11 +1163,22 @@ class LoRaWANPanel extends HTMLElement {
     try {
       const devices = await this._hass.callWS({ type: "lorawan/devices" });
       this._devices = devices.devices || [];
-      this._render();
+      if (this._activeTab !== "downlinks") this._render();
     } catch (error) {
       this._devices = [];
-      this._render();
+      if (this._activeTab !== "downlinks") this._render();
     }
+  }
+
+  async _loadDownlinks() {
+    if (!this._hass) return;
+    try {
+      this._downlinks = await this._hass.callWS({ type: "lorawan/downlinks" });
+      if (!this._downlinkDevice && this._downlinks.devices.length) {
+        this._downlinkDevice = this._downlinks.devices[0].dev_eui;
+        this._downlinkProfile = this._downlinks.devices[0].device_type || "";
+      }
+    } catch (error) { this._downlinks = { devices: [], profiles: [], configured_profiles: [], builtin_profile_types: [] }; }
   }
 
   _formatDate(value) {

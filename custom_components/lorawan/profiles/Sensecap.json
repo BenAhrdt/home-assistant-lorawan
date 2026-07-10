@@ -1,0 +1,33 @@
+ {
+  "deviceType": "Sensecap",
+  "sendWithUplink": "disabled",
+  "port": 2,
+  "priority": "NORMAL",
+  "confirmed": false,
+  "downlinkParameter": [
+    {
+      "name": "Intervall",
+      "port": 2,
+      "priority": "NORMAL",
+      "type": "number",
+      "swap": true,
+      "confirmed": false,
+      "front": "0089001122",
+      "end": "",
+      "lengthInByte": 2,
+      "on": "01",
+      "off": "11",
+      "onClick": "030111",
+      "multiplyfaktor": 1,
+      "decimalPlaces": 0,
+      "unit": "min",
+      "crc": "KERMIT.LittleEndian",
+      "limitMin": true,
+      "limitMinValue": 0,
+      "limitMax": true,
+      "limitMaxValue": 65,
+      "withStates": false,
+      "statesValue": ""
+    }
+  ]
+}

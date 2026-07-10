@@ -30,13 +30,15 @@ def _normalize_ttn(topic: str, payload: dict[str, Any]) -> LoRaWANMessage | None
         return None
 
     application = ids.get("application_ids") or {}
+    mqtt_application = topic.split("/")[1] if len(topic.split("/")) > 1 else application.get("application_id")
     device = LoRaWANDevice(
         application_id=str(application.get("application_id") or "unknown"),
-        application_name=str(application.get("application_id") or "unknown"),
+        application_name=str(mqtt_application or application.get("application_id") or "unknown"),
         dev_eui=dev_eui,
         device_id=str(ids.get("device_id") or dev_eui),
         device_name=str(ids.get("device_id") or dev_eui),
         device_type=_first_string(decoded_payload, ("devicetype", "device", "Device", "model_id")),
+        network="ttn",
     )
 
     attributes = {
@@ -89,6 +91,7 @@ def _normalize_chirpstack(topic: str, payload: dict[str, Any]) -> LoRaWANMessage
             decoded_payload,
             ("devicetype", "Device", "Hardware_mode", "model_id"),
         ),
+        network="chirpstack",
     )
 
     attributes = {
@@ -176,16 +179,20 @@ def _raw_values(payload: str | None, raw_json: dict[str, Any]) -> list[LoRaWANVa
 
 
 def _remaining_values(raw_json: dict[str, Any]) -> list[LoRaWANValue]:
-    values = [
+    """Return the remaining transport metadata as one diagnostic value.
+
+    Decoded values are already exposed as individual entities and radio metadata is
+    attached to them. Keeping the unconsumed MQTT data together avoids creating a
+    long, mostly redundant list of diagnostic entities per device.
+    """
+    return [
         LoRaWANValue(
             key="remaining_json",
             raw_key="remaining.json",
-            name="Remaining JSON",
+            name="Weitere MQTT-Daten",
             value=raw_json,
         )
     ]
-    values.extend(_flatten_values(raw_json, "remaining"))
-    return values
 
 
 def _without_paths(

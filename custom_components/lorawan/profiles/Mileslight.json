@@ -1,0 +1,33 @@
+{
+  "deviceType": "Mileslight",
+  "sendWithUplink": "disabled",
+  "port": 2,
+  "priority": "NORMAL",
+  "confirmed": false,
+  "downlinkParameter": [
+    {
+      "name": "Intervall",
+      "port": 84,
+      "priority": "NORMAL",
+      "type": "number",
+      "swap": true,
+      "confirmed": false,
+      "front": "FF03",
+      "end": "",
+      "lengthInByte": 2,
+      "on": "FF03",
+      "off": "11",
+      "onClick": "030111",
+      "multiplyfaktor": 60,
+      "decimalPlaces": 0,
+      "unit": "min",
+      "crc": "noCrc",
+      "limitMin":true,
+      "limitMinValue":5,
+      "limitMax":true,
+      "limitMaxValue":360,
+      "withStates": false,
+      "statesValue": ""
+    }
+  ]
+}

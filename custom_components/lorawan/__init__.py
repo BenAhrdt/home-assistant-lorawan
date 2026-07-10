@@ -19,6 +19,11 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import (
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
+    CONF_DOWNLINK_PROFILES,
+    CONF_DEVICE_CREATE_RAW_SENSORS,
+    CONF_DEVICE_CREATE_REMAINING_SENSORS,
+    CONF_CREATE_RAW_SENSORS,
+    CONF_CREATE_REMAINING_SENSORS,
     CONF_OFFLINE_AFTER_HOURS,
     CONF_SSL,
     DEFAULT_MQTT_PORT,
@@ -29,10 +34,12 @@ from .const import (
     SIGNAL_DEVICE_ADDED,
 )
 from .runtime import LoRaWANRuntime
+from .downlinks import BUILTIN_PROFILES, merged_profiles, parameter_payload, profile_for_device
 
 PANEL_STATIC_URL = "/lorawan_static"
 SERVICE_CONFIGURE_MQTT = "configure_mqtt"
 SERVICE_CONFIGURE_DEVICE = "configure_device"
+SERVICE_CONFIGURE_DOWNLINK_PROFILES = "configure_downlink_profiles"
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,6 +50,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     async def async_configure_device_service(call: ServiceCall) -> None:
         await _async_configure_device(hass, call)
+
+    async def async_configure_downlink_profiles_service(call: ServiceCall) -> None:
+        await _async_configure_downlink_profiles(hass, call)
 
     frontend_path = Path(__file__).parent / "frontend"
     await hass.http.async_register_static_paths(
@@ -82,6 +92,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     )
     hass.services.async_register(
         DOMAIN,
+        SERVICE_CONFIGURE_DOWNLINK_PROFILES,
+        async_configure_downlink_profiles_service,
+        schema=vol.Schema({vol.Required(CONF_DOWNLINK_PROFILES): list}),
+    )
+    hass.services.async_register(
+        DOMAIN,
         SERVICE_CONFIGURE_DEVICE,
         async_configure_device_service,
         schema=vol.Schema(
@@ -91,12 +107,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                     vol.Coerce(int),
                     vol.Range(min=1, max=8760),
                 ),
+                vol.Required(CONF_CREATE_RAW_SENSORS): bool,
+                vol.Required(CONF_CREATE_REMAINING_SENSORS): bool,
             }
         ),
     )
     websocket_api.async_register_command(hass, _websocket_status)
     websocket_api.async_register_command(hass, _websocket_devices)
+    websocket_api.async_register_command(hass, _websocket_device_diagnostics)
     websocket_api.async_register_command(hass, _websocket_subscribe_devices)
+    websocket_api.async_register_command(hass, _websocket_downlinks)
+    websocket_api.async_register_command(hass, _websocket_send_downlink)
     return True
 
 
@@ -136,6 +157,27 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
     overrides = dict(data.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {})
     overrides[_clean_dev_eui(call.data["dev_eui"])] = call.data[CONF_OFFLINE_AFTER_HOURS]
     data[CONF_DEVICE_OFFLINE_AFTER_HOURS] = overrides
+    raw_overrides = dict(data.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {})
+    raw_overrides[_clean_dev_eui(call.data["dev_eui"])] = call.data[
+        CONF_CREATE_RAW_SENSORS
+    ]
+    data[CONF_DEVICE_CREATE_RAW_SENSORS] = raw_overrides
+    remaining_overrides = dict(data.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {})
+    remaining_overrides[_clean_dev_eui(call.data["dev_eui"])] = call.data[
+        CONF_CREATE_REMAINING_SENSORS
+    ]
+    data[CONF_DEVICE_CREATE_REMAINING_SENSORS] = remaining_overrides
+    hass.config_entries.async_update_entry(entry, data=data)
+
+
+async def _async_configure_downlink_profiles(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Persist user-defined downlink profiles."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if not entries:
+        return
+    entry = entries[0]
+    data = dict(entry.data)
+    data[CONF_DOWNLINK_PROFILES] = call.data[CONF_DOWNLINK_PROFILES]
     hass.config_entries.async_update_entry(entry, data=data)
 
 
@@ -183,7 +225,82 @@ def _config_entry_status(entry: ConfigEntry | None) -> dict:
             CONF_OFFLINE_AFTER_HOURS,
             DEFAULT_OFFLINE_AFTER_HOURS,
         ),
+        "recent_messages": [],
     }
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/downlinks"})
+@websocket_api.async_response
+async def _websocket_downlinks(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Return devices and available downlink profiles for the panel."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    entry = entries[0] if entries else None
+    data = dict(entry.data) if entry else {}
+    runtime: LoRaWANRuntime | None = hass.data.get(DOMAIN, {}).get(entry.entry_id) if entry else None
+    devices = []
+    if runtime is not None:
+        devices = [
+            {
+                "dev_eui": device.dev_eui,
+                "name": device.device_name or device.device_id or device.dev_eui,
+                "device_type": device.device_type or "",
+                "network": _network_for_device(device),
+            }
+            for device in runtime.devices.values()
+        ]
+    configured_profiles = data.get(CONF_DOWNLINK_PROFILES, [])
+    connection.send_result(
+        msg["id"],
+        {
+            "devices": devices,
+            "profiles": merged_profiles(configured_profiles),
+            "configured_profiles": configured_profiles,
+            "builtin_profile_types": [profile["deviceType"] for profile in BUILTIN_PROFILES],
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/send_downlink",
+        vol.Required("dev_eui"): str,
+        vol.Required("device_type"): str,
+        vol.Required("parameter_name"): str,
+        vol.Required("value"): object,
+    }
+)
+@websocket_api.async_response
+async def _websocket_send_downlink(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Create and publish one downlink selected in the panel."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    runtime: LoRaWANRuntime | None = None
+    entry = entries[0] if entries else None
+    if entry:
+        runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime is None:
+        connection.send_error(msg["id"], "not_ready", "LoRaWAN ist nicht bereit")
+        return
+    device = runtime.devices.get(_clean_dev_eui(msg["dev_eui"]))
+    profile = profile_for_device(merged_profiles(entry.data.get(CONF_DOWNLINK_PROFILES)), msg["device_type"])
+    if device is None or profile is None:
+        connection.send_error(msg["id"], "not_found", "Gerät oder Downlink-Profil nicht gefunden")
+        return
+    parameter = next((item for item in profile.get("downlinkParameter", []) if item.get("name") == msg["parameter_name"]), None)
+    if parameter is None:
+        connection.send_error(msg["id"], "not_found", "Downlink-Parameter nicht gefunden")
+        return
+    try:
+        payload = parameter_payload(parameter, msg["value"])
+        runtime.send_downlink(_network_for_device(device), device, {**profile, **parameter}, payload)
+    except (RuntimeError, ValueError) as err:
+        connection.send_error(msg["id"], "send_failed", str(err))
+        return
+    connection.send_result(msg["id"], {"payload_hex": payload})
+
+
+def _network_for_device(device) -> str:
+    """Infer the LNS format from its application identifier."""
+    return device.network or ("ttn" if "@" in device.application_name else "chirpstack")
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/devices"})
@@ -195,17 +312,13 @@ async def _websocket_devices(
 ) -> None:
     """Return LoRaWAN devices from the Home Assistant registries."""
     device_registry = dr.async_get(hass)
-    entity_registry = er.async_get(hass)
-
-    entity_counts: dict[str, int] = {}
-    for entity in entity_registry.entities.values():
-        if entity.device_id is None:
-            continue
-        entity_counts[entity.device_id] = entity_counts.get(entity.device_id, 0) + 1
 
     devices = []
     entries = hass.config_entries.async_entries(DOMAIN)
     config = dict(entries[0].data) if entries else {}
+    runtime: LoRaWANRuntime | None = None
+    if entries:
+        runtime = hass.data.get(DOMAIN, {}).get(entries[0].entry_id)
     default_offline_after = config.get(
         CONF_OFFLINE_AFTER_HOURS,
         DEFAULT_OFFLINE_AFTER_HOURS,
@@ -214,6 +327,18 @@ async def _websocket_devices(
         _clean_dev_eui(dev_eui): hours
         for dev_eui, hours in (
             config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
+        ).items()
+    }
+    raw_overrides = {
+        _clean_dev_eui(dev_eui): enabled
+        for dev_eui, enabled in (
+            config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+        ).items()
+    }
+    remaining_overrides = {
+        _clean_dev_eui(dev_eui): enabled
+        for dev_eui, enabled in (
+            config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
         ).items()
     }
     for device in device_registry.devices.values():
@@ -234,17 +359,51 @@ async def _websocket_devices(
                 "manufacturer": device.manufacturer,
                 "sw_version": device.sw_version,
                 "identifiers": sorted(identifiers),
-                "entity_count": entity_counts.get(device.id, 0),
+                "online": runtime.is_device_online(dev_eui) if runtime else False,
                 "offline_after_hours": offline_overrides.get(
                     _clean_dev_eui(dev_eui),
                     default_offline_after,
                 ),
                 "offline_after_default_hours": default_offline_after,
+                "create_raw_sensors": raw_overrides.get(
+                    _clean_dev_eui(dev_eui),
+                    config.get(CONF_CREATE_RAW_SENSORS, True),
+                ),
+                "create_remaining_sensors": remaining_overrides.get(
+                    _clean_dev_eui(dev_eui),
+                    config.get(
+                        CONF_CREATE_REMAINING_SENSORS,
+                        False,
+                    ),
+                ),
             }
         )
 
     devices.sort(key=lambda item: item["name"].lower())
     connection.send_result(msg["id"], {"devices": devices})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device_diagnostics",
+        vol.Required("dev_eui"): str,
+    }
+)
+@websocket_api.async_response
+async def _websocket_device_diagnostics(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Return the latest diagnostic payloads for one LoRaWAN device."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    runtime: LoRaWANRuntime | None = None
+    if entries:
+        runtime = hass.data.get(DOMAIN, {}).get(entries[0].entry_id)
+    if runtime is None:
+        connection.send_result(msg["id"], {"raw": None, "remaining": None})
+        return
+    connection.send_result(msg["id"], runtime.diagnostics_for_device(msg["dev_eui"]))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/subscribe_devices"})
@@ -277,6 +436,7 @@ async def _websocket_subscribe_devices(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up LoRaWAN from a config entry."""
+    _remove_obsolete_remaining_entities(hass, entry)
     runtime = LoRaWANRuntime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
 
@@ -288,7 +448,49 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_update_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload LoRaWAN when config entry options change."""
+    _remove_disabled_diagnostic_entities(hass, entry)
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _remove_disabled_diagnostic_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove deselected diagnostic entities instead of leaving them unavailable."""
+    data = dict(entry.data)
+    raw_overrides = data.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+    remaining_overrides = data.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
+    registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if not entity.unique_id.startswith(prefix):
+            continue
+        dev_eui, _, value_key = entity.unique_id[len(prefix) :].partition("_")
+        if value_key.startswith("raw_"):
+            enabled = raw_overrides.get(
+                _clean_dev_eui(dev_eui), data.get(CONF_CREATE_RAW_SENSORS, True)
+            )
+        elif value_key.startswith("remaining_"):
+            enabled = remaining_overrides.get(
+                _clean_dev_eui(dev_eui),
+                data.get(
+                    CONF_CREATE_REMAINING_SENSORS,
+                    False,
+                ),
+            )
+        else:
+            continue
+        if not enabled:
+            registry.async_remove(entity.entity_id)
+
+
+def _remove_obsolete_remaining_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove legacy flattened remaining-payload entities from the registry."""
+    registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if not entity.unique_id.startswith(prefix):
+            continue
+        _, _, value_key = entity.unique_id[len(prefix) :].partition("_")
+        if value_key.startswith("remaining_") and value_key != "remaining_json":
+            registry.async_remove(entity.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

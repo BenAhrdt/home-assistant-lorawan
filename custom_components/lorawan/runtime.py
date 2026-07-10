@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -19,19 +21,25 @@ from paho.mqtt import client as mqtt_client
 from .assigner import assign_value
 from .const import (
     CONF_CREATE_RAW_SENSORS,
+    CONF_CREATE_REMAINING_SENSORS,
+    CONF_DEVICE_CREATE_RAW_SENSORS,
+    CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
+    CONF_DOWNLINK_PROFILES,
     CONF_OFFLINE_AFTER_HOURS,
     CONF_SSL,
     DEFAULT_MQTT_PORT,
     DEFAULT_OFFLINE_AFTER_HOURS,
     DEFAULT_TOPIC_FILTERS,
     SIGNAL_ADD_BINARY_SENSOR,
+    SIGNAL_ADD_DOWNLINK_CONTROL,
     SIGNAL_ADD_SENSOR,
     SIGNAL_DEVICE_ADDED,
     SIGNAL_UPDATE_ENTITY,
 )
 from .models import LoRaWANDevice, LoRaWANMessage, LoRaWANValue
 from .normalizer import normalize_message
+from .downlinks import downlink_message, merged_profiles, parameter_payload, profile_for_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +63,10 @@ class LoRaWANRuntime:
         self.password: str = config.get(CONF_PASSWORD, "")
         self.topic_filters: list[str] = list(DEFAULT_TOPIC_FILTERS)
         self.create_raw_sensors: bool = config.get(CONF_CREATE_RAW_SENSORS, True)
+        self.create_remaining_sensors: bool = config.get(
+            CONF_CREATE_REMAINING_SENSORS,
+            False,
+        )
         self.offline_after_hours: int = config.get(
             CONF_OFFLINE_AFTER_HOURS,
             DEFAULT_OFFLINE_AFTER_HOURS,
@@ -65,6 +77,20 @@ class LoRaWANRuntime:
                 config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
             ).items()
         }
+        self.device_create_raw_sensors: dict[str, bool] = {
+            _clean_dev_eui(dev_eui): bool(enabled)
+            for dev_eui, enabled in (
+                config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+            ).items()
+        }
+        self.device_create_remaining_sensors: dict[str, bool] = {
+            _clean_dev_eui(dev_eui): bool(enabled)
+            for dev_eui, enabled in (
+                config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
+            ).items()
+        }
+        self.downlink_profiles: list[dict[str, Any]] = list(config.get(CONF_DOWNLINK_PROFILES) or [])
+        self.downlink_controls: dict[str, dict[str, Any]] = {}
         self.devices: dict[str, LoRaWANDevice] = {}
         self.values: dict[str, LoRaWANValue] = {}
         self.value_devices: dict[str, LoRaWANDevice] = {}
@@ -77,6 +103,7 @@ class LoRaWANRuntime:
         self.last_disconnected_at: str | None = None
         self.last_message_at: str | None = None
         self.last_topic: str | None = None
+        self.recent_messages: deque[dict[str, str]] = deque(maxlen=10)
         self.message_count = 0
         self.unsupported_message_count = 0
         self.lns_counts = {"ttn": 0, "chirpstack": 0}
@@ -128,6 +155,16 @@ class LoRaWANRuntime:
         self._mqtt_client.disconnect()
         self._mqtt_client.loop_stop()
         self._mqtt_client = None
+
+    def send_downlink(self, network: str, device: LoRaWANDevice, profile: dict[str, Any], payload_hex: str) -> None:
+        """Publish one encoded downlink through the active MQTT connection."""
+        if self._mqtt_client is None or not self.connected:
+            raise RuntimeError("MQTT ist nicht verbunden")
+        topic, payload = downlink_message(network, device, profile, payload_hex)
+        result = self._mqtt_client.publish(topic, json.dumps(payload), qos=0)
+        if result.rc != mqtt_client.MQTT_ERR_SUCCESS:
+            raise RuntimeError(f"Downlink konnte nicht veröffentlicht werden (MQTT-Code {result.rc})")
+        _LOGGER.info("Published LoRaWAN downlink for %s on %s", device.dev_eui, topic)
 
     def _on_mqtt_connect(
         self,
@@ -207,6 +244,13 @@ class LoRaWANRuntime:
         if network in self.lns_counts:
             self.lns_counts[network] += 1
         self.last_error = None
+        self.recent_messages.appendleft(
+            {
+                "topic": topic,
+                "payload": raw_payload,
+                "received_at": self.last_message_at,
+            }
+        )
         self._store_message(normalized)
 
     @callback
@@ -214,6 +258,7 @@ class LoRaWANRuntime:
         device = message.device
         is_new_device = device.dev_eui not in self.devices
         self.devices[device.dev_eui] = device
+        self._refresh_downlink_controls()
         self.last_seen_by_device[device.dev_eui] = self.last_message_at or _utc_now()
         if is_new_device:
             async_dispatcher_send(
@@ -224,8 +269,9 @@ class LoRaWANRuntime:
             )
         values = [self._device_online_value(device, True)]
         values.extend(message.decoded)
-        if self.create_raw_sensors:
+        if self.create_raw_sensors_for_device(device.dev_eui):
             values.extend(message.raw)
+        if self.create_remaining_sensors_for_device(device.dev_eui):
             values.extend(message.remaining)
 
         for value in values:
@@ -278,11 +324,27 @@ class LoRaWANRuntime:
             hours=self.offline_after_hours_for_device(dev_eui)
         )
 
+    def is_device_online(self, dev_eui: str) -> bool:
+        """Return the current online state for a device."""
+        return self._is_device_online(dev_eui)
+
     def offline_after_hours_for_device(self, dev_eui: str) -> int:
         """Return the offline threshold for one device."""
         return self.device_offline_after_hours.get(
             _clean_dev_eui(dev_eui),
             self.offline_after_hours,
+        )
+
+    def create_raw_sensors_for_device(self, dev_eui: str) -> bool:
+        """Return whether raw sensors are enabled for one device."""
+        return self.device_create_raw_sensors.get(
+            _clean_dev_eui(dev_eui), self.create_raw_sensors
+        )
+
+    def create_remaining_sensors_for_device(self, dev_eui: str) -> bool:
+        """Return whether remaining-payload sensors are enabled for one device."""
+        return self.device_create_remaining_sensors.get(
+            _clean_dev_eui(dev_eui), self.create_remaining_sensors
         )
 
     def _device_online_value(self, device: LoRaWANDevice, online: bool) -> LoRaWANValue:
@@ -328,6 +390,67 @@ class LoRaWANRuntime:
         """Return the device for an entity key."""
         return self.value_devices.get(entity_key)
 
+    def diagnostics_for_device(self, dev_eui: str) -> dict[str, Any]:
+        """Return the most recent raw and remaining MQTT data for one device."""
+        device = self.devices.get(_clean_dev_eui(dev_eui))
+        if device is None:
+            return {"raw": None, "remaining": None}
+
+        def value_for(key: str) -> Any:
+            value = self.values.get(f"{self.entry.entry_id}_{device.dev_eui}_{key}")
+            return value.value if value is not None else None
+
+        return {
+            "raw": value_for("raw_json"),
+            "remaining": value_for("remaining_json"),
+        }
+
+    def _refresh_downlink_controls(self) -> None:
+        """Create control descriptors for every device's matching downlink profile."""
+        controls: dict[str, dict[str, Any]] = {}
+        for device in self.devices.values():
+            profile = profile_for_device(merged_profiles(self.downlink_profiles), device.device_type)
+            if profile is None:
+                continue
+            for index, parameter in enumerate(profile.get("downlinkParameter", [])):
+                platform = {"number": "number", "boolean": "switch", "button": "button", "ascii": "text", "string": "text"}.get(parameter.get("type"))
+                if platform is None:
+                    continue
+                slug = re.sub(r"[^a-z0-9_]+", "_", str(parameter.get("name", "parameter")).casefold()).strip("_")
+                key = f"{self.entry.entry_id}_{device.dev_eui}_downlink_{index}_{slug or 'parameter'}"
+                controls[key] = {"device": device, "profile": profile, "parameter": parameter, "platform": platform}
+        previous_controls = self.downlink_controls
+        self.downlink_controls = controls
+        for key in controls:
+            if key not in previous_controls:
+                async_dispatcher_send(
+                    self.hass,
+                    SIGNAL_ADD_DOWNLINK_CONTROL,
+                    self.entry.entry_id,
+                    key,
+                )
+
+    def downlink_controls_for_platform(self, platform: str) -> list[str]:
+        """Return current control keys for one Home Assistant entity platform."""
+        self._refresh_downlink_controls()
+        return [key for key, control in self.downlink_controls.items() if control["platform"] == platform]
+
+    def get_downlink_control(self, entity_key: str) -> dict[str, Any] | None:
+        """Return one downlink control descriptor."""
+        return self.downlink_controls.get(entity_key)
+
+    def send_downlink_control(self, entity_key: str, value: Any) -> None:
+        """Encode and publish a Home Assistant control value as a downlink."""
+        control = self.downlink_controls.get(entity_key)
+        if control is None:
+            raise RuntimeError("Downlink-Steuerung ist nicht verfügbar")
+        device = control["device"]
+        parameter = control["parameter"]
+        profile = control["profile"]
+        payload = parameter_payload(parameter, value)
+        network = device.network or ("ttn" if "@" in device.application_name else "chirpstack")
+        self.send_downlink(network, device, {**profile, **parameter}, payload)
+
     async def async_load_cache(self) -> None:
         """Load cached devices and values from Home Assistant storage."""
         data = await self._store.async_load()
@@ -339,10 +462,12 @@ class LoRaWANRuntime:
             for dev_eui, device in (data.get("devices") or {}).items()
         }
         self.last_seen_by_device = dict(data.get("last_seen_by_device") or {})
+        cached_value_devices = data.get("value_devices") or {}
         self.values = {}
         for entity_key, value_data in (data.get("values") or {}).items():
             value = _value_from_json(value_data)
-            if _is_diagnostic_value(value) and not self.create_raw_sensors:
+            dev_eui = cached_value_devices.get(entity_key, "")
+            if not self._is_value_enabled(dev_eui, value):
                 continue
             self.values[entity_key] = value
         self.entity_platforms = {
@@ -351,12 +476,23 @@ class LoRaWANRuntime:
             if entity_key in self.values
         }
         self.value_devices = {}
-        for entity_key, dev_eui in (data.get("value_devices") or {}).items():
+        for entity_key, dev_eui in cached_value_devices.items():
             device = self.devices.get(dev_eui)
             if device is not None and entity_key in self.values:
                 self.value_devices[entity_key] = device
         self.last_message_at = data.get("last_message_at")
         self.last_topic = data.get("last_topic")
+        self.recent_messages = deque(data.get("recent_messages") or [], maxlen=10)
+
+    def _is_value_enabled(self, dev_eui: str, value: LoRaWANValue) -> bool:
+        """Return whether a value is enabled by the diagnostic sensor settings."""
+        if value.key.startswith("raw_"):
+            return self.create_raw_sensors_for_device(dev_eui)
+        if value.key.startswith("remaining_"):
+            if value.key != "remaining_json":
+                return False
+            return self.create_remaining_sensors_for_device(dev_eui)
+        return True
 
     async def async_save_cache(self) -> None:
         """Persist the latest devices and values for restart recovery."""
@@ -378,6 +514,7 @@ class LoRaWANRuntime:
                 "last_seen_by_device": dict(self.last_seen_by_device),
                 "last_message_at": self.last_message_at,
                 "last_topic": self.last_topic,
+                "recent_messages": list(self.recent_messages),
             }
         )
 
@@ -403,6 +540,7 @@ class LoRaWANRuntime:
             "device_count": len(self.devices),
             "entity_count": len(self.values),
             "offline_after_hours": self.offline_after_hours,
+            "recent_messages": list(self.recent_messages),
         }
 
 
@@ -450,6 +588,7 @@ def _device_to_json(device: LoRaWANDevice) -> dict[str, Any]:
         "device_id": device.device_id,
         "device_name": device.device_name,
         "device_type": device.device_type,
+        "network": device.network,
     }
 
 
@@ -462,6 +601,7 @@ def _device_from_json(data: dict[str, Any]) -> LoRaWANDevice:
         device_id=data["device_id"],
         device_name=data["device_name"],
         device_type=data.get("device_type"),
+        network=data.get("network", ""),
     )
 
 

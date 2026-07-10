@@ -16,6 +16,7 @@ class LoRaWANDevice:
     device_id: str
     device_name: str
     device_type: str | None = None
+    network: str = ""
 
 
 @dataclass(slots=True)
