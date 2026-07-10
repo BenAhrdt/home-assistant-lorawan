@@ -1,0 +1,47 @@
+configure_mqtt:
+  name: Configure MQTT
+  description: Configure the LoRaWAN MQTT broker connection.
+  fields:
+    host:
+      required: true
+      selector:
+        text:
+    port:
+      required: true
+      default: 1883
+      selector:
+        number:
+          min: 1
+          max: 65535
+          mode: box
+    ssl:
+      required: true
+      default: false
+      selector:
+        boolean:
+    username:
+      required: false
+      selector:
+        text:
+    password:
+      required: false
+      selector:
+        text:
+          type: password
+
+configure_device:
+  name: Configure device
+  description: Configure LoRaWAN settings for one device.
+  fields:
+    dev_eui:
+      required: true
+      selector:
+        text:
+    offline_after_hours:
+      required: true
+      default: 25
+      selector:
+        number:
+          min: 1
+          max: 8760
+          mode: box

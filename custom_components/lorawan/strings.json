@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LoRaWAN",
+        "description": "Receive decoded LoRaWAN uplinks from MQTT.",
+        "data": {
+          "name": "Name",
+          "host": "MQTT broker host",
+          "port": "MQTT broker port",
+          "ssl": "Use SSL",
+          "username": "Username",
+          "password": "Password",
+          "create_raw_sensors": "Create raw and remaining diagnostic sensors",
+          "offline_after_hours": "Mark devices offline after hours"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This LoRaWAN instance is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "LoRaWAN options",
+        "data": {
+          "name": "Name",
+          "host": "MQTT broker host",
+          "port": "MQTT broker port",
+          "ssl": "Use SSL",
+          "username": "Username",
+          "password": "Password",
+          "create_raw_sensors": "Create raw and remaining diagnostic sensors",
+          "offline_after_hours": "Mark devices offline after hours"
+        }
+      }
+    }
+  }
+}

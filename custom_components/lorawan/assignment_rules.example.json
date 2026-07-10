@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "platform": "sensor",
+      "contains": ["batterypercent", "battery_percent", "battery_level"],
+      "device_class": "battery",
+      "state_class": "measurement",
+      "unit": "%"
+    },
+    {
+      "platform": "sensor",
+      "contains": ["batteryvoltage", "batv"],
+      "device_class": "voltage",
+      "state_class": "measurement",
+      "unit": "V"
+    },
+    {
+      "platform": "binary_sensor",
+      "contains": ["openwindow"],
+      "device_class": "window"
+    }
+  ]
+}

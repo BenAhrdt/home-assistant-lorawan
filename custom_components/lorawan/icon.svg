@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="LoRaWAN">
+  <g fill="none" stroke="#1742ff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M99 75c17-17 41-17 58 0" stroke-width="8"/>
+    <path d="M82 57c27-28 65-28 92 0" stroke-width="7"/>
+    <path d="M66 39c36-39 88-39 124 0" stroke-width="6"/>
+    <path d="M128 86v66" stroke-width="9"/>
+    <path d="M105 152h46" stroke-width="9"/>
+    <path d="M113 175h30" stroke-width="9"/>
+  </g>
+  <g fill="#1742ff" font-family="Arial, Helvetica, sans-serif" font-weight="800">
+    <text x="20" y="133" font-size="43">Lo</text>
+    <text x="183" y="133" font-size="43">Ra</text>
+    <text x="80" y="221" font-size="44">WAN</text>
+  </g>
+</svg>
