@@ -1123,7 +1123,7 @@ class LoRaWANPanel extends HTMLElement {
         const identifier = device.identifiers?.[0] || "-";
         const subtitle = device.model || device.manufacturer || "LoRaWAN";
         return `
-          <div class="device-card" role="button" tabindex="0" data-device-open="${this._escape(device.id)}">
+          <div class="device-card" style="border-top: 4px solid ${this._escape(device.connection_color || "var(--primary-color)")}" role="button" tabindex="0" data-device-open="${this._escape(device.id)}">
             <div>
               <div class="device-name">${this._escape(device.name)}</div>
               <div class="muted">${this._escape(subtitle)}</div>
