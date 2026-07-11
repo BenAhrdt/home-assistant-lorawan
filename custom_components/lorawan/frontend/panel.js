@@ -1073,14 +1073,13 @@ class LoRaWANPanel extends HTMLElement {
     return this._devices
       .map((device) => {
         const identifier = device.identifiers?.[0] || "-";
-        const subtitle = [device.model, device.sw_version]
-          .filter(Boolean)
-          .join(" · ");
+        const subtitle = device.model || device.manufacturer || "LoRaWAN";
         return `
           <div class="device-card" role="button" tabindex="0" data-device-open="${this._escape(device.id)}">
             <div>
               <div class="device-name">${this._escape(device.name)}</div>
-              <div class="muted">${this._escape(subtitle || device.manufacturer || "LoRaWAN")}</div>
+              <div class="muted">${this._escape(subtitle)}</div>
+              ${device.application_name ? `<div class="muted">Applikation: ${this._escape(device.application_name)}</div>` : ""}
               <div class="device-eui muted">DevEUI<br /><code>${this._escape(identifier)}</code></div>
               <div class="diagnostics">
                 ${device.create_raw_sensors ? '<span class="tag">Raw</span>' : ""}

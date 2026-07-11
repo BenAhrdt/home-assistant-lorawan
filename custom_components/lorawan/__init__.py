@@ -354,6 +354,9 @@ async def _websocket_devices(
             continue
 
         dev_eui = next(iter(identifiers))
+        runtime_device = (
+            runtime.devices.get(_clean_dev_eui(dev_eui)) if runtime else None
+        )
         devices.append(
             {
                 "id": device.id,
@@ -361,6 +364,9 @@ async def _websocket_devices(
                 "model": device.model,
                 "manufacturer": device.manufacturer,
                 "sw_version": device.sw_version,
+                "application_name": (
+                    runtime_device.application_name if runtime_device else None
+                ),
                 "identifiers": sorted(identifiers),
                 "online": runtime.is_device_online(dev_eui) if runtime else False,
                 "offline_after_hours": offline_overrides.get(
