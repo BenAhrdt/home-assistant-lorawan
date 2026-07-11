@@ -620,6 +620,8 @@ class LoRaWANPanel extends HTMLElement {
               <dd><code>${this._escape(connection.last_topic || "-")}</code></dd>
               <dt>Erkannt</dt>
               <dd>${this._formatDetectedNetworks(connection.lns_counts)}</dd>
+              <dt>Downlinks</dt>
+              <dd>${this._formatDownlinkEvents(connection.downlink_event_counts)}</dd>
               <dt>Fehler</dt>
               <dd>${this._escape(connection.last_error || "-")}</dd>
             </dl>
@@ -630,11 +632,11 @@ class LoRaWANPanel extends HTMLElement {
             <dl>
               ${(this._status.topics?.length
                 ? this._status.topics
-                : ["v3/+/devices/+/+", "application/+/device/+/event/+"]
+                : ["v3/+/devices/+/+", "v3/+/devices/+/down/+", "application/+/device/+/event/+", "application/+/device/+/command/down"]
               )
                 .map(
                   (topic, index) => `
-                    <dt>${index === 0 ? "TTN" : "ChirpStack"}</dt>
+                    <dt>${["TTN Uplink", "TTN Downlink", "ChirpStack Events", "ChirpStack Downlink"][index] || "MQTT"}</dt>
                     <dd><code>${this._escape(topic)}</code></dd>
                   `
                 )
@@ -1065,6 +1067,8 @@ class LoRaWANPanel extends HTMLElement {
           </div>
           <h3>Topic</h3>
           <code>${this._escape(this._selectedMessage.topic)}</code>
+          <h3>Richtung</h3>
+          <div>${this._selectedMessage.direction === "downlink" ? "Downlink · " + this._escape(this._selectedMessage.event || "event") : "Uplink"}</div>
           <h3>Payload</h3>
           <pre class="payload">${this._escape(this._selectedMessage.payload)}</pre>
           <div class="actions">
@@ -1175,6 +1179,13 @@ class LoRaWANPanel extends HTMLElement {
     if (counts?.ttn > 0) detected.push(`TTN ${counts.ttn}`);
     if (counts?.chirpstack > 0) detected.push(`ChirpStack ${counts.chirpstack}`);
     return detected.length ? detected.join(", ") : "Noch keine Nachrichten";
+  }
+
+  _formatDownlinkEvents(counts) {
+    const events = Object.entries(counts || {}).filter(([, count]) => count > 0);
+    return events.length
+      ? events.map(([event, count]) => `${this._escape(event)} ${count}`).join(", ")
+      : "Noch keine Bestätigung";
   }
 
   _startStatusPolling() {

@@ -73,7 +73,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.7",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.8-2",
                 "embed_iframe": False,
             }
         },
@@ -248,6 +248,9 @@ def _aggregate_status(statuses: list[dict]) -> dict:
             )
             for network in ("ttn", "chirpstack")
         },
+        "downlink_event_count": sum(
+            status.get("downlink_event_count", 0) for status in statuses
+        ),
         "device_count": sum(status.get("device_count", 0) for status in statuses),
         "entity_count": sum(status.get("entity_count", 0) for status in statuses),
         "recent_messages": recent_messages,
@@ -269,6 +272,8 @@ def _config_entry_status(entry: ConfigEntry | None) -> dict:
         "message_count": 0,
         "unsupported_message_count": 0,
         "lns_counts": {"ttn": 0, "chirpstack": 0},
+        "downlink_event_count": 0,
+        "downlink_event_counts": {},
         "device_count": 0,
         "entity_count": 0,
         "offline_after_hours": data.get(

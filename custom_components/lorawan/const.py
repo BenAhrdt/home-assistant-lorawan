@@ -23,7 +23,9 @@ DEFAULT_CONNECTION_COLOR = [3, 169, 244]
 
 DEFAULT_TOPIC_FILTERS = [
     "v3/+/devices/+/+",
+    "v3/+/devices/+/down/+",
     "application/+/device/+/event/+",
+    "application/+/device/+/command/down",
 ]
 
 SIGNAL_ADD_SENSOR = f"{DOMAIN}_add_sensor"

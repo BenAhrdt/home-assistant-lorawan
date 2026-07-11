@@ -118,6 +118,10 @@ class LoRaWANRuntime:
         self.message_count = 0
         self.unsupported_message_count = 0
         self.lns_counts = {"ttn": 0, "chirpstack": 0}
+        self.downlink_event_count = 0
+        self.downlink_event_counts: dict[str, int] = {}
+        self.last_downlink_event_at: str | None = None
+        self.last_downlink_topic: str | None = None
         self.last_seen_by_device: dict[str, str] = {}
         self.last_downlink_by_device: dict[str, dict[str, Any]] = {}
         self.next_downlink_by_device: dict[str, dict[str, Any]] = {}
@@ -244,6 +248,11 @@ class LoRaWANRuntime:
             _LOGGER.warning("Ignoring invalid LoRaWAN JSON on %s: %s", topic, err)
             return
 
+        downlink_event = _downlink_event(topic)
+        if downlink_event is not None:
+            self._store_downlink_event(topic, raw_payload, downlink_event)
+            return
+
         normalized = normalize_message(topic, payload)
         if normalized is None:
             self.unsupported_message_count += 1
@@ -266,6 +275,31 @@ class LoRaWANRuntime:
             }
         )
         self._store_message(normalized)
+
+    @callback
+    def _store_downlink_event(
+        self,
+        topic: str,
+        raw_payload: str,
+        event: str,
+    ) -> None:
+        """Store a downlink event without treating it as an uplink."""
+        received_at = _utc_now()
+        self.downlink_event_count += 1
+        self.downlink_event_counts[event] = self.downlink_event_counts.get(event, 0) + 1
+        self.last_downlink_event_at = received_at
+        self.last_downlink_topic = topic
+        self.last_error = None
+        self.recent_messages.appendleft(
+            {
+                "topic": topic,
+                "payload": raw_payload,
+                "received_at": received_at,
+                "direction": "downlink",
+                "event": event,
+            }
+        )
+        self.hass.async_create_task(self.async_save_cache())
 
     @callback
     def _store_message(self, message: LoRaWANMessage) -> None:
@@ -755,6 +789,10 @@ class LoRaWANRuntime:
             "message_count": self.message_count,
             "unsupported_message_count": self.unsupported_message_count,
             "lns_counts": dict(self.lns_counts),
+            "downlink_event_count": self.downlink_event_count,
+            "downlink_event_counts": dict(self.downlink_event_counts),
+            "last_downlink_event_at": self.last_downlink_event_at,
+            "last_downlink_topic": self.last_downlink_topic,
             "device_count": len(self.devices),
             "entity_count": len(self.values),
             "offline_after_hours": self.offline_after_hours,
@@ -782,6 +820,20 @@ def add_runtime_listener(
 def _utc_now() -> str:
     """Return the current UTC time in ISO format."""
     return datetime.now(UTC).isoformat()
+
+
+def _downlink_event(topic: str) -> str | None:
+    """Return the downlink lifecycle event represented by an MQTT topic."""
+    parts = topic.split("/")
+    if topic.startswith("v3/") and len(parts) >= 6 and parts[-2] == "down":
+        return parts[-1].casefold()
+    if topic.startswith("application/") and topic.endswith("/command/down"):
+        return "command"
+    if topic.startswith("application/") and "/event/" in topic:
+        event = parts[-1].casefold()
+        if event in {"ack", "txack", "nack", "failed"}:
+            return event
+    return None
 
 
 def _parse_utc(value: str | None) -> datetime | None:
