@@ -1,6 +1,5 @@
 {
   "name": "LoRaWAN",
   "render_readme": true,
-  "domains": ["lorawan"],
   "homeassistant": "2025.1.0"
 }
