@@ -38,22 +38,40 @@ class LoRaWANDownlinkNumber(LoRaWANDownlinkEntity, NumberEntity):
     @property
     def native_min_value(self) -> float:
         parameter = self.control["parameter"]
-        return float(parameter.get("limitMinValue", 0)) if parameter.get("limitMin") else -1_000_000
+        value = float(parameter.get("limitMinValue", 0)) if parameter.get("limitMin") else -1_000_000
+        return self._normalized_value(value)
 
     @property
     def native_max_value(self) -> float:
         parameter = self.control["parameter"]
-        return float(parameter.get("limitMaxValue", 0)) if parameter.get("limitMax") else 1_000_000
+        value = float(parameter.get("limitMaxValue", 0)) if parameter.get("limitMax") else 1_000_000
+        return self._normalized_value(value)
 
     @property
     def native_step(self) -> float:
-        return 10 ** -int(self.control["parameter"].get("decimalPlaces", 0))
+        decimal_places = self._decimal_places
+        return 1 if decimal_places == 0 else 10 ** -decimal_places
 
     @property
     def native_unit_of_measurement(self) -> str | None:
         return self.control["parameter"].get("unit") or None
 
     async def async_set_native_value(self, value: float) -> None:
-        self._send(value)
-        self._attr_native_value = value
+        normalized = self._normalized_value(value)
+        if abs(float(value) - float(normalized)) > 1e-9:
+            raise ValueError(
+                f"Der Wert darf höchstens {self._decimal_places} Dezimalstellen haben"
+            )
+        self._send(normalized)
+        self._attr_native_value = normalized
         self.async_write_ha_state()
+
+    @property
+    def _decimal_places(self) -> int:
+        return max(0, int(self.control["parameter"].get("decimalPlaces", 0)))
+
+    def _normalized_value(self, value: float) -> int | float:
+        decimal_places = self._decimal_places
+        if decimal_places == 0:
+            return int(round(float(value)))
+        return round(float(value), decimal_places)

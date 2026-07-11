@@ -37,7 +37,10 @@ def _normalize_ttn(topic: str, payload: dict[str, Any]) -> LoRaWANMessage | None
         dev_eui=dev_eui,
         device_id=str(ids.get("device_id") or dev_eui),
         device_name=str(ids.get("device_id") or dev_eui),
-        device_type=_first_string(decoded_payload, ("devicetype", "device", "Device", "model_id")),
+        device_type=_first_string(
+            decoded_payload,
+            ("deviceType", "devicetype", "device", "Device", "model_id"),
+        ),
         network="ttn",
     )
 

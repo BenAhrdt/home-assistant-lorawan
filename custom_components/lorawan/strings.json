@@ -1,5 +1,8 @@
 {
   "config": {
+    "error": {
+      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials."
+    },
     "step": {
       "user": {
         "title": "LoRaWAN",
@@ -9,6 +12,7 @@
           "host": "MQTT broker host",
           "port": "MQTT broker port",
           "ssl": "Use SSL",
+          "connection_color": "Connection color",
           "username": "Username",
           "password": "Password",
           "create_raw_sensors": "Raw-Diagnose aktivieren",
@@ -22,14 +26,19 @@
     }
   },
   "options": {
+    "error": {
+      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials."
+    },
     "step": {
       "init": {
         "title": "LoRaWAN options",
+        "description": "The MQTT connection, SSL settings and credentials are tested when you press OK. Settings are only saved after a successful test.",
         "data": {
           "name": "Name",
           "host": "MQTT broker host",
           "port": "MQTT broker port",
           "ssl": "Use SSL",
+          "connection_color": "Connection color",
           "username": "Username",
           "password": "Password",
           "create_raw_sensors": "Raw-Diagnose aktivieren",

@@ -191,6 +191,11 @@ def parameter_payload(parameter: dict[str, Any], value: Any) -> str:
         payload = str(data["on"] if bool(value) else data["off"])
     elif kind == "number":
         numeric = float(value)
+        decimal_places = max(0, int(data.get("decimalPlaces", 0)))
+        if abs(numeric - round(numeric, decimal_places)) > 1e-9:
+            raise ValueError(
+                f"Wert darf höchstens {decimal_places} Dezimalstellen haben"
+            )
         if data["limitMin"] and numeric < float(data["limitMinValue"]):
             raise ValueError("Wert liegt unter dem konfigurierten Minimum")
         if data["limitMax"] and numeric > float(data["limitMaxValue"]):
@@ -214,6 +219,25 @@ def parameter_payload(parameter: dict[str, Any], value: Any) -> str:
         raise ValueError(f"Nicht unterstützter Downlink-Typ: {kind}")
     _validate_hex(payload)
     return _with_crc(payload, str(data["crc"]))
+
+
+def state_options(parameter: dict[str, Any]) -> dict[str, str]:
+    """Return raw values mapped to human-readable HA select options."""
+    if not parameter.get("withStates"):
+        return {}
+    raw_states = parameter.get("statesValue") or {}
+    if isinstance(raw_states, str):
+        try:
+            raw_states = json.loads(raw_states)
+        except json.JSONDecodeError:
+            return {}
+    if not isinstance(raw_states, dict):
+        return {}
+    return {
+        str(raw_value): f"{label} ({raw_value})"
+        for raw_value, label in raw_states.items()
+        if str(label).strip()
+    }
 
 
 def _with_crc(payload: str, crc: str) -> str:

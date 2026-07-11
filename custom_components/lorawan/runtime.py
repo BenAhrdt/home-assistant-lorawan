@@ -49,6 +49,7 @@ from .downlinks import (
     merged_profiles,
     parameter_payload,
     profile_for_device,
+    state_options,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -570,13 +571,16 @@ class LoRaWANRuntime:
                         continue
                     parameters[str(parameter.get("name", ""))] = (profile, parameter)
             for index, (parameter_profile, parameter) in enumerate(parameters.values()):
+                options = state_options(parameter)
                 platform = {"number": "number", "boolean": "switch", "button": "button", "ascii": "text", "string": "text", "json": "text"}.get(parameter.get("type"))
+                if parameter.get("type") == "number" and options:
+                    platform = "select"
                 if platform is None:
                     continue
                 slug = re.sub(r"[^a-z0-9_]+", "_", str(parameter.get("name", "parameter")).casefold()).strip("_")
                 scope = "base_" if str(parameter.get("name", "")) in base_parameter_names else ""
                 key = f"{self.entry.entry_id}_{device.dev_eui}_downlink_{platform}_{scope}{slug or index}"
-                controls[key] = {"device": device, "profile": parameter_profile, "parameter": parameter, "platform": platform}
+                controls[key] = {"device": device, "profile": parameter_profile, "parameter": parameter, "platform": platform, "state_options": options}
         previous_controls = self.downlink_controls
         self.downlink_controls = controls
         if previous_controls != controls:

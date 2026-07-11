@@ -20,6 +20,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import (
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
+    CONF_CONNECTION_COLOR,
     CONF_DOWNLINK_PROFILES,
     CONF_DEVICE_CREATE_RAW_SENSORS,
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
@@ -28,6 +29,7 @@ from .const import (
     CONF_OFFLINE_AFTER_HOURS,
     CONF_SSL,
     DEFAULT_MQTT_PORT,
+    DEFAULT_CONNECTION_COLOR,
     DEFAULT_OFFLINE_AFTER_HOURS,
     DEFAULT_TOPIC_FILTERS,
     DOMAIN,
@@ -70,7 +72,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.5",
                 "embed_iframe": False,
             }
         },
@@ -82,6 +84,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         async_configure_mqtt_service,
         schema=vol.Schema(
             {
+                vol.Optional("entry_id"): str,
                 vol.Required(CONF_HOST): vol.All(str, vol.Length(min=1)),
                 vol.Required(CONF_PORT, default=DEFAULT_MQTT_PORT): vol.All(
                     vol.Coerce(int),
@@ -106,6 +109,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         schema=vol.Schema(
             {
                 vol.Required("dev_eui"): vol.All(str, vol.Length(min=1)),
+                vol.Optional("entry_id"): str,
                 vol.Required(CONF_OFFLINE_AFTER_HOURS): vol.All(
                     vol.Coerce(int),
                     vol.Range(min=1, max=8760),
@@ -131,7 +135,11 @@ async def _async_configure_mqtt(hass: HomeAssistant, call: ServiceCall) -> None:
         _LOGGER.warning("Cannot configure LoRaWAN MQTT because no config entry exists")
         return
 
-    entry = entries[0]
+    requested_entry_id = call.data.get("entry_id")
+    entry = next(
+        (item for item in entries if item.entry_id == requested_entry_id),
+        entries[0],
+    )
     data = dict(entry.data)
     data.update(
         {
@@ -155,7 +163,11 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
         _LOGGER.warning("Cannot configure LoRaWAN device because no config entry exists")
         return
 
-    entry = entries[0]
+    requested_entry_id = call.data.get("entry_id")
+    entry = next(
+        (item for item in entries if item.entry_id == requested_entry_id),
+        entries[0],
+    )
     data = dict(entry.data)
     overrides = dict(data.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {})
     overrides[_clean_dev_eui(call.data["dev_eui"])] = call.data[CONF_OFFLINE_AFTER_HOURS]
@@ -193,18 +205,52 @@ async def _websocket_status(
 ) -> None:
     """Return LoRaWAN status for the sidebar panel."""
     entries = hass.config_entries.async_entries(DOMAIN)
-    runtime = None
-    if entries:
-        runtime = hass.data.get(DOMAIN, {}).get(entries[0].entry_id)
-
-    if runtime is None:
-        connection.send_result(
-            msg["id"],
-            _config_entry_status(entries[0] if entries else None),
+    runtimes = hass.data.get(DOMAIN, {})
+    statuses = []
+    for index, entry in enumerate(entries):
+        runtime = runtimes.get(entry.entry_id)
+        status = runtime.status() if runtime is not None else _config_entry_status(entry)
+        statuses.append(
+            {
+                **status,
+                "entry_id": entry.entry_id,
+                "name": entry.title,
+                "color": _connection_color(entry, index),
+            }
         )
-        return
 
-    connection.send_result(msg["id"], runtime.status())
+    connection.send_result(msg["id"], _aggregate_status(statuses))
+
+
+def _aggregate_status(statuses: list[dict]) -> dict:
+    """Return a backwards-compatible aggregate plus per-entry connection data."""
+    recent_messages = sorted(
+        (
+            {**message, "entry_id": status["entry_id"], "connection_name": status["name"]}
+            for status in statuses
+            for message in status.get("recent_messages", [])
+        ),
+        key=lambda message: message.get("received_at", ""),
+        reverse=True,
+    )[:10]
+    return {
+        "configured": any(status.get("configured") for status in statuses),
+        "connected": any(status.get("connected") for status in statuses),
+        "connections": statuses,
+        "message_count": sum(status.get("message_count", 0) for status in statuses),
+        "unsupported_message_count": sum(
+            status.get("unsupported_message_count", 0) for status in statuses
+        ),
+        "lns_counts": {
+            network: sum(
+                status.get("lns_counts", {}).get(network, 0) for status in statuses
+            )
+            for network in ("ttn", "chirpstack")
+        },
+        "device_count": sum(status.get("device_count", 0) for status in statuses),
+        "entity_count": sum(status.get("entity_count", 0) for status in statuses),
+        "recent_messages": recent_messages,
+    }
 
 
 def _config_entry_status(entry: ConfigEntry | None) -> dict:
@@ -318,32 +364,9 @@ async def _websocket_devices(
 
     devices = []
     entries = hass.config_entries.async_entries(DOMAIN)
-    config = dict(entries[0].data) if entries else {}
-    runtime: LoRaWANRuntime | None = None
-    if entries:
-        runtime = hass.data.get(DOMAIN, {}).get(entries[0].entry_id)
-    default_offline_after = config.get(
-        CONF_OFFLINE_AFTER_HOURS,
-        DEFAULT_OFFLINE_AFTER_HOURS,
-    )
-    offline_overrides = {
-        _clean_dev_eui(dev_eui): hours
-        for dev_eui, hours in (
-            config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
-        ).items()
-    }
-    raw_overrides = {
-        _clean_dev_eui(dev_eui): enabled
-        for dev_eui, enabled in (
-            config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
-        ).items()
-    }
-    remaining_overrides = {
-        _clean_dev_eui(dev_eui): enabled
-        for dev_eui, enabled in (
-            config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
-        ).items()
-    }
+    entries_by_id = {entry.entry_id: entry for entry in entries}
+    entry_indexes = {entry.entry_id: index for index, entry in enumerate(entries)}
+    runtimes = hass.data.get(DOMAIN, {})
     for device in device_registry.devices.values():
         identifiers = {
             identifier
@@ -354,9 +377,29 @@ async def _websocket_devices(
             continue
 
         dev_eui = next(iter(identifiers))
-        runtime_device = (
-            runtime.devices.get(_clean_dev_eui(dev_eui)) if runtime else None
+        clean_dev_eui = _clean_dev_eui(dev_eui)
+        entry_id = next(
+            (
+                entry_id
+                for entry_id in device.config_entries
+                if entry_id in entries_by_id
+                and clean_dev_eui in getattr(runtimes.get(entry_id), "devices", {})
+            ),
+            next(
+                (entry_id for entry_id in device.config_entries if entry_id in entries_by_id),
+                None,
+            ),
         )
+        entry = entries_by_id.get(entry_id)
+        config = dict(entry.data) if entry else {}
+        runtime: LoRaWANRuntime | None = runtimes.get(entry_id)
+        runtime_device = runtime.devices.get(clean_dev_eui) if runtime else None
+        default_offline_after = config.get(
+            CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
+        )
+        offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
+        raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+        remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
         devices.append(
             {
                 "id": device.id,
@@ -368,6 +411,11 @@ async def _websocket_devices(
                     runtime_device.application_name if runtime_device else None
                 ),
                 "identifiers": sorted(identifiers),
+                "entry_id": entry_id,
+                "connection_name": entry.title if entry else None,
+                "connection_color": (
+                    _connection_color(entry, entry_indexes[entry_id]) if entry else None
+                ),
                 "online": runtime.is_device_online(dev_eui) if runtime else False,
                 "offline_after_hours": offline_overrides.get(
                     _clean_dev_eui(dev_eui),
@@ -405,10 +453,16 @@ async def _websocket_device_diagnostics(
     msg: dict,
 ) -> None:
     """Return the latest diagnostic payloads for one LoRaWAN device."""
-    entries = hass.config_entries.async_entries(DOMAIN)
-    runtime: LoRaWANRuntime | None = None
-    if entries:
-        runtime = hass.data.get(DOMAIN, {}).get(entries[0].entry_id)
+    runtimes = hass.data.get(DOMAIN, {})
+    clean_dev_eui = _clean_dev_eui(msg["dev_eui"])
+    runtime = next(
+        (
+            candidate
+            for candidate in runtimes.values()
+            if clean_dev_eui in candidate.devices
+        ),
+        None,
+    )
     if runtime is None:
         connection.send_result(msg["id"], {"raw": None, "remaining": None})
         return
@@ -538,3 +592,25 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 def _clean_dev_eui(value: str) -> str:
     """Normalize a DevEUI for config storage."""
     return str(value or "").replace(":", "").replace("-", "").upper()
+
+
+def _connection_color(entry: ConfigEntry, index: int) -> str:
+    """Return a safe CSS color for a config entry."""
+    data = dict(entry.data)
+    data.update(entry.options)
+    palette = (
+        DEFAULT_CONNECTION_COLOR,
+        [156, 39, 176],
+        [255, 152, 0],
+        [0, 150, 136],
+        [233, 30, 99],
+        [63, 81, 181],
+    )
+    color = data.get(CONF_CONNECTION_COLOR) or palette[index % len(palette)]
+    if not isinstance(color, (list, tuple)) or len(color) != 3:
+        color = palette[index % len(palette)]
+    try:
+        channels = [max(0, min(255, int(channel))) for channel in color]
+    except (TypeError, ValueError):
+        channels = list(palette[index % len(palette)])
+    return f"rgb({channels[0]}, {channels[1]}, {channels[2]})"

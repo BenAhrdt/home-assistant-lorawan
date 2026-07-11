@@ -22,6 +22,7 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceSettings = null;
     this._deviceDiagnostics = null;
     this._selectedMessage = null;
+    this._selectedConnectionId = null;
     this._downlinks = { devices: [], profiles: [], configured_profiles: [], builtin_profile_types: [] };
     this._downlinkDevice = "";
     this._downlinkProfile = "";
@@ -571,15 +572,16 @@ class LoRaWANPanel extends HTMLElement {
         }
       });
     });
-    this.shadowRoot
-      .querySelector("[data-show-messages]")
-      ?.addEventListener("click", () => {
-        this._selectedMessage = this._status.recent_messages?.[0] || null;
+    this.shadowRoot.querySelectorAll("[data-show-messages]").forEach((card) => {
+      card.addEventListener("click", () => {
+        this._selectedConnectionId = card.getAttribute("data-entry-id");
+        this._selectedMessage = this._messagesForSelectedConnection()[0] || null;
         this._render();
       });
+    });
     this.shadowRoot.querySelectorAll("[data-message-index]").forEach((button) => {
       button.addEventListener("click", () => {
-        this._selectedMessage = this._status.recent_messages?.[
+        this._selectedMessage = this._messagesForSelectedConnection()[
           Number(button.getAttribute("data-message-index"))
         ] || null;
         this._render();
@@ -589,34 +591,40 @@ class LoRaWANPanel extends HTMLElement {
       .querySelector("button[data-messages-close]")
       ?.addEventListener("click", () => {
         this._selectedMessage = null;
+        this._selectedConnectionId = null;
         this._render();
       });
   }
 
   _renderContent() {
     if (this._activeTab === "lns") {
+      const connections = this._status.connections || [];
       return `
         <div class="section">
-          <div class="card status-card" role="button" tabindex="0" data-show-messages title="Letzte Nachrichten anzeigen">
-            <h2>Status</h2>
+          ${connections.map((connection) => `
+          <div class="card status-card" style="border-top: 4px solid ${this._escape(connection.color || "var(--primary-color)")}" role="button" tabindex="0" data-show-messages data-entry-id="${this._escape(connection.entry_id || "")}" title="Letzte Nachrichten anzeigen">
+            <h2>${this._escape(connection.name || "LoRaWAN")}</h2>
             <dl>
               <dt>Verbindung</dt>
               <dd>
                 <span class="status">
-                  <span class="dot ${this._status.connected ? "connected" : this._status.last_error ? "error" : ""}"></span>
-                  ${this._status.connected ? "Aktiv" : "Nicht verbunden"}
+                  <span class="dot ${connection.connected ? "connected" : connection.last_error ? "error" : ""}"></span>
+                  ${connection.connected ? "Aktiv" : "Nicht verbunden"}
                 </span>
               </dd>
+              <dt>Broker</dt>
+              <dd><code>${this._escape(connection.host || "-")}:${this._escape(connection.port || "-")}</code></dd>
               <dt>Letzte Nachricht</dt>
-              <dd>${this._formatDate(this._status.last_message_at)}</dd>
+              <dd>${this._formatDate(connection.last_message_at)}</dd>
               <dt>Letztes Topic</dt>
-              <dd><code>${this._escape(this._status.last_topic || "-")}</code></dd>
+              <dd><code>${this._escape(connection.last_topic || "-")}</code></dd>
               <dt>Erkannt</dt>
-              <dd>TTN ${this._status.lns_counts?.ttn || 0}, ChirpStack ${this._status.lns_counts?.chirpstack || 0}</dd>
+              <dd>${this._formatDetectedNetworks(connection.lns_counts)}</dd>
               <dt>Fehler</dt>
-              <dd>${this._escape(this._status.last_error || "-")}</dd>
+              <dd>${this._escape(connection.last_error || "-")}</dd>
             </dl>
           </div>
+          `).join("")}
           <div class="card">
             <h2>Topics</h2>
             <dl>
@@ -807,7 +815,27 @@ class LoRaWANPanel extends HTMLElement {
     if (parameter.type === "boolean") {
       return `<div class="parameter"><div><strong>${name}</strong></div><label class="checkbox"><input type="checkbox" name="${name}" /> Aktiv</label></div>`;
     }
-    return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><input name="${name}" type="number" step="any" ${parameter.limitMin ? `min="${parameter.limitMinValue}"` : ""} ${parameter.limitMax ? `max="${parameter.limitMaxValue}"` : ""} /><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+    const states = this._stateOptions(parameter);
+    if (states.length) {
+      return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><select name="${name}">${states.map(([rawValue, label]) => `<option value="${this._escape(rawValue)}">${this._escape(label)} (${this._escape(rawValue)})</option>`).join("")}</select><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+    }
+    const decimalPlaces = Math.max(0, Number(parameter.decimalPlaces || 0));
+    const step = decimalPlaces === 0 ? "1" : String(10 ** -decimalPlaces);
+    return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><input name="${name}" type="number" step="${step}" ${parameter.limitMin ? `min="${parameter.limitMinValue}"` : ""} ${parameter.limitMax ? `max="${parameter.limitMaxValue}"` : ""} /><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+  }
+
+  _stateOptions(parameter) {
+    if (!parameter.withStates) return [];
+    try {
+      const states = typeof parameter.statesValue === "string"
+        ? JSON.parse(parameter.statesValue)
+        : parameter.statesValue;
+      return states && typeof states === "object" && !Array.isArray(states)
+        ? Object.entries(states)
+        : [];
+    } catch (error) {
+      return [];
+    }
   }
 
   async _sendDownlink(event) {
@@ -871,7 +899,19 @@ class LoRaWANPanel extends HTMLElement {
           result.withStates = data.get(name("withStates")) === "on";
           if (result.limitMin) result.limitMinValue = number(name("limitMinValue"), item.limitMinValue ?? 0);
           if (result.limitMax) result.limitMaxValue = number(name("limitMaxValue"), item.limitMaxValue ?? 0);
-          if (result.withStates) result.statesValue = text("statesValue", item.statesValue || "");
+          if (result.withStates) {
+            result.statesValue = text("statesValue", item.statesValue || "");
+            let states;
+            try {
+              states = JSON.parse(result.statesValue);
+            } catch (error) {
+              throw new Error(`${result.name}: Statuswerte müssen gültiges JSON sein`);
+            }
+            if (!states || typeof states !== "object" || Array.isArray(states) || !Object.keys(states).length) {
+              throw new Error(`${result.name}: Statuswerte müssen ein JSON-Objekt mit mindestens einem Wert sein`);
+            }
+            result.statesValue = JSON.stringify(states);
+          }
         }
         if (type === "ascii") result.unit = text("unit", item.unit || "");
         return result;
@@ -901,6 +941,7 @@ class LoRaWANPanel extends HTMLElement {
   async _handleDeviceSettings(button) {
     this._deviceSettings = {
       devEui: button.getAttribute("data-device-settings"),
+      entryId: button.getAttribute("data-entry-id") || "",
       name: button.getAttribute("data-device-name") || "Gerät",
       hours: button.getAttribute("data-device-hours") || "25",
       raw: button.getAttribute("data-device-raw") === "true",
@@ -926,6 +967,7 @@ class LoRaWANPanel extends HTMLElement {
     try {
       await this._hass.callService("lorawan", "configure_device", {
         dev_eui: this._deviceSettings.devEui,
+        entry_id: this._deviceSettings.entryId,
         offline_after_hours: hours,
         create_raw_sensors: formData.get("create_raw_sensors") === "on",
         create_remaining_sensors: formData.get("create_remaining_sensors") === "on",
@@ -1007,7 +1049,7 @@ class LoRaWANPanel extends HTMLElement {
     if (!this._selectedMessage) {
       return "";
     }
-    const messages = this._status.recent_messages || [];
+    const messages = this._messagesForSelectedConnection();
     const selectedIndex = messages.indexOf(this._selectedMessage);
     return `
       <div class="dialog-backdrop" role="presentation">
@@ -1031,6 +1073,12 @@ class LoRaWANPanel extends HTMLElement {
         </div>
       </div>
     `;
+  }
+
+  _messagesForSelectedConnection() {
+    const messages = this._status.recent_messages || [];
+    if (!this._selectedConnectionId) return messages;
+    return messages.filter((message) => message.entry_id === this._selectedConnectionId);
   }
 
   _renderDeviceDiagnosticsDialog() {
@@ -1082,6 +1130,7 @@ class LoRaWANPanel extends HTMLElement {
               ${device.application_name ? `<div class="muted">Applikation: ${this._escape(device.application_name)}</div>` : ""}
               <div class="device-eui muted">DevEUI<br /><code>${this._escape(identifier)}</code></div>
               <div class="diagnostics">
+                ${device.connection_name ? `<span class="tag connection-tag" style="${this._connectionTagStyle(device.connection_color)}">${this._escape(device.connection_name)}</span>` : ""}
                 ${device.create_raw_sensors ? '<span class="tag">Raw</span>' : ""}
                 ${device.create_remaining_sensors ? '<span class="tag">Rest</span>' : ""}
               </div>
@@ -1094,6 +1143,7 @@ class LoRaWANPanel extends HTMLElement {
               type="button"
               title="Geräteeinstellungen"
               data-device-settings="${this._escape(identifier)}"
+              data-entry-id="${this._escape(device.entry_id || "")}"
               data-device-name="${this._escape(device.name)}"
               data-device-hours="${device.offline_after_hours || device.offline_after_default_hours || 25}"
               data-device-raw="${Boolean(device.create_raw_sensors)}"
@@ -1110,6 +1160,21 @@ class LoRaWANPanel extends HTMLElement {
         `;
       })
       .join("");
+  }
+
+  _connectionTagStyle(color) {
+    const channels = String(color || "").match(/\d+/g)?.slice(0, 3).map(Number);
+    if (!channels || channels.length !== 3) return "";
+    const [red, green, blue] = channels;
+    const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+    return `background:${color};color:${luminance > 0.62 ? "#111" : "#fff"}`;
+  }
+
+  _formatDetectedNetworks(counts) {
+    const detected = [];
+    if (counts?.ttn > 0) detected.push(`TTN ${counts.ttn}`);
+    if (counts?.chirpstack > 0) detected.push(`ChirpStack ${counts.chirpstack}`);
+    return detected.length ? detected.join(", ") : "Noch keine Nachrichten";
   }
 
   _startStatusPolling() {
@@ -1205,4 +1270,6 @@ class LoRaWANPanel extends HTMLElement {
   }
 }
 
-customElements.define("lorawan-panel", LoRaWANPanel);
+if (!customElements.get("lorawan-panel")) {
+  customElements.define("lorawan-panel", LoRaWANPanel);
+}
