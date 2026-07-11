@@ -3,7 +3,7 @@
   "name": "LoRaWAN",
   "codeowners": [],
   "config_flow": true,
-  "dependencies": ["frontend"],
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/BenAhrdt/home-assistant-lorawan",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/BenAhrdt/home-assistant-lorawan/issues",
