@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import colorsys
 import logging
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -72,7 +73,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.6",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.7",
                 "embed_iframe": False,
             }
         },
@@ -214,7 +215,7 @@ async def _websocket_status(
             {
                 **status,
                 "entry_id": entry.entry_id,
-                "name": entry.title,
+                "name": _entry_name(entry),
                 "color": _connection_color(entry, index),
             }
         )
@@ -412,7 +413,7 @@ async def _websocket_devices(
                 ),
                 "identifiers": sorted(identifiers),
                 "entry_id": entry_id,
-                "connection_name": entry.title if entry else None,
+                "connection_name": _entry_name(entry) if entry else None,
                 "connection_color": (
                     _connection_color(entry, entry_indexes[entry_id]) if entry else None
                 ),
@@ -499,6 +500,7 @@ async def _websocket_subscribe_devices(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up LoRaWAN from a config entry."""
+    _sync_entry_title(hass, entry)
     _remove_obsolete_remaining_entities(hass, entry)
     runtime = LoRaWANRuntime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
@@ -596,6 +598,12 @@ def _clean_dev_eui(value: str) -> str:
 
 def _connection_color(entry: ConfigEntry, index: int) -> str:
     """Return a safe CSS color for a config entry."""
+    channels = _connection_color_channels(entry, index)
+    return f"rgb({channels[0]}, {channels[1]}, {channels[2]})"
+
+
+def _connection_color_channels(entry: ConfigEntry, index: int) -> list[int]:
+    """Return validated RGB channels for a config entry."""
     data = dict(entry.data)
     data.update(entry.options)
     palette = (
@@ -613,4 +621,52 @@ def _connection_color(entry: ConfigEntry, index: int) -> str:
         channels = [max(0, min(255, int(channel))) for channel in color]
     except (TypeError, ValueError):
         channels = list(palette[index % len(palette)])
-    return f"rgb({channels[0]}, {channels[1]}, {channels[2]})"
+    return channels
+
+
+def _entry_name(entry: ConfigEntry) -> str:
+    """Return the configured clear-text name without the native-page emoji."""
+    data = dict(entry.data)
+    data.update(entry.options)
+    return str(data.get(CONF_NAME) or entry.title)
+
+
+def _sync_entry_title(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply the configured color marker to new and legacy config entries."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    index = next(
+        (position for position, item in enumerate(entries) if item.entry_id == entry.entry_id),
+        0,
+    )
+    title = _colored_entry_title(
+        _entry_name(entry),
+        _connection_color_channels(entry, index),
+    )
+    if entry.title != title:
+        hass.config_entries.async_update_entry(entry, title=title)
+
+
+def _colored_entry_title(name: str, color: list[int]) -> str:
+    """Return a config-entry title marked with its approximate color family."""
+    red, green, blue = (max(0, min(255, int(channel))) / 255 for channel in color)
+    hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
+    hue *= 360
+    if value < 0.2:
+        emoji = "⬛"
+    elif saturation < 0.12:
+        emoji = "⬜" if value > 0.75 else "⬛"
+    elif value < 0.55 and (hue < 55 or hue >= 345):
+        emoji = "🟫"
+    elif hue < 15 or hue >= 345:
+        emoji = "🟥"
+    elif hue < 50:
+        emoji = "🟧"
+    elif hue < 75:
+        emoji = "🟨"
+    elif hue < 170:
+        emoji = "🟩"
+    elif hue < 260:
+        emoji = "🟦"
+    else:
+        emoji = "🟪"
+    return f"{emoji} {name.strip()}"

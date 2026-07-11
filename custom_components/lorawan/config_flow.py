@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import colorsys
 import uuid
 
 import voluptuous as vol
@@ -49,7 +50,9 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(user_input[CONF_NAME].lower())
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=user_input[CONF_NAME],
+                    title=_entry_title(
+                        user_input[CONF_NAME], user_input[CONF_CONNECTION_COLOR]
+                    ),
                     data={
                         CONF_NAME: user_input[CONF_NAME],
                         CONF_HOST: user_input[CONF_HOST],
@@ -155,7 +158,9 @@ class LoRaWANOptionsFlow(config_entries.OptionsFlow):
                 }
                 self.hass.config_entries.async_update_entry(
                     self._config_entry,
-                    title=user_input[CONF_NAME],
+                    title=_entry_title(
+                        user_input[CONF_NAME], user_input[CONF_CONNECTION_COLOR]
+                    ),
                     data=data,
                     options={},
                 )
@@ -258,3 +263,29 @@ async def _async_test_mqtt_connection(config: dict) -> bool:
     finally:
         client.disconnect()
         client.loop_stop()
+
+
+def _entry_title(name: str, color: list[int]) -> str:
+    """Prefix a config-entry title with a stable color-family emoji."""
+    red, green, blue = (max(0, min(255, int(channel))) / 255 for channel in color)
+    hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
+    hue *= 360
+    if value < 0.2:
+        emoji = "⬛"
+    elif saturation < 0.12:
+        emoji = "⬜" if value > 0.75 else "⬛"
+    elif value < 0.55 and (hue < 55 or hue >= 345):
+        emoji = "🟫"
+    elif hue < 15 or hue >= 345:
+        emoji = "🟥"
+    elif hue < 50:
+        emoji = "🟧"
+    elif hue < 75:
+        emoji = "🟨"
+    elif hue < 170:
+        emoji = "🟩"
+    elif hue < 260:
+        emoji = "🟦"
+    else:
+        emoji = "🟪"
+    return f"{emoji} {name.strip()}"
