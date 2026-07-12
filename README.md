@@ -18,14 +18,14 @@ entities from decoded payload values.
 - Creates sensor entities for numeric, text, and raw payload values.
 - Creates binary sensor entities for boolean decoded values.
 - Supports downlinks
+- Dedicated MQTT broker credentials independent of Home Assistant's MQTT
+  integration.
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,
   spreading factor, frequency, frame port, and frame count when available.
 
 ## Not Yet Included
 
 - Import of ioBroker downlink profiles.
-- Dedicated MQTT broker credentials independent of Home Assistant's MQTT
-  integration.
 - Automated tests against a Home Assistant test harness.
 
 ## Installation
