@@ -425,6 +425,15 @@ class LoRaWANPanel extends HTMLElement {
           min-width: 0;
           font-weight: 500;
         }
+        button.tile-entity-name ha-icon {
+          --mdc-icon-size: 19px;
+          margin-right: 5px;
+          vertical-align: middle;
+        }
+        button.climate-summary {
+          white-space: nowrap;
+          font-variant-numeric: tabular-nums;
+        }
 
         button.tile-entity-name:hover,
         button.tile-entity-name:focus-visible,
@@ -766,6 +775,12 @@ class LoRaWANPanel extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll("button[data-tile-value-move]").forEach((button) => {
       button.addEventListener("click", () => this._moveTileValue(button));
+    });
+    this.shadowRoot.querySelectorAll("button[data-climate-add]").forEach((button) => {
+      button.addEventListener("click", () => this._addClimateEntity());
+    });
+    this.shadowRoot.querySelectorAll("button[data-climate-remove]").forEach((button) => {
+      button.addEventListener("click", () => this._removeClimateEntity(Number(button.dataset.climateRemove)));
     });
     this.shadowRoot
       .querySelector("button[data-device-settings-cancel]")
@@ -1281,6 +1296,7 @@ class LoRaWANPanel extends HTMLElement {
       remaining: button.getAttribute("data-device-remaining") === "true",
       availableEntities: JSON.parse(button.getAttribute("data-device-entities") || "[]"),
       tileValueKeys: JSON.parse(button.getAttribute("data-device-tile-value-keys") || "[]"),
+      climateEntities: JSON.parse(button.getAttribute("data-device-climate-entities") || "[]"),
     };
     this._render();
   }
@@ -1288,6 +1304,7 @@ class LoRaWANPanel extends HTMLElement {
   async _handleDeviceSettingsSubmit(event) {
     event.preventDefault();
     if (this._deviceSettings?.saving) return;
+    this._syncDeviceSettingsForm();
     const formData = new FormData(event.currentTarget);
     const hours = Number(formData.get("offline_after_hours"));
     if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
@@ -1307,6 +1324,7 @@ class LoRaWANPanel extends HTMLElement {
         create_raw_sensors: formData.get("create_raw_sensors") === "on",
         create_remaining_sensors: formData.get("create_remaining_sensors") === "on",
         device_tile_values: this._deviceSettings.tileValueKeys,
+        device_climate_entities: this._deviceSettings.climateEntities,
       });
       this._deviceSettings = null;
       await this._loadDevices();
@@ -1356,6 +1374,42 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceSettings.hours = String(data.get("offline_after_hours") || this._deviceSettings.hours);
     this._deviceSettings.raw = data.get("create_raw_sensors") === "on";
     this._deviceSettings.remaining = data.get("create_remaining_sensors") === "on";
+    this._deviceSettings.climateEntities = this._deviceSettings.climateEntities.map((climate, index) => ({
+      ...climate,
+      name: String(data.get(`climate_${index}_name`) || "Thermostat"),
+      current_temperature_entity_id: String(data.get(`climate_${index}_current`) || ""),
+      target_temperature_state_entity_id: String(data.get(`climate_${index}_target_state`) || ""),
+      target_temperature_command_entity_id: String(data.get(`climate_${index}_target_command`) || ""),
+      hvac_mode_state_entity_id: String(data.get(`climate_${index}_mode_state`) || ""),
+      hvac_mode_command_entity_id: String(data.get(`climate_${index}_mode_command`) || ""),
+    }));
+  }
+
+  _addClimateEntity() {
+    this._syncDeviceSettingsForm();
+    this._deviceSettings.climateEntities.push({
+      id: `climate_${Date.now()}`,
+      name: "Thermostat",
+      current_temperature_entity_id: "",
+      target_temperature_state_entity_id: "",
+      target_temperature_command_entity_id: "",
+      hvac_mode_state_entity_id: "",
+      hvac_mode_command_entity_id: "",
+    });
+    this._render();
+  }
+
+  _removeClimateEntity(index) {
+    this._syncDeviceSettingsForm();
+    this._deviceSettings.climateEntities.splice(index, 1);
+    this._render();
+  }
+
+  _climateEntityOptions(entities, selected, domains) {
+    const options = entities.filter((entity) => domains.includes(entity.domain));
+    return `<option value="">Nicht zugewiesen</option>${options.map((entity) =>
+      `<option value="${this._escape(entity.entity_id)}" ${entity.entity_id === selected ? "selected" : ""}>${this._escape(entity.name)} (${this._escape(entity.entity_id)})</option>`
+    ).join("")}`;
   }
 
   async _showDeviceDiagnostics(button) {
@@ -1427,6 +1481,32 @@ class LoRaWANPanel extends HTMLElement {
                   </span>` : ""}
                 </div>`;
               }).join("") : '<span class="muted">Diesem Gerät sind noch keine aktiven Entitäten zugeordnet.</span>'}
+            </div>
+            <div class="value-selection">
+              <strong>Zusammengesetzte Climate-Entitäten</strong>
+              ${(settings.climateEntities || []).map((climate, index) => `<fieldset>
+                <legend>Climate ${index + 1}</legend>
+                <label>Name
+                  <input name="climate_${index}_name" type="text" required value="${this._escape(climate.name || "Thermostat")}" />
+                </label>
+                <label>Isttemperatur (Uplink)
+                  <select name="climate_${index}_current">${this._climateEntityOptions(settings.availableEntities, climate.current_temperature_entity_id, ["sensor", "number"])}</select>
+                </label>
+                <label>Solltemperatur lesen (Uplink, optional)
+                  <select name="climate_${index}_target_state">${this._climateEntityOptions(settings.availableEntities, climate.target_temperature_state_entity_id, ["sensor", "number"])}</select>
+                </label>
+                <label>Solltemperatur setzen (Downlink, optional)
+                  <select name="climate_${index}_target_command">${this._climateEntityOptions(settings.availableEntities, climate.target_temperature_command_entity_id, ["number"])}</select>
+                </label>
+                <label>Betriebsmodus lesen (optional)
+                  <select name="climate_${index}_mode_state">${this._climateEntityOptions(settings.availableEntities, climate.hvac_mode_state_entity_id, ["sensor", "select", "switch"])}</select>
+                </label>
+                <label>Betriebsmodus setzen (Downlink, optional)
+                  <select name="climate_${index}_mode_command">${this._climateEntityOptions(settings.availableEntities, climate.hvac_mode_command_entity_id, ["select", "switch"])}</select>
+                </label>
+                <button type="button" data-climate-remove="${index}">Climate entfernen</button>
+              </fieldset>`).join("")}
+              <button type="button" data-climate-add>Entität hinzufügen und zuweisen</button>
             </div>
             <div class="actions">
               <button class="save" type="submit" ${settings.saving ? "disabled" : ""}>${settings.saving ? "Speichert…" : "Speichern"}</button>
@@ -1546,8 +1626,8 @@ class LoRaWANPanel extends HTMLElement {
             </div>
             ${device.tile_values?.length ? `<div class="tile-values">${device.tile_values.map((value) => `
               <div class="tile-value">
-                <button class="tile-entity-name" type="button" data-entity-more-info="${this._escape(value.entity_id)}" title="${this._escape(value.name)} öffnen">${this._escape(value.name)}</button>
-                ${this._renderTileControl(value)}
+                ${this._renderTileEntityName(value)}
+                ${this._renderTileEntityValue(value)}
               </div>
             `).join("")}</div>` : ""}
             <button
@@ -1562,6 +1642,7 @@ class LoRaWANPanel extends HTMLElement {
               data-device-remaining="${Boolean(device.create_remaining_sensors)}"
               data-device-entities="${this._escape(JSON.stringify(device.available_entities || []))}"
               data-device-tile-value-keys="${this._escape(JSON.stringify(device.tile_value_keys || []))}"
+              data-device-climate-entities="${this._escape(JSON.stringify(device.climate_entities || []))}"
             >⚙</button>
             ${device.create_raw_sensors || device.create_remaining_sensors ? `<button
               class="icon-button device-json"
@@ -1747,7 +1828,31 @@ class LoRaWANPanel extends HTMLElement {
     if (domain === "switch") {
       return `<input class="tile-switch-control" type="checkbox" ${value.state === "on" ? "checked" : ""} data-entity-control="${entityId}" data-control-domain="switch" />`;
     }
+    if (domain === "climate") {
+      if (value.target_temperature !== null || (Number(value.supported_features) & 1)) {
+        return `<span class="tile-control-wrap"><input class="tile-control" type="number" value="${value.target_temperature !== null ? this._escape(value.target_temperature) : ""}" ${value.min !== null ? `min="${this._escape(value.min)}"` : ""} ${value.max !== null ? `max="${this._escape(value.max)}"` : ""} ${value.step !== null ? `step="${this._escape(value.step)}"` : ""} data-entity-control="${entityId}" data-control-domain="climate" /><span class="tile-control-unit">°C</span></span>`;
+      }
+      return `<button class="tile-read-value" type="button" data-entity-more-info="${entityId}">${value.current_temperature !== null ? `${this._escape(value.current_temperature)} °C` : "Climate öffnen"}</button>`;
+    }
     return `<button class="tile-read-value" type="button" data-entity-more-info="${entityId}">${this._escape(this._formatTileValue(value))}</button>`;
+  }
+
+  _renderTileEntityName(value) {
+    const entityId = this._escape(value.entity_id);
+    const climateIcon = value.domain === "climate"
+      ? '<ha-icon icon="mdi:thermostat"></ha-icon>'
+      : "";
+    return `<button class="tile-entity-name" type="button" data-entity-more-info="${entityId}" title="${this._escape(value.name)} öffnen">${climateIcon}${this._escape(value.name)}</button>`;
+  }
+
+  _renderTileEntityValue(value) {
+    if (value.domain !== "climate") return this._renderTileControl(value);
+    const current = value.current_temperature;
+    const target = value.target_temperature;
+    const parts = [];
+    if (current !== null && current !== undefined) parts.push(`Ist ${this._escape(current)} °C`);
+    if (target !== null && target !== undefined) parts.push(`Soll ${this._escape(target)} °C`);
+    return `<button class="tile-read-value climate-summary" type="button" data-entity-more-info="${this._escape(value.entity_id)}">${parts.length ? parts.join(" · ") : "Climate öffnen"}</button>`;
   }
 
   async _handleEntityControl(event) {
@@ -1768,6 +1873,7 @@ class LoRaWANPanel extends HTMLElement {
       if (domain === "text") await this._hass.callService("text", "set_value", { entity_id: entityId, value: control.value });
       if (domain === "select") await this._hass.callService("select", "select_option", { entity_id: entityId, option: control.value });
       if (domain === "switch") await this._hass.callService("switch", control.checked ? "turn_on" : "turn_off", { entity_id: entityId });
+      if (domain === "climate") await this._hass.callService("climate", "set_temperature", { entity_id: entityId, temperature: Number(control.value) });
       if (domain === "button") {
         control.classList.remove("sending");
         control.classList.add("success");

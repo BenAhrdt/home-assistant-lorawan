@@ -57,6 +57,10 @@ configure_device:
       required: true
       selector:
         object:
+    device_climate_entities:
+      required: false
+      selector:
+        object:
 
 configure_downlink_profiles:
   name: Downlink-Profile konfigurieren

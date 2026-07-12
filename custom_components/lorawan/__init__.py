@@ -26,6 +26,7 @@ from .const import (
     CONF_DEVICE_CREATE_RAW_SENSORS,
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_TILE_VALUES,
+    CONF_DEVICE_CLIMATE_ENTITIES,
     CONF_CREATE_RAW_SENSORS,
     CONF_CREATE_REMAINING_SENSORS,
     CONF_OFFLINE_AFTER_HOURS,
@@ -74,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.10",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.13",
                 "embed_iframe": False,
             }
         },
@@ -119,6 +120,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 vol.Required(CONF_CREATE_RAW_SENSORS): bool,
                 vol.Required(CONF_CREATE_REMAINING_SENSORS): bool,
                 vol.Required(CONF_DEVICE_TILE_VALUES): [str],
+                vol.Optional(CONF_DEVICE_CLIMATE_ENTITIES): [dict],
             }
         ),
     )
@@ -190,6 +192,12 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
         call.data[CONF_DEVICE_TILE_VALUES]
     )
     data[CONF_DEVICE_TILE_VALUES] = tile_value_overrides
+    if CONF_DEVICE_CLIMATE_ENTITIES in call.data:
+        climate_overrides = dict(data.get(CONF_DEVICE_CLIMATE_ENTITIES) or {})
+        climate_overrides[_clean_dev_eui(call.data["dev_eui"])] = list(
+            call.data[CONF_DEVICE_CLIMATE_ENTITIES]
+        )
+        data[CONF_DEVICE_CLIMATE_ENTITIES] = climate_overrides
     hass.config_entries.async_update_entry(entry, data=data)
 
 
@@ -431,6 +439,7 @@ async def _websocket_devices(
         raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
         remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
         tile_value_overrides = config.get(CONF_DEVICE_TILE_VALUES) or {}
+        climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
         available_entities = []
         for entity in entity_registry.entities.values():
             if entity.device_id != device.id or entity.disabled_by is not None:
@@ -450,9 +459,27 @@ async def _websocket_devices(
                     "unit": (
                         state.attributes.get("unit_of_measurement") if state else None
                     ),
-                    "min": state.attributes.get("min") if state else None,
-                    "max": state.attributes.get("max") if state else None,
-                    "step": state.attributes.get("step") if state else None,
+                    "min": (
+                        state.attributes.get("min", state.attributes.get("min_temp"))
+                        if state else None
+                    ),
+                    "max": (
+                        state.attributes.get("max", state.attributes.get("max_temp"))
+                        if state else None
+                    ),
+                    "step": (
+                        state.attributes.get("step", state.attributes.get("target_temp_step"))
+                        if state else None
+                    ),
+                    "target_temperature": (
+                        state.attributes.get("temperature") if state else None
+                    ),
+                    "current_temperature": (
+                        state.attributes.get("current_temperature") if state else None
+                    ),
+                    "supported_features": (
+                        state.attributes.get("supported_features", 0) if state else 0
+                    ),
                     "options": state.attributes.get("options", []) if state else [],
                     "device_class": (
                         state.attributes.get("device_class") if state else None
@@ -487,10 +514,10 @@ async def _websocket_devices(
                 ),
                 "available_entities": available_entities,
                 "tile_value_keys": selected_tile_values,
+                "climate_entities": climate_overrides.get(clean_dev_eui, []),
                 "tile_values": [
-                    entities_by_id[entity_id]
-                    for entity_id in selected_tile_values
-                    if entity_id in entities_by_id
+                    value for entity_id, value in entities_by_id.items()
+                    if entity_id in selected_tile_values or value["domain"] == "climate"
                 ],
                 "offline_after_hours": offline_overrides.get(
                     _clean_dev_eui(dev_eui),
@@ -581,6 +608,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await runtime.async_start()
     _remove_stale_downlink_entities(hass, entry, runtime)
+    _remove_stale_climate_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True
@@ -604,6 +632,32 @@ def _remove_stale_downlink_entities(
             and "_downlink_next_send" not in entity.unique_id
             and "_downlink_last_send_" not in entity.unique_id
             and entity.unique_id not in valid_unique_ids
+        ):
+            registry.async_remove(entity.entity_id)
+
+
+def _remove_stale_climate_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove composed climate entities deleted in the device settings."""
+    data = dict(entry.data)
+    data.update(entry.options)
+    valid = {
+        f"{entry.entry_id}_{_clean_dev_eui(dev_eui)}_climate_{definition['id']}"
+        for dev_eui, definitions in (
+            data.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
+        ).items()
+        if isinstance(definitions, list)
+        for definition in definitions
+        if isinstance(definition, dict) and definition.get("id")
+    }
+    registry = er.async_get(hass)
+    marker = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if (
+            entity.config_entry_id == entry.entry_id
+            and entity.domain == "climate"
+            and entity.unique_id.startswith(marker)
+            and "_climate_" in entity.unique_id
+            and entity.unique_id not in valid
         ):
             registry.async_remove(entity.entity_id)
 

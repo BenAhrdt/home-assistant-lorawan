@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "lorawan"
 
-PLATFORMS = ["sensor", "binary_sensor", "number", "select", "switch", "button", "text"]
+PLATFORMS = ["sensor", "binary_sensor", "number", "select", "switch", "button", "text", "climate"]
 
 CONF_CREATE_RAW_SENSORS = "create_raw_sensors"
 CONF_CREATE_REMAINING_SENSORS = "create_remaining_sensors"
@@ -12,6 +12,7 @@ CONF_DEVICE_OFFLINE_AFTER_HOURS = "device_offline_after_hours"
 CONF_DEVICE_CREATE_RAW_SENSORS = "device_create_raw_sensors"
 CONF_DEVICE_CREATE_REMAINING_SENSORS = "device_create_remaining_sensors"
 CONF_DEVICE_TILE_VALUES = "device_tile_values"
+CONF_DEVICE_CLIMATE_ENTITIES = "device_climate_entities"
 CONF_DOWNLINK_PROFILES = "downlink_profiles"
 CONF_OFFLINE_AFTER_HOURS = "offline_after_hours"
 CONF_SSL = "ssl"
