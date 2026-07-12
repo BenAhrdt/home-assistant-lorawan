@@ -75,6 +75,8 @@ LoRa® is a registered trademark or service mark of Semtech Corporation or its a
 
 LoRaWAN® is a licensed mark.
 
+I have no affiliation with the mentioned brands or their subsidiaries, logos, or trademarks, nor am I endorsed by them.
+
 ## License
 MIT License
 
