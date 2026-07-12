@@ -25,6 +25,7 @@ from .const import (
     CONF_DOWNLINK_PROFILES,
     CONF_DEVICE_CREATE_RAW_SENSORS,
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
+    CONF_DEVICE_TILE_VALUES,
     CONF_CREATE_RAW_SENSORS,
     CONF_CREATE_REMAINING_SENSORS,
     CONF_OFFLINE_AFTER_HOURS,
@@ -73,7 +74,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.9",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.10",
                 "embed_iframe": False,
             }
         },
@@ -117,6 +118,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 ),
                 vol.Required(CONF_CREATE_RAW_SENSORS): bool,
                 vol.Required(CONF_CREATE_REMAINING_SENSORS): bool,
+                vol.Required(CONF_DEVICE_TILE_VALUES): [str],
             }
         ),
     )
@@ -183,6 +185,11 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
         CONF_CREATE_REMAINING_SENSORS
     ]
     data[CONF_DEVICE_CREATE_REMAINING_SENSORS] = remaining_overrides
+    tile_value_overrides = dict(data.get(CONF_DEVICE_TILE_VALUES) or {})
+    tile_value_overrides[_clean_dev_eui(call.data["dev_eui"])] = list(
+        call.data[CONF_DEVICE_TILE_VALUES]
+    )
+    data[CONF_DEVICE_TILE_VALUES] = tile_value_overrides
     hass.config_entries.async_update_entry(entry, data=data)
 
 
@@ -234,6 +241,20 @@ def _aggregate_status(statuses: list[dict]) -> dict:
         key=lambda message: message.get("received_at", ""),
         reverse=True,
     )[:10]
+    protocol_events = sorted(
+        (
+            {
+                **event,
+                "entry_id": status["entry_id"],
+                "connection_name": status["name"],
+                "connection_color": status["color"],
+            }
+            for status in statuses
+            for event in status.get("protocol_events", [])
+        ),
+        key=lambda event: event.get("timestamp", ""),
+        reverse=True,
+    )[:500]
     return {
         "configured": any(status.get("configured") for status in statuses),
         "connected": any(status.get("connected") for status in statuses),
@@ -254,6 +275,7 @@ def _aggregate_status(statuses: list[dict]) -> dict:
         "device_count": sum(status.get("device_count", 0) for status in statuses),
         "entity_count": sum(status.get("entity_count", 0) for status in statuses),
         "recent_messages": recent_messages,
+        "protocol_events": protocol_events,
     }
 
 
@@ -281,6 +303,7 @@ def _config_entry_status(entry: ConfigEntry | None) -> dict:
             DEFAULT_OFFLINE_AFTER_HOURS,
         ),
         "recent_messages": [],
+        "protocol_events": [],
     }
 
 
@@ -367,6 +390,7 @@ async def _websocket_devices(
 ) -> None:
     """Return LoRaWAN devices from the Home Assistant registries."""
     device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
 
     devices = []
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -406,6 +430,41 @@ async def _websocket_devices(
         offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
         raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
         remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
+        tile_value_overrides = config.get(CONF_DEVICE_TILE_VALUES) or {}
+        available_entities = []
+        for entity in entity_registry.entities.values():
+            if entity.device_id != device.id or entity.disabled_by is not None:
+                continue
+            state = hass.states.get(entity.entity_id)
+            available_entities.append(
+                {
+                    "entity_id": entity.entity_id,
+                    "domain": entity.entity_id.partition(".")[0],
+                    "name": (
+                        entity.name
+                        or entity.original_name
+                        or (state.attributes.get("friendly_name") if state else None)
+                        or entity.entity_id
+                    ),
+                    "state": state.state if state else "unavailable",
+                    "unit": (
+                        state.attributes.get("unit_of_measurement") if state else None
+                    ),
+                    "min": state.attributes.get("min") if state else None,
+                    "max": state.attributes.get("max") if state else None,
+                    "step": state.attributes.get("step") if state else None,
+                    "options": state.attributes.get("options", []) if state else [],
+                    "device_class": (
+                        state.attributes.get("device_class") if state else None
+                    )
+                    or getattr(entity, "original_device_class", None),
+                }
+            )
+        available_entities.sort(key=lambda item: item["name"].lower())
+        selected_tile_values = tile_value_overrides.get(clean_dev_eui, [])
+        entities_by_id = {
+            value["entity_id"]: value for value in available_entities
+        }
         devices.append(
             {
                 "id": device.id,
@@ -423,6 +482,16 @@ async def _websocket_devices(
                     _connection_color(entry, entry_indexes[entry_id]) if entry else None
                 ),
                 "online": runtime.is_device_online(dev_eui) if runtime else False,
+                "last_uplink_at": (
+                    runtime.last_seen_by_device.get(clean_dev_eui) if runtime else None
+                ),
+                "available_entities": available_entities,
+                "tile_value_keys": selected_tile_values,
+                "tile_values": [
+                    entities_by_id[entity_id]
+                    for entity_id in selected_tile_values
+                    if entity_id in entities_by_id
+                ],
                 "offline_after_hours": offline_overrides.get(
                     _clean_dev_eui(dev_eui),
                     default_offline_after,

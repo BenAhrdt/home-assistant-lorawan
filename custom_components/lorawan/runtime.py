@@ -125,6 +125,9 @@ class LoRaWANRuntime:
         self.last_seen_by_device: dict[str, str] = {}
         self.last_downlink_by_device: dict[str, dict[str, Any]] = {}
         self.next_downlink_by_device: dict[str, dict[str, Any]] = {}
+        self.device_online_states: dict[str, bool] = {}
+        self.offline_since_by_device: dict[str, str] = {}
+        self.protocol_events: deque[dict[str, Any]] = deque(maxlen=250)
         self._store = Store(
             hass,
             STORAGE_VERSION,
@@ -144,6 +147,12 @@ class LoRaWANRuntime:
         if not self.host:
             self.last_error = "MQTT broker host is not configured"
             _LOGGER.warning("LoRaWAN %s", self.last_error)
+            self._record_protocol_event(
+                "error",
+                "connection",
+                "MQTT nicht konfiguriert",
+                "Es ist kein MQTT-Broker eingetragen.",
+            )
             return
 
         client = mqtt_client.Client(client_id=f"home-assistant-lorawan-{self.entry.entry_id}")
@@ -176,12 +185,33 @@ class LoRaWANRuntime:
     def send_downlink(self, network: str, device: LoRaWANDevice, profile: dict[str, Any], payload_hex: str) -> None:
         """Publish one encoded downlink through the active MQTT connection."""
         if self._mqtt_client is None or not self.connected:
+            self._record_protocol_event(
+                "error",
+                "downlink",
+                "Downlink nicht gesendet",
+                f"{device.device_name} ({device.dev_eui}): MQTT ist nicht verbunden.",
+                device,
+            )
             raise RuntimeError("MQTT ist nicht verbunden")
         topic, payload = downlink_message(network, device, profile, payload_hex)
         result = self._mqtt_client.publish(topic, json.dumps(payload), qos=0)
         if result.rc != mqtt_client.MQTT_ERR_SUCCESS:
+            self._record_protocol_event(
+                "error",
+                "downlink",
+                "Downlink nicht gesendet",
+                f"{device.device_name} ({device.dev_eui}), MQTT-Code {result.rc}",
+                device,
+            )
             raise RuntimeError(f"Downlink konnte nicht veröffentlicht werden (MQTT-Code {result.rc})")
         self._store_downlink_diagnostics(device, payload_hex, payload)
+        self._record_protocol_event(
+            "info",
+            "downlink",
+            "Downlink gesendet",
+            f"{device.device_name} ({device.dev_eui}), Payload {payload_hex or '-'}",
+            device,
+        )
         _LOGGER.info("Published LoRaWAN downlink for %s on %s", device.dev_eui, topic)
 
     def _on_mqtt_connect(
@@ -196,11 +226,31 @@ class LoRaWANRuntime:
             self.connected = False
             self.last_error = f"MQTT connection failed with code {result_code}"
             _LOGGER.warning("LoRaWAN MQTT connection failed with code %s", result_code)
+            self.hass.loop.call_soon_threadsafe(
+                self._record_protocol_event,
+                "error",
+                "connection",
+                "MQTT-Verbindung fehlgeschlagen",
+                f"Broker {self.host}:{self.port}, Fehlercode {result_code}",
+            )
             return
 
         self.connected = True
         self.last_error = None
         self.last_connected_at = _utc_now()
+        disconnected_at = _parse_utc(self.last_disconnected_at)
+        duration = (
+            _format_duration((datetime.now(UTC) - disconnected_at).total_seconds())
+            if disconnected_at else None
+        )
+        self.hass.loop.call_soon_threadsafe(
+            self._record_protocol_event,
+            "info",
+            "connection",
+            "MQTT verbunden",
+            f"Broker {self.host}:{self.port}"
+            + (f", Unterbrechung {duration}" if duration else ""),
+        )
         for topic_filter in self.topic_filters:
             client.subscribe(topic_filter)
             _LOGGER.debug("Subscribed to LoRaWAN MQTT topic filter %s", topic_filter)
@@ -217,6 +267,14 @@ class LoRaWANRuntime:
         if result_code:
             self.last_error = f"MQTT disconnected with code {result_code}"
             _LOGGER.warning("LoRaWAN MQTT disconnected with code %s", result_code)
+        self.hass.loop.call_soon_threadsafe(
+            self._record_protocol_event,
+            "warning" if result_code else "info",
+            "connection",
+            "MQTT-Verbindung getrennt",
+            f"Broker {self.host}:{self.port}"
+            + (f", Fehlercode {result_code}" if result_code else ""),
+        )
 
     def _on_mqtt_message(
         self,
@@ -305,6 +363,15 @@ class LoRaWANRuntime:
     def _store_message(self, message: LoRaWANMessage) -> None:
         device = message.device
         is_new_device = device.dev_eui not in self.devices
+        joined = message.message_type.casefold() in {
+            "join",
+            "joined",
+            "join_request",
+            "join-request",
+        }
+        was_online = self.device_online_states.get(device.dev_eui)
+        if was_online is None and not is_new_device:
+            was_online = self._is_device_online(device.dev_eui)
         existing_device = self.devices.get(device.dev_eui)
         if existing_device is not None and existing_device.device_type:
             # A type already learned from an earlier uplink or entered manually
@@ -313,12 +380,44 @@ class LoRaWANRuntime:
         self.devices[device.dev_eui] = device
         self._refresh_downlink_controls()
         self.last_seen_by_device[device.dev_eui] = self.last_message_at or _utc_now()
+        self.device_online_states[device.dev_eui] = True
         if is_new_device:
             async_dispatcher_send(
                 self.hass,
                 SIGNAL_DEVICE_ADDED,
                 self.entry.entry_id,
                 device.dev_eui,
+            )
+        if joined:
+            self._record_protocol_event(
+                "info",
+                "device",
+                "Gerät beigetreten",
+                f"{device.device_name} ({device.dev_eui}) in Applikation "
+                f"{device.application_name} über {device.network.upper()}; "
+                f"Topic {message.topic}",
+                device,
+            )
+        elif is_new_device:
+            self._record_protocol_event(
+                "info",
+                "device",
+                "Gerät erstmals erkannt",
+                f"{device.device_name} ({device.dev_eui}) in Applikation "
+                f"{device.application_name} über {device.network.upper()}",
+                device,
+            )
+        if not is_new_device and was_online is False:
+            offline_since = _parse_utc(self.offline_since_by_device.pop(device.dev_eui, None))
+            duration = _format_duration(
+                (datetime.now(UTC) - offline_since).total_seconds()
+            ) if offline_since else "unbekannt"
+            self._record_protocol_event(
+                "info",
+                "device",
+                "Gerät wieder online",
+                f"{device.device_name} ({device.dev_eui}) war {duration} offline.",
+                device,
             )
         values = [self._device_online_value(device, True)]
         values.extend(self._downlink_diagnostic_values(device))
@@ -360,11 +459,31 @@ class LoRaWANRuntime:
     def _refresh_device_online_states(self) -> None:
         """Update online sensors from last seen timestamps."""
         for device in self.devices.values():
+            online = self._is_device_online(device.dev_eui)
+            previous = self.device_online_states.get(device.dev_eui)
+            if previous is None:
+                self.device_online_states[device.dev_eui] = online
+                if not online and device.dev_eui not in self.offline_since_by_device:
+                    self.offline_since_by_device[device.dev_eui] = (
+                        self._offline_since(device.dev_eui) or _utc_now()
+                    )
+            elif previous and not online:
+                offline_since = self._offline_since(device.dev_eui) or _utc_now()
+                self.device_online_states[device.dev_eui] = False
+                self.offline_since_by_device[device.dev_eui] = offline_since
+                self._record_protocol_event(
+                    "warning",
+                    "device",
+                    "Gerät offline",
+                    f"{device.device_name} ({device.dev_eui}) hat die Offline-Frist "
+                    f"von {self.offline_after_hours_for_device(device.dev_eui)} Stunden überschritten.",
+                    device,
+                )
             self._store_value(
                 device,
                 self._device_online_value(
                     device,
-                    self._is_device_online(device.dev_eui),
+                    online,
                 ),
             )
             for value in self._downlink_diagnostic_values(device):
@@ -378,6 +497,44 @@ class LoRaWANRuntime:
         return datetime.now(UTC) - last_seen <= timedelta(
             hours=self.offline_after_hours_for_device(dev_eui)
         )
+
+    def _offline_since(self, dev_eui: str) -> str | None:
+        """Return when the device crossed its configured offline threshold."""
+        last_seen = _parse_utc(self.last_seen_by_device.get(dev_eui))
+        if last_seen is None:
+            return None
+        return (
+            last_seen + timedelta(hours=self.offline_after_hours_for_device(dev_eui))
+        ).isoformat()
+
+    @callback
+    def _record_protocol_event(
+        self,
+        level: str,
+        category: str,
+        title: str,
+        message: str,
+        device: LoRaWANDevice | None = None,
+    ) -> None:
+        """Append one persistent human-readable protocol event."""
+        event: dict[str, Any] = {
+            "timestamp": _utc_now(),
+            "level": level,
+            "category": category,
+            "title": title,
+            "message": message,
+        }
+        if device is not None:
+            event.update(
+                {
+                    "dev_eui": device.dev_eui,
+                    "device_name": device.device_name,
+                    "application_name": device.application_name,
+                    "network": device.network,
+                }
+            )
+        self.protocol_events.appendleft(event)
+        self.hass.async_create_task(self.async_save_cache())
 
     def is_device_online(self, dev_eui: str) -> bool:
         """Return the current online state for a device."""
@@ -501,6 +658,13 @@ class LoRaWANRuntime:
             "hex": payload_hex,
             "profile": profile,
         }
+        self._record_protocol_event(
+            "info",
+            "downlink",
+            "Downlink vorgemerkt",
+            f"{device.device_name} ({device.dev_eui}), Next Send {payload_hex}",
+            device,
+        )
         for value in self._downlink_diagnostic_values(device):
             self._store_value(device, value)
         self.hass.async_create_task(self.async_save_cache())
@@ -743,6 +907,8 @@ class LoRaWANRuntime:
         self.recent_messages = deque(data.get("recent_messages") or [], maxlen=10)
         self.last_downlink_by_device = dict(data.get("last_downlink_by_device") or {})
         self.next_downlink_by_device = dict(data.get("next_downlink_by_device") or {})
+        self.offline_since_by_device = dict(data.get("offline_since_by_device") or {})
+        self.protocol_events = deque(data.get("protocol_events") or [], maxlen=250)
 
     async def async_save_cache(self) -> None:
         """Persist the latest devices and values for restart recovery."""
@@ -767,6 +933,8 @@ class LoRaWANRuntime:
                 "recent_messages": list(self.recent_messages),
                 "last_downlink_by_device": self.last_downlink_by_device,
                 "next_downlink_by_device": self.next_downlink_by_device,
+                "offline_since_by_device": self.offline_since_by_device,
+                "protocol_events": list(self.protocol_events),
             }
         )
 
@@ -797,6 +965,7 @@ class LoRaWANRuntime:
             "entity_count": len(self.values),
             "offline_after_hours": self.offline_after_hours,
             "recent_messages": list(self.recent_messages),
+            "protocol_events": list(self.protocol_events),
         }
 
 
@@ -820,6 +989,21 @@ def add_runtime_listener(
 def _utc_now() -> str:
     """Return the current UTC time in ISO format."""
     return datetime.now(UTC).isoformat()
+
+
+def _format_duration(seconds: float) -> str:
+    """Return a compact German duration for protocol messages."""
+    total_minutes = max(0, int(seconds // 60))
+    days, remainder = divmod(total_minutes, 1440)
+    hours, minutes = divmod(remainder, 60)
+    parts = []
+    if days:
+        parts.append(f"{days} Tag" if days == 1 else f"{days} Tage")
+    if hours:
+        parts.append(f"{hours} Std.")
+    if minutes or not parts:
+        parts.append(f"{minutes} Min.")
+    return " ".join(parts)
 
 
 def _downlink_event(topic: str) -> str | None:

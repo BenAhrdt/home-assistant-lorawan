@@ -53,6 +53,10 @@ configure_device:
       required: true
       selector:
         boolean:
+    device_tile_values:
+      required: true
+      selector:
+        object:
 
 configure_downlink_profiles:
   name: Downlink-Profile konfigurieren
