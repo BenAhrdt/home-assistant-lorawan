@@ -17,7 +17,7 @@ entities from decoded payload values.
 - Creates Home Assistant devices automatically from incoming messages.
 - Creates sensor entities for numeric, text, and raw payload values.
 - Creates binary sensor entities for boolean decoded values.
-- Supports decoded downlinks
+- Supports downlinks
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,
   spreading factor, frequency, frame port, and frame count when available.
 
