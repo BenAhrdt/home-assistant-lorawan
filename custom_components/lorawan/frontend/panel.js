@@ -27,6 +27,7 @@ class LoRaWANPanel extends HTMLElement {
     this._downlinkDevice = "";
     this._downlinkProfile = "";
     this._profileEditor = null;
+    this._profileEditorOriginalType = null;
     this._openParameterEditorIndex = null;
   }
 
@@ -393,6 +394,8 @@ class LoRaWANPanel extends HTMLElement {
 
         .profile-editor details, .profile-list > details { padding: 12px; border: 1px solid var(--divider-color); border-radius: 8px; background: var(--card-background-color); }
         .profile-editor details > div, .profile-list details > div { margin-top: 12px; }
+        .profile-actions { margin-bottom: 16px; }
+        .new-profile-editor { margin-bottom: 16px; padding: 12px; border: 1px solid var(--divider-color); border-radius: 8px; }
         .profile-list { display: grid; gap: 10px; }
         .profile-list summary, .profile-editor summary { cursor: pointer; }
         .profile-list summary strong { font-size: 1.05em; }
@@ -506,11 +509,23 @@ class LoRaWANPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("button[data-profile-new]")?.addEventListener("click", () => {
       this._profileEditor = { deviceType: "Neues Profil", downlinkParameter: [] };
+      this._profileEditorOriginalType = null;
       this._openParameterEditorIndex = null;
       this._render();
     });
     this.shadowRoot.querySelectorAll("button[data-profile-edit-type]").forEach((button) => button.addEventListener("click", () => {
       this._downlinkProfile = button.getAttribute("data-profile-edit-type");
+      this._profileEditor = this._cloneProfile(this._selectedDownlinkProfile());
+      this._profileEditorOriginalType = this._downlinkProfile;
+      this._openParameterEditorIndex = null;
+      this._render();
+    }));
+    this.shadowRoot.querySelectorAll("details[data-profile-type]").forEach((details) => details.addEventListener("toggle", () => {
+      if (!details.open) return;
+      const deviceType = details.getAttribute("data-profile-type");
+      if (this._profileEditorOriginalType === deviceType) return;
+      this._downlinkProfile = deviceType;
+      this._profileEditorOriginalType = deviceType;
       this._profileEditor = this._cloneProfile(this._selectedDownlinkProfile());
       this._openParameterEditorIndex = null;
       this._render();
@@ -522,7 +537,7 @@ class LoRaWANPanel extends HTMLElement {
       this._deleteProfile(this._downlinks.profiles.find((profile) => profile.deviceType === button.getAttribute("data-profile-delete-type")));
     }));
     this.shadowRoot.querySelector("form[data-profile-editor]")?.addEventListener("submit", (event) => this._saveProfile(event));
-    this.shadowRoot.querySelector("button[data-profile-cancel]")?.addEventListener("click", () => { this._profileEditor = null; this._openParameterEditorIndex = null; this._render(); });
+    this.shadowRoot.querySelector("button[data-profile-cancel]")?.addEventListener("click", () => { this._profileEditor = null; this._profileEditorOriginalType = null; this._openParameterEditorIndex = null; this._render(); });
     this.shadowRoot.querySelector("button[data-parameter-add]")?.addEventListener("click", () => {
       this._profileEditor.downlinkParameter.push({ name: "Neuer Parameter", type: "number", port: this._profileEditor.port || 1, lengthInByte: 1, multiplyfaktor: 1 }); this._render();
     });
@@ -668,23 +683,24 @@ class LoRaWANPanel extends HTMLElement {
       return this._renderDownlinks();
     }
 
+    const connections = this._status.connections || [];
     return `
       <div class="section">
-        <div class="card">
-          <h2>Uplinks</h2>
+        ${(connections.length ? connections : [this._status]).map((connection) => `
+        <div class="card" style="border-top: 4px solid ${this._escape(connection.color || "var(--primary-color)")}">
+          <h2>${this._escape(connection.name || "Uplinks")}</h2>
           <dl>
             <dt>Status</dt>
-            <dd>${this._status.connected ? "MQTT verbunden" : "Wartet auf MQTT-Verbindung"}</dd>
+            <dd>${connection.connected ? "MQTT verbunden" : "Wartet auf MQTT-Verbindung"}</dd>
             <dt>Uplinks</dt>
-            <dd>${this._status.message_count || 0}</dd>
+            <dd>${connection.message_count || 0}</dd>
             <dt>Geraete</dt>
-            <dd>${this._status.device_count || 0}</dd>
+            <dd>${connection.device_count || 0}</dd>
             <dt>Entities</dt>
-            <dd>${this._status.entity_count || 0}</dd>
-            <dt>Diagnose</dt>
-            <dd>RSSI, SNR, Gateway, Frame Port und Counter als Attribute</dd>
+            <dd>${connection.entity_count || 0}</dd>
           </dl>
         </div>
+        `).join("")}
       </div>
     `;
   }
@@ -713,6 +729,7 @@ class LoRaWANPanel extends HTMLElement {
     const copy = this._cloneProfile(profile);
     copy.deviceType = this._copyName((this._downlinks.profiles || []).map((item) => item.deviceType), profile.deviceType);
     this._profileEditor = copy;
+    this._profileEditorOriginalType = null;
     this._render();
   }
 
@@ -745,16 +762,19 @@ class LoRaWANPanel extends HTMLElement {
         downlink_profiles: remaining,
       });
       if (this._downlinkProfile === profile.deviceType) this._downlinkProfile = "";
+      if (this._profileEditorOriginalType === profile.deviceType) {
+        this._profileEditor = null;
+        this._profileEditorOriginalType = null;
+        this._openParameterEditorIndex = null;
+      }
       await this._loadDownlinks();
+      this._render();
     } catch (error) { window.alert(`Profil konnte nicht gelöscht werden: ${error.message || error}`); }
   }
 
   _renderDownlinks() {
-    const profiles = this._downlinks.profiles || [];
-    if (this._profileEditor) {
-      const profile = this._profileEditor;
-      return `
-        <div class="card"><h2>Downlink-Profil bearbeiten</h2>
+    const profiles = (this._downlinks.profiles || []).filter((profile) => profile.deviceType !== "internalBaseDevice");
+    const editor = (profile) => `
           <form class="profile-editor" data-profile-editor>
             <label>Gerätetyp<input name="deviceType" required value="${this._escape(profile.deviceType || "")}" /></label>
             <label>Mit Uplink senden<select name="sendWithUplink" data-profile-send-with-uplink><option ${profile.sendWithUplink === "disabled" ? "selected" : ""}>disabled</option><option ${profile.sendWithUplink === "enabled" ? "selected" : ""}>enabled</option><option ${profile.sendWithUplink === "enabled & collect" ? "selected" : ""}>enabled & collect</option></select></label>
@@ -764,16 +784,19 @@ class LoRaWANPanel extends HTMLElement {
             <h3>Individuelle Downlink-Konfiguration</h3>
             <button class="action" type="button" data-parameter-add>+ Parameter hinzufügen</button>
             ${(profile.downlinkParameter || []).map((parameter, index) => this._renderParameterEditor(parameter, index, profile)).join("")}
-            <div class="actions"><button class="save" type="submit">Profil speichern</button><button class="action" type="button" data-profile-cancel>Abbrechen</button></div>
-          </form>
-        </div>`;
-    }
+            <div class="actions"><button class="save" type="submit" ${profile.saving ? "disabled" : ""}>${profile.saving ? "Speichert…" : "Profil speichern"}</button><button class="action" type="button" data-profile-cancel ${profile.saving ? "disabled" : ""}>Abbrechen</button></div>
+          </form>`;
     return `
       <div class="card">
         <h2>Gerätespezifische Downlink-Profile</h2>
         <p class="muted">Profile und Parameter entsprechen dem ioBroker-Adapter. Änderungen gelten als lokale Überschreibung.</p>
         <div class="profile-actions"><button class="save" type="button" data-profile-new>Eigenes Profil anlegen</button></div>
-        <div class="profile-list">${profiles.map((profile) => `<details><summary><strong>${this._escape(profile.deviceType)}</strong> <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></summary><div class="profile-content"><ul class="profile-parameters">${(profile.downlinkParameter || []).map((parameter) => `<li class="profile-parameter"><strong>${this._escape(parameter.name)}</strong> <span class="muted">${this._escape(parameter.type || "number")}${parameter.unit ? ` · ${this._escape(parameter.unit)}` : ""}</span></li>`).join("")}</ul><div class="actions"><button class="action" type="button" data-profile-edit-type="${this._escape(profile.deviceType)}">Profil bearbeiten</button><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">Duplizieren</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">Löschen</button></div></div></details>`).join("")}</div>
+        ${this._profileEditor && this._profileEditorOriginalType === null ? `<div class="new-profile-editor"><h3>Neues Downlink-Profil</h3>${editor(this._profileEditor)}</div>` : ""}
+        <div class="profile-list">${profiles.map((profile) => {
+          const editing = this._profileEditor && this._profileEditorOriginalType === profile.deviceType;
+          const profileActions = `<div class="actions"><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">Duplizieren</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">Löschen</button></div>`;
+          return `<details ${editing ? "open" : ""} data-profile-type="${this._escape(profile.deviceType)}"><summary><strong>${this._escape(profile.deviceType)}</strong> <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></summary><div class="profile-content">${editing ? `${editor(this._profileEditor)}${profileActions}` : `<ul class="profile-parameters">${(profile.downlinkParameter || []).map((parameter) => `<li class="profile-parameter"><strong>${this._escape(parameter.name)}</strong> <span class="muted">${this._escape(parameter.type || "number")}${parameter.unit ? ` · ${this._escape(parameter.unit)}` : ""}</span></li>`).join("")}</ul>${profileActions}`}</div></details>`;
+        }).join("")}</div>
       </div>`;
   }
 
@@ -858,9 +881,16 @@ class LoRaWANPanel extends HTMLElement {
 
   async _saveProfile(event) {
     event.preventDefault();
+    if (this._profileEditor?.saving) return;
+    const data = new FormData(event.currentTarget);
+    const controls = event.currentTarget.querySelectorAll("input, select, button");
+    this._profileEditor.saving = true;
+    controls.forEach((control) => { control.disabled = true; });
+    const saveButton = event.currentTarget.querySelector('button[type="submit"]');
+    if (saveButton) saveButton.textContent = "Speichert…";
     try {
-      const data = new FormData(event.currentTarget);
       const old = this._cloneProfile(this._profileEditor);
+      if (old) delete old.saving;
       if (!old || !Array.isArray(old.downlinkParameter)) {
         throw new Error("Kein zu speicherndes Downlink-Profil vorhanden");
       }
@@ -925,6 +955,7 @@ class LoRaWANPanel extends HTMLElement {
         sendWithUplink,
         downlinkParameter: old.downlinkParameter.map(parameter),
       };
+      delete profile.saving;
       if (sendWithUplink !== "disabled") {
         profile.port = number("port", old.port || 1);
         profile.priority = String(data.get("priority") || "NORMAL");
@@ -934,10 +965,17 @@ class LoRaWANPanel extends HTMLElement {
       const current = (this._downlinks.configured_profiles || []).filter((item) => item.deviceType !== old.deviceType && item.deviceType !== profile.deviceType);
       current.push(profile);
       await this._hass.callService("lorawan", "configure_downlink_profiles", { downlink_profiles: current });
-      this._profileEditor = null;
-      this._downlinkProfile = profile.deviceType;
       await this._loadDownlinks();
-    } catch (error) { window.alert(`Profil konnte nicht gespeichert werden: ${error.message || error}`); }
+      this._profileEditor = null;
+      this._profileEditorOriginalType = null;
+      this._downlinkProfile = profile.deviceType;
+      this._render();
+    } catch (error) {
+      this._profileEditor.saving = false;
+      controls.forEach((control) => { control.disabled = false; });
+      if (saveButton) saveButton.textContent = "Profil speichern";
+      window.alert("Speichern fehlgeschlagen.");
+    }
   }
 
   async _handleDeviceSettings(button) {
