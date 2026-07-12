@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.13",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.14",
                 "embed_iframe": False,
             }
         },

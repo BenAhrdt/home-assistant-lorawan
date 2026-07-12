@@ -4,6 +4,7 @@ from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN, SIGNAL_ADD_DOWNLINK_CONTROL, SIGNAL_REMOVE_DOWNLINK_CONTROL
 from .downlink_entity import LoRaWANDownlinkEntity
@@ -31,9 +32,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entry.async_on_unload(add_runtime_listener(hass, SIGNAL_REMOVE_DOWNLINK_CONTROL, entry.entry_id, remove))
 
 
-class LoRaWANDownlinkNumber(LoRaWANDownlinkEntity, NumberEntity):
+class LoRaWANDownlinkNumber(LoRaWANDownlinkEntity, NumberEntity, RestoreEntity):
     _attr_mode = NumberMode.BOX
     _attr_native_value = 0
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the displayed value without sending a downlink."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is None or last_state.state in {"unknown", "unavailable"}:
+            return
+        try:
+            self._attr_native_value = self._normalized_value(float(last_state.state))
+        except (TypeError, ValueError):
+            # Keep the explicit zero default when no valid value was stored.
+            self._attr_native_value = 0
 
     @property
     def native_min_value(self) -> float:
