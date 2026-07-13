@@ -1563,7 +1563,20 @@ class LoRaWANPanel extends HTMLElement {
 
   _removeClimateEntity(index) {
     this._syncClimateEntitiesForm();
-    this._deviceSettings.climateEntities.splice(index, 1);
+    const [removedClimate] = this._deviceSettings.climateEntities.splice(index, 1);
+    if (removedClimate?.id) {
+      const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
+      const uniqueId = `${this._deviceSettings.entryId}_${cleanDevEui}_climate_${removedClimate.id}`;
+      const removedEntityIds = new Set(
+        this._deviceSettings.availableEntities
+          .filter((entity) => entity.unique_id === uniqueId)
+          .map((entity) => entity.entity_id)
+      );
+      this._deviceSettings.availableEntities = this._deviceSettings.availableEntities
+        .filter((entity) => !removedEntityIds.has(entity.entity_id));
+      this._deviceSettings.tileValueKeys = this._deviceSettings.tileValueKeys
+        .filter((entityId) => !removedEntityIds.has(entityId));
+    }
     this._render();
   }
 
@@ -1691,7 +1704,7 @@ class LoRaWANPanel extends HTMLElement {
                 <label>${this._t("setHvacMode")}
                   <select name="climate_${index}_mode_command">${this._climateEntityOptions(settings.availableEntities, climate.hvac_mode_command_entity_id, ["select", "switch"])}</select>
                 </label>
-                <button type="button" data-climate-remove="${index}">${this._t("removeClimate")}</button>
+                <button class="action danger" type="button" data-climate-remove="${index}">${this._t("removeClimate")}</button>
               </fieldset>`).join("")}
               <button type="button" data-climate-add>${this._t("addAndAssignEntity")}</button>
             </div>

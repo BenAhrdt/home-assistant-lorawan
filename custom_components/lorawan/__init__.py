@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.15",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.16",
                 "embed_iframe": False,
             }
         },
@@ -448,6 +448,7 @@ async def _websocket_devices(
             available_entities.append(
                 {
                     "entity_id": entity.entity_id,
+                    "unique_id": entity.unique_id,
                     "domain": entity.entity_id.partition(".")[0],
                     "name": (
                         entity.name
