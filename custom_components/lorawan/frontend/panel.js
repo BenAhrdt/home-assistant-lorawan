@@ -1,3 +1,96 @@
+const TRANSLATIONS = {
+  de: {
+    devices: "Geräte", protocol: "Protokoll", connection: "Verbindung", active: "Aktiv",
+    disconnected: "Nicht verbunden", broker: "Broker", lastMessage: "Letzte Nachricht",
+    lastTopic: "Letztes Topic", detected: "Erkannt", errors: "Fehler", formats: "Formate",
+    status: "Status", entities: "Entitäten", mqttConnected: "MQTT verbunden",
+    waitingForMqtt: "Wartet auf MQTT-Verbindung", recentMessages: "Letzte Nachrichten",
+    showRecentMessages: "Letzte Nachrichten anzeigen", direction: "Richtung", close: "Schließen",
+    deviceType: "Gerätetyp", sendWithUplink: "Mit Uplink senden", priority: "Priorität",
+    confirmed: "Bestätigt", customDownlinkConfig: "Individuelle Downlink-Konfiguration",
+    addParameter: "+ Parameter hinzufügen", saveProfile: "Profil speichern", saving: "Speichert…",
+    cancel: "Abbrechen", deviceProfiles: "Gerätespezifische Downlink-Profile",
+    profileDescription: "Profile und Parameter entsprechen dem ioBroker-Adapter. Änderungen gelten als lokale Überschreibung.",
+    createProfile: "Eigenes Profil anlegen", newProfile: "Neues Downlink-Profil", duplicate: "Duplizieren",
+    delete: "Löschen", type: "Typ", leading: "Führend", trailing: "Folgend", lengthBytes: "Länge (Byte)",
+    onSequence: "Ein-Folge (Hex)", offSequence: "Aus-Folge (Hex)", clickSequence: "Klick-Folge (Hex)",
+    multiplier: "Multiplikator", decimalPlaces: "Dezimalstellen", unit: "Einheit", noCrc: "keine CRC",
+    swapBytes: "Byte-Reihenfolge tauschen", limitMinimum: "Minimum begrenzen", minimumValue: "Min.-Wert",
+    limitMaximum: "Maximum begrenzen", maximumValue: "Max.-Wert", useStates: "Statuswerte verwenden",
+    stateValues: "Statuswerte", duplicateParameter: "Parameter duplizieren", deleteParameter: "Parameter löschen",
+    execute: "Ausführen", enabled: "Aktiv", send: "Senden", device: "Gerät", newEntry: "Neuer Eintrag",
+    copy: "Kopie", newParameter: "Neuer Parameter", newProfileName: "Neues Profil",
+    offlineAfterHours: "Offline nach Stunden", enableRawDiagnostics: "Raw-Diagnose aktivieren",
+    enableRemainingDiagnostics: "Verbleibende Payload-Diagnose aktivieren", tileValues: "Werte auf der Gerätekachel",
+    moveUp: "Nach oben", moveDown: "Nach unten", noActiveEntities: "Diesem Gerät sind noch keine aktiven Entitäten zugeordnet.",
+    compositeClimate: "Zusammengesetzte Climate-Entitäten", notAssigned: "Nicht zugewiesen",
+    additionalEntities: "Zusätzliche Entitäten", configure: "Konfigurieren", done: "Fertig",
+    climateEntity: "Climate-Entität", climateEntities: "Climate-Entitäten",
+    noAdditionalEntities: "Noch keine zusätzlichen Entitäten konfiguriert", configured: "konfiguriert",
+    currentTemperature: "Isttemperatur (Uplink)", readTargetTemperature: "Solltemperatur lesen (Uplink, optional)",
+    setTargetTemperature: "Solltemperatur setzen (Downlink, optional)", readHvacMode: "Betriebsmodus lesen (optional)",
+    setHvacMode: "Betriebsmodus setzen (Downlink, optional)", removeClimate: "Climate entfernen",
+    addAndAssignEntity: "Entität hinzufügen und zuweisen", save: "Speichern", deviceSettings: "Geräteeinstellungen",
+    invalidHours: "Bitte eine ganze Zahl zwischen 1 und 8760 eingeben.", saveFailed: "Speichern fehlgeschlagen.",
+    noDevices: "Keine Geräte gefunden", devicesAfterUplink: "Geräte erscheinen hier nach dem ersten passenden Uplink.",
+    online: "Online", offline: "Offline", lastUplink: "Letzter Uplink", application: "Applikation",
+    showMqttData: "MQTT-Daten anzeigen", noEvents: "Noch keine Ereignisse aufgezeichnet.", event: "Ereignis",
+    press: "Drücken", emptyValue: "(leerer Wert)", on: "Ein", off: "Aus", open: "öffnen",
+    currentShort: "Ist", targetShort: "Soll", openClimate: "Climate öffnen", sending: "Wird gesendet…",
+    sent: "Gesendet ✓", failed: "Fehler ✕", writeFailed: "Wert konnte nicht geschrieben werden.",
+    battery: "Batterie", garageDoor: "Garagentor", window: "Fenster", door: "Tür", contact: "Kontakt",
+    opened: "Geöffnet", closed: "Geschlossen", locked: "Verriegelt", unlocked: "Entriegelt",
+    idle: "Ruhe", motionDetected: "Bewegung erkannt", clear: "Frei", occupied: "Belegt", safe: "Sicher",
+    unsafe: "Unsicher", noSmoke: "Kein Rauch", smokeDetected: "Rauch erkannt", dataLoading: "Daten werden geladen…",
+    dataLoadFailed: "Daten konnten nicht geladen werden.", diagnosticUnavailable: "Nicht aktiviert oder noch kein Uplink empfangen.",
+    moreMqttData: "Weitere MQTT-Daten", noMessages: "Noch keine Nachrichten",
+    noConfirmation: "Noch keine Bestätigung", profileDeleteFailed: "Profil konnte nicht gelöscht werden",
+    downlinkSent: "Downlink gesendet", downlinkSendFailed: "Downlink konnte nicht gesendet werden"
+  },
+  en: {
+    devices: "Devices", protocol: "Log", connection: "Connection", active: "Active",
+    disconnected: "Disconnected", broker: "Broker", lastMessage: "Last message", lastTopic: "Last topic",
+    detected: "Detected", errors: "Errors", formats: "Formats", status: "Status", entities: "Entities",
+    mqttConnected: "MQTT connected", waitingForMqtt: "Waiting for MQTT connection", recentMessages: "Recent messages",
+    showRecentMessages: "Show recent messages", direction: "Direction", close: "Close", deviceType: "Device type",
+    sendWithUplink: "Send with uplink", priority: "Priority", confirmed: "Confirmed",
+    customDownlinkConfig: "Custom downlink configuration", addParameter: "+ Add parameter", saveProfile: "Save profile",
+    saving: "Saving…", cancel: "Cancel", deviceProfiles: "Device-specific downlink profiles",
+    profileDescription: "Profiles and parameters follow the ioBroker adapter. Changes are stored as local overrides.",
+    createProfile: "Create custom profile", newProfile: "New downlink profile", duplicate: "Duplicate", delete: "Delete",
+    type: "Type", leading: "Prefix", trailing: "Suffix", lengthBytes: "Length (bytes)", onSequence: "On sequence (hex)",
+    offSequence: "Off sequence (hex)", clickSequence: "Click sequence (hex)", multiplier: "Multiplier",
+    decimalPlaces: "Decimal places", unit: "Unit", noCrc: "no CRC", swapBytes: "Swap byte order",
+    limitMinimum: "Limit minimum", minimumValue: "Minimum value", limitMaximum: "Limit maximum",
+    maximumValue: "Maximum value", useStates: "Use state values", stateValues: "State values",
+    duplicateParameter: "Duplicate parameter", deleteParameter: "Delete parameter", execute: "Run", enabled: "Enabled",
+    send: "Send", device: "Device", newEntry: "New entry", copy: "Copy", newParameter: "New parameter",
+    newProfileName: "New profile", offlineAfterHours: "Offline after hours", enableRawDiagnostics: "Enable raw diagnostics",
+    enableRemainingDiagnostics: "Enable remaining payload diagnostics", tileValues: "Values on the device card",
+    moveUp: "Move up", moveDown: "Move down", noActiveEntities: "No active entities are assigned to this device yet.",
+    compositeClimate: "Composite climate entities", notAssigned: "Not assigned", currentTemperature: "Current temperature (uplink)",
+    additionalEntities: "Additional entities", configure: "Configure", done: "Done",
+    climateEntity: "climate entity", climateEntities: "climate entities",
+    noAdditionalEntities: "No additional entities configured yet", configured: "configured",
+    readTargetTemperature: "Read target temperature (uplink, optional)", setTargetTemperature: "Set target temperature (downlink, optional)",
+    readHvacMode: "Read HVAC mode (optional)", setHvacMode: "Set HVAC mode (downlink, optional)", removeClimate: "Remove climate",
+    addAndAssignEntity: "Add and assign entity", save: "Save", deviceSettings: "Device settings",
+    invalidHours: "Enter a whole number between 1 and 8760.", saveFailed: "Saving failed.", noDevices: "No devices found",
+    devicesAfterUplink: "Devices appear here after the first matching uplink.", online: "Online", offline: "Offline",
+    lastUplink: "Last uplink", application: "Application", showMqttData: "Show MQTT data", noEvents: "No events recorded yet.",
+    event: "Event", press: "Press", emptyValue: "(empty value)", on: "On", off: "Off", open: "open",
+    currentShort: "Current", targetShort: "Target", openClimate: "Open climate", sending: "Sending…", sent: "Sent ✓",
+    failed: "Failed ✕", writeFailed: "The value could not be written.", battery: "Battery", garageDoor: "Garage door",
+    window: "Window", door: "Door", contact: "Contact", opened: "open", closed: "closed", locked: "Locked",
+    unlocked: "Unlocked", idle: "Idle", motionDetected: "Motion detected", clear: "Clear", occupied: "Occupied",
+    safe: "Safe", unsafe: "Unsafe", noSmoke: "No smoke", smokeDetected: "Smoke detected", dataLoading: "Loading data…",
+    dataLoadFailed: "Data could not be loaded.", diagnosticUnavailable: "Not enabled or no uplink received yet.",
+    moreMqttData: "Additional MQTT data", noMessages: "No messages yet", noConfirmation: "No confirmation yet",
+    profileDeleteFailed: "Profile could not be deleted", downlinkSent: "Downlink sent",
+    downlinkSendFailed: "Downlink could not be sent"
+  }
+};
+
 class LoRaWANPanel extends HTMLElement {
   constructor() {
     super();
@@ -20,6 +113,7 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceSubscribePending = false;
     this._devices = [];
     this._deviceSettings = null;
+    this._additionalEntitiesDialogOpen = false;
     this._deviceDiagnostics = null;
     this._selectedMessage = null;
     this._selectedConnectionId = null;
@@ -32,15 +126,25 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   set hass(hass) {
+    const previousLanguage = this._language();
     this._hass = hass;
     this._startStatusPolling();
     this._startDeviceSubscription();
     if (!this._rendered) {
       this._loadDownlinks();
     }
-    if (!this._rendered) {
+    if (!this._rendered || previousLanguage !== this._language()) {
       if (this._activeTab !== "downlinks") this._render();
     }
+  }
+
+  _language() {
+    const language = this._hass?.locale?.language || this._hass?.language || navigator.language || "en";
+    return String(language).toLowerCase().startsWith("de") ? "de" : "en";
+  }
+
+  _t(key) {
+    return TRANSLATIONS[this._language()][key] || TRANSLATIONS.de[key] || key;
   }
 
   connectedCallback() {
@@ -73,11 +177,11 @@ class LoRaWANPanel extends HTMLElement {
     this._rendered = true;
 
     const tabs = [
-      ["devices", "Geraete"],
+      ["devices", this._t("devices")],
       ["lns", "LNS / MQTT"],
       ["uplinks", "Uplinks"],
       ["downlinks", "Downlinks"],
-      ["protocol", "Protokoll"],
+      ["protocol", this._t("protocol")],
     ];
 
     this.shadowRoot.innerHTML = `
@@ -522,6 +626,23 @@ class LoRaWANPanel extends HTMLElement {
           border-radius: 4px;
         }
 
+        .settings-subsection {
+          grid-column: 1 / -1;
+          display: grid;
+          gap: 8px;
+          padding: 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+        }
+
+        .settings-subsection button {
+          justify-self: start;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          padding: 9px 14px;
+          color: var(--primary-text-color);
+        }
+
         .value-selection-row {
           display: flex;
           align-items: center;
@@ -601,6 +722,10 @@ class LoRaWANPanel extends HTMLElement {
           background: rgba(0, 0, 0, 0.42);
         }
 
+        .dialog-backdrop.secondary {
+          z-index: 20;
+        }
+
         .dialog {
           box-sizing: border-box;
           width: min(480px, 100%);
@@ -608,6 +733,21 @@ class LoRaWANPanel extends HTMLElement {
           border-radius: 12px;
           background: var(--card-background-color);
           box-shadow: var(--ha-card-box-shadow, 0 4px 18px rgba(0, 0, 0, 0.3));
+        }
+
+        .additional-entities-dialog {
+          width: min(640px, 100%);
+          max-height: calc(100vh - 40px);
+          overflow-y: auto;
+        }
+
+        .additional-entities-dialog form {
+          gap: 12px;
+        }
+
+        .additional-entities-dialog .value-selection {
+          max-height: none;
+          overflow: visible;
         }
 
         .dialog form, .profile-editor {
@@ -751,6 +891,7 @@ class LoRaWANPanel extends HTMLElement {
         ${this._renderContent()}
       </div>
       ${this._renderDeviceSettingsDialog()}
+      ${this._renderAdditionalEntitiesDialog()}
       ${this._renderDeviceDiagnosticsDialog()}
       ${this._renderMessagesDialog()}
     `;
@@ -782,10 +923,21 @@ class LoRaWANPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("button[data-climate-remove]").forEach((button) => {
       button.addEventListener("click", () => this._removeClimateEntity(Number(button.dataset.climateRemove)));
     });
+    this.shadowRoot.querySelector("button[data-additional-entities-open]")?.addEventListener("click", () => {
+      this._syncDeviceSettingsForm();
+      this._additionalEntitiesDialogOpen = true;
+      this._render();
+    });
+    this.shadowRoot.querySelector("button[data-additional-entities-close]")?.addEventListener("click", () => {
+      this._syncClimateEntitiesForm();
+      this._additionalEntitiesDialogOpen = false;
+      this._render();
+    });
     this.shadowRoot
       .querySelector("button[data-device-settings-cancel]")
       ?.addEventListener("click", () => {
         this._deviceSettings = null;
+        this._additionalEntitiesDialogOpen = false;
         this._render();
       });
     this.shadowRoot.querySelector("select[data-downlink-device]")?.addEventListener("change", (event) => {
@@ -799,7 +951,7 @@ class LoRaWANPanel extends HTMLElement {
       this._render();
     });
     this.shadowRoot.querySelector("button[data-profile-new]")?.addEventListener("click", () => {
-      this._profileEditor = { deviceType: "Neues Profil", downlinkParameter: [] };
+      this._profileEditor = { deviceType: this._t("newProfileName"), downlinkParameter: [] };
       this._profileEditorOriginalType = null;
       this._openParameterEditorIndex = null;
       this._render();
@@ -830,7 +982,7 @@ class LoRaWANPanel extends HTMLElement {
     this.shadowRoot.querySelector("form[data-profile-editor]")?.addEventListener("submit", (event) => this._saveProfile(event));
     this.shadowRoot.querySelector("button[data-profile-cancel]")?.addEventListener("click", () => { this._profileEditor = null; this._profileEditorOriginalType = null; this._openParameterEditorIndex = null; this._render(); });
     this.shadowRoot.querySelector("button[data-parameter-add]")?.addEventListener("click", () => {
-      this._profileEditor.downlinkParameter.push({ name: "Neuer Parameter", type: "number", port: this._profileEditor.port || 1, lengthInByte: 1, multiplyfaktor: 1 }); this._render();
+      this._profileEditor.downlinkParameter.push({ name: this._t("newParameter"), type: "number", port: this._profileEditor.port || 1, lengthInByte: 1, multiplyfaktor: 1 }); this._render();
     });
     this.shadowRoot.querySelector("select[data-profile-send-with-uplink]")?.addEventListener("change", (event) => {
       this._profileEditor.sendWithUplink = event.target.value;
@@ -921,27 +1073,27 @@ class LoRaWANPanel extends HTMLElement {
       return `
         <div class="section">
           ${connections.map((connection) => `
-          <div class="card status-card" style="border-top: 4px solid ${this._escape(connection.color || "var(--primary-color)")}" role="button" tabindex="0" data-show-messages data-entry-id="${this._escape(connection.entry_id || "")}" title="Letzte Nachrichten anzeigen">
+          <div class="card status-card" style="border-top: 4px solid ${this._escape(connection.color || "var(--primary-color)")}" role="button" tabindex="0" data-show-messages data-entry-id="${this._escape(connection.entry_id || "")}" title="${this._t("showRecentMessages")}">
             <h2>${this._escape(connection.name || "LoRaWAN")}</h2>
             <dl>
-              <dt>Verbindung</dt>
+              <dt>${this._t("connection")}</dt>
               <dd>
                 <span class="status">
                   <span class="dot ${connection.connected ? "connected" : connection.last_error ? "error" : ""}"></span>
-                  ${connection.connected ? "Aktiv" : "Nicht verbunden"}
+                  ${connection.connected ? this._t("active") : this._t("disconnected")}
                 </span>
               </dd>
-              <dt>Broker</dt>
+              <dt>${this._t("broker")}</dt>
               <dd><code>${this._escape(connection.host || "-")}:${this._escape(connection.port || "-")}</code></dd>
-              <dt>Letzte Nachricht</dt>
+              <dt>${this._t("lastMessage")}</dt>
               <dd>${this._formatDate(connection.last_message_at)}</dd>
-              <dt>Letztes Topic</dt>
+              <dt>${this._t("lastTopic")}</dt>
               <dd><code>${this._escape(connection.last_topic || "-")}</code></dd>
-              <dt>Erkannt</dt>
+              <dt>${this._t("detected")}</dt>
               <dd>${this._formatDetectedNetworks(connection.lns_counts)}</dd>
               <dt>Downlinks</dt>
               <dd>${this._formatDownlinkEvents(connection.downlink_event_counts)}</dd>
-              <dt>Fehler</dt>
+              <dt>${this._t("errors")}</dt>
               <dd>${this._escape(connection.last_error || "-")}</dd>
             </dl>
           </div>
@@ -963,7 +1115,7 @@ class LoRaWANPanel extends HTMLElement {
             </dl>
           </div>
           <div class="card">
-            <h2>Formate</h2>
+            <h2>${this._t("formats")}</h2>
             <dl>
               <dt>TTN</dt>
               <dd><code>uplink_message.decoded_payload</code></dd>
@@ -998,13 +1150,13 @@ class LoRaWANPanel extends HTMLElement {
         <div class="card" style="border-top: 4px solid ${this._escape(connection.color || "var(--primary-color)")}">
           <h2>${this._escape(connection.name || "Uplinks")}</h2>
           <dl>
-            <dt>Status</dt>
-            <dd>${connection.connected ? "MQTT verbunden" : "Wartet auf MQTT-Verbindung"}</dd>
+            <dt>${this._t("status")}</dt>
+            <dd>${connection.connected ? this._t("mqttConnected") : this._t("waitingForMqtt")}</dd>
             <dt>Uplinks</dt>
             <dd>${connection.message_count || 0}</dd>
-            <dt>Geraete</dt>
+            <dt>${this._t("devices")}</dt>
             <dd>${connection.device_count || 0}</dd>
-            <dt>Entities</dt>
+            <dt>${this._t("entities")}</dt>
             <dd>${connection.entity_count || 0}</dd>
           </dl>
         </div>
@@ -1022,7 +1174,7 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _copyName(existingNames, name) {
-    const base = `${name || "Neuer Eintrag"} (Kopie)`;
+    const base = `${name || this._t("newEntry")} (${this._t("copy")})`;
     let candidate = base;
     let number = 2;
     while (existingNames.includes(candidate)) {
@@ -1061,7 +1213,9 @@ class LoRaWANPanel extends HTMLElement {
     if (!profile) return;
     const configured = this._downlinks.configured_profiles || [];
     const isBuiltIn = (this._downlinks.builtin_profile_types || []).includes(profile.deviceType);
-    const message = `Downlink-Profil „${profile.deviceType}“ wirklich löschen?`;
+    const message = this._language() === "de"
+      ? `Downlink-Profil „${profile.deviceType}“ wirklich löschen?`
+      : `Really delete downlink profile “${profile.deviceType}”?`;
     if (!window.confirm(message)) return;
     try {
       const remaining = configured.filter((item) => item.deviceType !== profile.deviceType);
@@ -1077,32 +1231,32 @@ class LoRaWANPanel extends HTMLElement {
       }
       await this._loadDownlinks();
       this._render();
-    } catch (error) { window.alert(`Profil konnte nicht gelöscht werden: ${error.message || error}`); }
+    } catch (error) { window.alert(`${this._t("profileDeleteFailed")}: ${error.message || error}`); }
   }
 
   _renderDownlinks() {
     const profiles = (this._downlinks.profiles || []).filter((profile) => profile.deviceType !== "internalBaseDevice");
     const editor = (profile) => `
           <form class="profile-editor" data-profile-editor>
-            <label>Gerätetyp<input name="deviceType" required value="${this._escape(profile.deviceType || "")}" /></label>
-            <label>Mit Uplink senden<select name="sendWithUplink" data-profile-send-with-uplink><option ${profile.sendWithUplink === "disabled" ? "selected" : ""}>disabled</option><option ${profile.sendWithUplink === "enabled" ? "selected" : ""}>enabled</option><option ${profile.sendWithUplink === "enabled & collect" ? "selected" : ""}>enabled & collect</option></select></label>
+            <label>${this._t("deviceType")}<input name="deviceType" required value="${this._escape(profile.deviceType || "")}" /></label>
+            <label>${this._t("sendWithUplink")}<select name="sendWithUplink" data-profile-send-with-uplink><option value="disabled" ${profile.sendWithUplink === "disabled" ? "selected" : ""}>${this._language() === "de" ? "deaktiviert" : "disabled"}</option><option value="enabled" ${profile.sendWithUplink === "enabled" ? "selected" : ""}>${this._language() === "de" ? "aktiviert" : "enabled"}</option><option value="enabled & collect" ${profile.sendWithUplink === "enabled & collect" ? "selected" : ""}>${this._language() === "de" ? "aktiviert und sammeln" : "enabled and collect"}</option></select></label>
             ${profile.sendWithUplink !== "disabled" ? `<label>Port<input name="port" type="number" value="${profile.port || 1}" /></label>
-            <label>Priorität<input name="priority" value="${this._escape(profile.priority || "NORMAL")}" /></label>
-            <label class="checkbox"><input name="confirmed" type="checkbox" ${profile.confirmed ? "checked" : ""} /> Bestätigt</label>` : ""}
-            <h3>Individuelle Downlink-Konfiguration</h3>
-            <button class="action" type="button" data-parameter-add>+ Parameter hinzufügen</button>
+            <label>${this._t("priority")}<input name="priority" value="${this._escape(profile.priority || "NORMAL")}" /></label>
+            <label class="checkbox"><input name="confirmed" type="checkbox" ${profile.confirmed ? "checked" : ""} /> ${this._t("confirmed")}</label>` : ""}
+            <h3>${this._t("customDownlinkConfig")}</h3>
+            <button class="action" type="button" data-parameter-add>${this._t("addParameter")}</button>
             ${(profile.downlinkParameter || []).map((parameter, index) => this._renderParameterEditor(parameter, index, profile)).join("")}
-            <div class="actions"><button class="save" type="submit" ${profile.saving ? "disabled" : ""}>${profile.saving ? "Speichert…" : "Profil speichern"}</button><button class="action" type="button" data-profile-cancel ${profile.saving ? "disabled" : ""}>Abbrechen</button></div>
+            <div class="actions"><button class="save" type="submit" ${profile.saving ? "disabled" : ""}>${profile.saving ? this._t("saving") : this._t("saveProfile")}</button><button class="action" type="button" data-profile-cancel ${profile.saving ? "disabled" : ""}>${this._t("cancel")}</button></div>
           </form>`;
     return `
       <div class="card">
-        <h2>Gerätespezifische Downlink-Profile</h2>
-        <p class="muted">Profile und Parameter entsprechen dem ioBroker-Adapter. Änderungen gelten als lokale Überschreibung.</p>
-        <div class="profile-actions"><button class="save" type="button" data-profile-new>Eigenes Profil anlegen</button></div>
-        ${this._profileEditor && this._profileEditorOriginalType === null ? `<div class="new-profile-editor"><h3>Neues Downlink-Profil</h3>${editor(this._profileEditor)}</div>` : ""}
+        <h2>${this._t("deviceProfiles")}</h2>
+        <p class="muted">${this._t("profileDescription")}</p>
+        <div class="profile-actions"><button class="save" type="button" data-profile-new>${this._t("createProfile")}</button></div>
+        ${this._profileEditor && this._profileEditorOriginalType === null ? `<div class="new-profile-editor"><h3>${this._t("newProfile")}</h3>${editor(this._profileEditor)}</div>` : ""}
         <div class="profile-list">${profiles.map((profile) => {
           const editing = this._profileEditor && this._profileEditorOriginalType === profile.deviceType;
-          const profileActions = `<div class="actions"><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">Duplizieren</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">Löschen</button></div>`;
+          const profileActions = `<div class="actions"><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">${this._t("duplicate")}</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">${this._t("delete")}</button></div>`;
           return `<details ${editing ? "open" : ""} data-profile-type="${this._escape(profile.deviceType)}"><summary><strong>${this._escape(profile.deviceType)}</strong> <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></summary><div class="profile-content">${editing ? `${editor(this._profileEditor)}${profileActions}` : `<ul class="profile-parameters">${(profile.downlinkParameter || []).map((parameter) => `<li class="profile-parameter"><strong>${this._escape(parameter.name)}</strong> <span class="muted">${this._escape(parameter.type || "number")}${parameter.unit ? ` · ${this._escape(parameter.unit)}` : ""}</span></li>`).join("")}</ul>${profileActions}`}</div></details>`;
         }).join("")}</div>
       </div>`;
@@ -1116,45 +1270,45 @@ class LoRaWANPanel extends HTMLElement {
     const isNumber = type === "number";
     return `<details ${this._openParameterEditorIndex === index ? "open" : ""}><summary><strong>${value("name", "Parameter")}</strong> <span class="muted">${value("type", "number")}</span></summary><div class="parameter-fields">
       <label>Name<input name="p${index}name" value="${value("name")}" /></label>
-      <label>Typ<select name="p${index}type" data-parameter-type="${index}">${["number", "boolean", "button", "ascii", "string"].map((option) => `<option ${type === option ? "selected" : ""}>${option}</option>`).join("")}</select></label>
+      <label>${this._t("type")}<select name="p${index}type" data-parameter-type="${index}">${["number", "boolean", "button", "ascii", "string"].map((option) => `<option ${type === option ? "selected" : ""}>${option}</option>`).join("")}</select></label>
       <label>Port<input name="p${index}port" type="number" value="${value("port", profile.port || 1)}" /></label>
-      <label>Priorität<input name="p${index}priority" value="${value("priority", "NORMAL")}" /></label>
-      <label class="checkbox"><input name="p${index}confirmed" type="checkbox" ${checked("confirmed")} /> Bestätigt</label>
-      ${isValueType ? `<label>Führend<input name="p${index}front" value="${value("front")}" /></label>
-      <label>Folgend<input name="p${index}end" value="${value("end")}" /></label>` : ""}
-      ${type !== "boolean" && type !== "button" && type !== "string" ? `<label>Länge (Byte)<input name="p${index}lengthInByte" type="number" min="1" max="20" value="${value("lengthInByte", 3)}" /></label>` : ""}
-      ${type === "boolean" ? `<label>Ein-Folge (Hex)<input name="p${index}on" value="${value("on")}" /></label><label>Aus-Folge (Hex)<input name="p${index}off" value="${value("off")}" /></label>` : ""}
-      ${type === "button" ? `<label>Klick-Folge (Hex)<input name="p${index}onClick" value="${value("onClick")}" /></label>` : ""}
-      ${isNumber ? `<label>Multiplikator<input name="p${index}multiplyfaktor" type="number" step="any" value="${value("multiplyfaktor", 1)}" /></label>
-      <label>Dezimalstellen<input name="p${index}decimalPlaces" type="number" min="0" max="5" value="${value("decimalPlaces", 0)}" /></label>
-      <label>Einheit<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
-      ${type === "ascii" ? `<label>Einheit<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
-      <label>CRC<select name="p${index}crc">${[["noCrc", "keine CRC"], ["CRC-8", "CRC-8"], ["KERMIT", "KERMIT"], ["KERMIT.LittleEndian", "KERMIT (Little Endian)"]].map(([option, label]) => `<option value="${option}" ${value("crc", "noCrc") === option ? "selected" : ""}>${label}</option>`).join("")}</select></label>
-      ${isNumber ? `<label class="checkbox"><input name="p${index}swap" type="checkbox" ${checked("swap")} /> Byte-Reihenfolge tauschen</label>
-      <label class="checkbox"><input name="p${index}limitMin" data-parameter-visibility="${index}:limitMin" type="checkbox" ${checked("limitMin")} /> Minimum begrenzen</label>
-      ${parameter.limitMin ? `<label>Min.-Wert<input name="p${index}limitMinValue" type="number" step="any" value="${value("limitMinValue", 0)}" /></label>` : ""}
-      <label class="checkbox"><input name="p${index}limitMax" data-parameter-visibility="${index}:limitMax" type="checkbox" ${checked("limitMax")} /> Maximum begrenzen</label>
-      ${parameter.limitMax ? `<label>Max.-Wert<input name="p${index}limitMaxValue" type="number" step="any" value="${value("limitMaxValue", 0)}" /></label>` : ""}
-      <label class="checkbox"><input name="p${index}withStates" data-parameter-visibility="${index}:withStates" type="checkbox" ${checked("withStates")} /> Statuswerte verwenden</label>
-      ${parameter.withStates ? `<label>Statuswerte<input name="p${index}statesValue" value="${value("statesValue")}" /></label>` : ""}` : ""}
-    </div><div class="actions"><button class="action duplicate" type="button" data-parameter-duplicate="${index}">Parameter duplizieren</button><button class="action danger" type="button" data-parameter-delete="${index}">Parameter löschen</button></div></details>`;
+      <label>${this._t("priority")}<input name="p${index}priority" value="${value("priority", "NORMAL")}" /></label>
+      <label class="checkbox"><input name="p${index}confirmed" type="checkbox" ${checked("confirmed")} /> ${this._t("confirmed")}</label>
+      ${isValueType ? `<label>${this._t("leading")}<input name="p${index}front" value="${value("front")}" /></label>
+      <label>${this._t("trailing")}<input name="p${index}end" value="${value("end")}" /></label>` : ""}
+      ${type !== "boolean" && type !== "button" && type !== "string" ? `<label>${this._t("lengthBytes")}<input name="p${index}lengthInByte" type="number" min="1" max="20" value="${value("lengthInByte", 3)}" /></label>` : ""}
+      ${type === "boolean" ? `<label>${this._t("onSequence")}<input name="p${index}on" value="${value("on")}" /></label><label>${this._t("offSequence")}<input name="p${index}off" value="${value("off")}" /></label>` : ""}
+      ${type === "button" ? `<label>${this._t("clickSequence")}<input name="p${index}onClick" value="${value("onClick")}" /></label>` : ""}
+      ${isNumber ? `<label>${this._t("multiplier")}<input name="p${index}multiplyfaktor" type="number" step="any" value="${value("multiplyfaktor", 1)}" /></label>
+      <label>${this._t("decimalPlaces")}<input name="p${index}decimalPlaces" type="number" min="0" max="5" value="${value("decimalPlaces", 0)}" /></label>
+      <label>${this._t("unit")}<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
+      ${type === "ascii" ? `<label>${this._t("unit")}<input name="p${index}unit" value="${value("unit")}" /></label>` : ""}
+      <label>CRC<select name="p${index}crc">${[["noCrc", this._t("noCrc")], ["CRC-8", "CRC-8"], ["KERMIT", "KERMIT"], ["KERMIT.LittleEndian", "KERMIT (Little Endian)"]].map(([option, label]) => `<option value="${option}" ${value("crc", "noCrc") === option ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      ${isNumber ? `<label class="checkbox"><input name="p${index}swap" type="checkbox" ${checked("swap")} /> ${this._t("swapBytes")}</label>
+      <label class="checkbox"><input name="p${index}limitMin" data-parameter-visibility="${index}:limitMin" type="checkbox" ${checked("limitMin")} /> ${this._t("limitMinimum")}</label>
+      ${parameter.limitMin ? `<label>${this._t("minimumValue")}<input name="p${index}limitMinValue" type="number" step="any" value="${value("limitMinValue", 0)}" /></label>` : ""}
+      <label class="checkbox"><input name="p${index}limitMax" data-parameter-visibility="${index}:limitMax" type="checkbox" ${checked("limitMax")} /> ${this._t("limitMaximum")}</label>
+      ${parameter.limitMax ? `<label>${this._t("maximumValue")}<input name="p${index}limitMaxValue" type="number" step="any" value="${value("limitMaxValue", 0)}" /></label>` : ""}
+      <label class="checkbox"><input name="p${index}withStates" data-parameter-visibility="${index}:withStates" type="checkbox" ${checked("withStates")} /> ${this._t("useStates")}</label>
+      ${parameter.withStates ? `<label>${this._t("stateValues")}<input name="p${index}statesValue" value="${value("statesValue")}" /></label>` : ""}` : ""}
+    </div><div class="actions"><button class="action duplicate" type="button" data-parameter-duplicate="${index}">${this._t("duplicateParameter")}</button><button class="action danger" type="button" data-parameter-delete="${index}">${this._t("deleteParameter")}</button></div></details>`;
   }
 
   _renderDownlinkParameter(parameter) {
     const name = this._escape(parameter.name);
     if (parameter.type === "button") {
-      return `<div class="parameter"><div><strong>${name}</strong></div><button type="submit" name="parameter_name" value="${name}">Ausführen</button></div>`;
+      return `<div class="parameter"><div><strong>${name}</strong></div><button type="submit" name="parameter_name" value="${name}">${this._t("execute")}</button></div>`;
     }
     if (parameter.type === "boolean") {
-      return `<div class="parameter"><div><strong>${name}</strong></div><label class="checkbox"><input type="checkbox" name="${name}" /> Aktiv</label></div>`;
+      return `<div class="parameter"><div><strong>${name}</strong></div><label class="checkbox"><input type="checkbox" name="${name}" /> ${this._t("enabled")}</label></div>`;
     }
     const states = this._stateOptions(parameter);
     if (states.length) {
-      return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><select name="${name}">${states.map(([rawValue, label]) => `<option value="${this._escape(rawValue)}">${this._escape(label)} (${this._escape(rawValue)})</option>`).join("")}</select><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+      return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><select name="${name}">${states.map(([rawValue, label]) => `<option value="${this._escape(rawValue)}">${this._escape(label)} (${this._escape(rawValue)})</option>`).join("")}</select><button type="submit" name="parameter_name" value="${name}">${this._t("send")}</button></div></div>`;
     }
     const decimalPlaces = Math.max(0, Number(parameter.decimalPlaces || 0));
     const step = decimalPlaces === 0 ? "1" : String(10 ** -decimalPlaces);
-    return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><input name="${name}" type="number" step="${step}" ${parameter.limitMin ? `min="${parameter.limitMinValue}"` : ""} ${parameter.limitMax ? `max="${parameter.limitMaxValue}"` : ""} /><button type="submit" name="parameter_name" value="${name}">Senden</button></div></div>`;
+    return `<div class="parameter"><label><strong>${name}</strong>${parameter.unit ? ` (${this._escape(parameter.unit)})` : ""}</label><div class="actions"><input name="${name}" type="number" step="${step}" ${parameter.limitMin ? `min="${parameter.limitMinValue}"` : ""} ${parameter.limitMax ? `max="${parameter.limitMaxValue}"` : ""} /><button type="submit" name="parameter_name" value="${name}">${this._t("send")}</button></div></div>`;
   }
 
   _stateOptions(parameter) {
@@ -1183,8 +1337,8 @@ class LoRaWANPanel extends HTMLElement {
     const value = parameter.type === "button" ? true : parameter.type === "boolean" ? form.get(parameter.name) === "on" : form.get(parameter.name);
     try {
       const result = await this._hass.callWS({ type: "lorawan/send_downlink", dev_eui: device.dev_eui, device_type: profile.deviceType, parameter_name: parameter.name, value });
-      window.alert(`Downlink gesendet: ${result.payload_hex}`);
-    } catch (error) { window.alert(`Downlink konnte nicht gesendet werden: ${error.message || error}`); }
+      window.alert(`${this._t("downlinkSent")}: ${result.payload_hex}`);
+    } catch (error) { window.alert(`${this._t("downlinkSendFailed")}: ${error.message || error}`); }
   }
 
   async _saveProfile(event) {
@@ -1195,7 +1349,7 @@ class LoRaWANPanel extends HTMLElement {
     this._profileEditor.saving = true;
     controls.forEach((control) => { control.disabled = true; });
     const saveButton = event.currentTarget.querySelector('button[type="submit"]');
-    if (saveButton) saveButton.textContent = "Speichert…";
+    if (saveButton) saveButton.textContent = this._t("saving");
     try {
       const old = this._cloneProfile(this._profileEditor);
       if (old) delete old.saving;
@@ -1281,16 +1435,17 @@ class LoRaWANPanel extends HTMLElement {
     } catch (error) {
       this._profileEditor.saving = false;
       controls.forEach((control) => { control.disabled = false; });
-      if (saveButton) saveButton.textContent = "Profil speichern";
-      window.alert("Speichern fehlgeschlagen.");
+      if (saveButton) saveButton.textContent = this._t("saveProfile");
+      window.alert(this._t("saveFailed"));
     }
   }
 
   async _handleDeviceSettings(button) {
+    this._additionalEntitiesDialogOpen = false;
     this._deviceSettings = {
       devEui: button.getAttribute("data-device-settings"),
       entryId: button.getAttribute("data-entry-id") || "",
-      name: button.getAttribute("data-device-name") || "Gerät",
+      name: button.getAttribute("data-device-name") || this._t("device"),
       hours: button.getAttribute("data-device-hours") || "25",
       raw: button.getAttribute("data-device-raw") === "true",
       remaining: button.getAttribute("data-device-remaining") === "true",
@@ -1308,14 +1463,14 @@ class LoRaWANPanel extends HTMLElement {
     const formData = new FormData(event.currentTarget);
     const hours = Number(formData.get("offline_after_hours"));
     if (!Number.isInteger(hours) || hours < 1 || hours > 8760) {
-      window.alert("Bitte eine ganze Zahl zwischen 1 und 8760 eingeben.");
+      window.alert(this._t("invalidHours"));
       return;
     }
     this._deviceSettings.saving = true;
     const controls = event.currentTarget.querySelectorAll("input, button");
     controls.forEach((control) => { control.disabled = true; });
     const saveButton = event.currentTarget.querySelector('button[type="submit"]');
-    if (saveButton) saveButton.textContent = "Speichert…";
+    if (saveButton) saveButton.textContent = this._t("saving");
     try {
       await this._hass.callService("lorawan", "configure_device", {
         dev_eui: this._deviceSettings.devEui,
@@ -1332,8 +1487,8 @@ class LoRaWANPanel extends HTMLElement {
     } catch (error) {
       this._deviceSettings.saving = false;
       controls.forEach((control) => { control.disabled = false; });
-      if (saveButton) saveButton.textContent = "Speichern";
-      window.alert("Speichern fehlgeschlagen.");
+      if (saveButton) saveButton.textContent = this._t("save");
+      window.alert(this._t("saveFailed"));
     }
   }
 
@@ -1374,6 +1529,13 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceSettings.hours = String(data.get("offline_after_hours") || this._deviceSettings.hours);
     this._deviceSettings.raw = data.get("create_raw_sensors") === "on";
     this._deviceSettings.remaining = data.get("create_remaining_sensors") === "on";
+    this._syncClimateEntitiesForm();
+  }
+
+  _syncClimateEntitiesForm() {
+    const form = this.shadowRoot.querySelector("form[data-climate-entities-form]");
+    if (!form || !this._deviceSettings) return;
+    const data = new FormData(form);
     this._deviceSettings.climateEntities = this._deviceSettings.climateEntities.map((climate, index) => ({
       ...climate,
       name: String(data.get(`climate_${index}_name`) || "Thermostat"),
@@ -1386,7 +1548,7 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _addClimateEntity() {
-    this._syncDeviceSettingsForm();
+    this._syncClimateEntitiesForm();
     this._deviceSettings.climateEntities.push({
       id: `climate_${Date.now()}`,
       name: "Thermostat",
@@ -1400,14 +1562,14 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _removeClimateEntity(index) {
-    this._syncDeviceSettingsForm();
+    this._syncClimateEntitiesForm();
     this._deviceSettings.climateEntities.splice(index, 1);
     this._render();
   }
 
   _climateEntityOptions(entities, selected, domains) {
     const options = entities.filter((entity) => domains.includes(entity.domain));
-    return `<option value="">Nicht zugewiesen</option>${options.map((entity) =>
+    return `<option value="">${this._t("notAssigned")}</option>${options.map((entity) =>
       `<option value="${this._escape(entity.entity_id)}" ${entity.entity_id === selected ? "selected" : ""}>${this._escape(entity.name)} (${this._escape(entity.entity_id)})</option>`
     ).join("")}`;
   }
@@ -1415,7 +1577,7 @@ class LoRaWANPanel extends HTMLElement {
   async _showDeviceDiagnostics(button) {
     const devEui = button.getAttribute("data-device-json");
     this._deviceDiagnostics = {
-      name: button.getAttribute("data-device-name") || "Gerät",
+      name: button.getAttribute("data-device-name") || this._t("device"),
       loading: true,
       raw: null,
       remaining: null,
@@ -1451,23 +1613,23 @@ class LoRaWANPanel extends HTMLElement {
     const selectedCount = settings.tileValueKeys.length;
     return `
       <div class="dialog-backdrop" role="presentation">
-        <div class="dialog" role="dialog" aria-modal="true" aria-label="Geräteeinstellungen">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="${this._t("deviceSettings")}">
           <h2>${this._escape(settings.name)}</h2>
           <form data-device-settings-form>
             <label>
-              Offline nach Stunden
+              ${this._t("offlineAfterHours")}
               <input name="offline_after_hours" type="number" min="1" max="8760" required value="${this._escape(settings.hours)}" />
             </label>
             <label class="checkbox">
               <input name="create_raw_sensors" type="checkbox" ${settings.raw ? "checked" : ""} />
-              Raw-Diagnose aktivieren
+              ${this._t("enableRawDiagnostics")}
             </label>
             <label class="checkbox">
               <input name="create_remaining_sensors" type="checkbox" ${settings.remaining ? "checked" : ""} />
-              Verbleibende Payload-Diagnose aktivieren
+              ${this._t("enableRemainingDiagnostics")}
             </label>
             <div class="value-selection">
-              <strong>Werte auf der Gerätekachel</strong>
+              <strong>${this._t("tileValues")}</strong>
               ${orderedEntities.length ? orderedEntities.map((entity) => {
                 const selectedIndex = settings.tileValueKeys.indexOf(entity.entity_id);
                 return `<div class="value-selection-row">
@@ -1476,41 +1638,65 @@ class LoRaWANPanel extends HTMLElement {
                     ${this._escape(entity.name)}
                   </label>
                   ${selectedIndex >= 0 ? `<span class="value-order-actions">
-                    <button class="value-order-button" type="button" title="Nach oben" data-tile-value-move="${this._escape(entity.entity_id)}" data-move-direction="up" ${selectedIndex === 0 ? "disabled" : ""}>↑</button>
-                    <button class="value-order-button" type="button" title="Nach unten" data-tile-value-move="${this._escape(entity.entity_id)}" data-move-direction="down" ${selectedIndex === selectedCount - 1 ? "disabled" : ""}>↓</button>
+                    <button class="value-order-button" type="button" title="${this._t("moveUp")}" data-tile-value-move="${this._escape(entity.entity_id)}" data-move-direction="up" ${selectedIndex === 0 ? "disabled" : ""}>↑</button>
+                    <button class="value-order-button" type="button" title="${this._t("moveDown")}" data-tile-value-move="${this._escape(entity.entity_id)}" data-move-direction="down" ${selectedIndex === selectedCount - 1 ? "disabled" : ""}>↓</button>
                   </span>` : ""}
                 </div>`;
-              }).join("") : '<span class="muted">Diesem Gerät sind noch keine aktiven Entitäten zugeordnet.</span>'}
+              }).join("") : `<span class="muted">${this._t("noActiveEntities")}</span>`}
             </div>
+            <div class="settings-subsection">
+              <strong>${this._t("additionalEntities")}</strong>
+              <span class="muted">${settings.climateEntities.length
+                ? `${settings.climateEntities.length} ${settings.climateEntities.length === 1 ? this._t("climateEntity") : this._t("climateEntities")} ${this._t("configured")}`
+                : this._t("noAdditionalEntities")}</span>
+              <button type="button" data-additional-entities-open>${this._t("configure")}</button>
+            </div>
+            <div class="actions">
+              <button class="save" type="submit" ${settings.saving ? "disabled" : ""}>${settings.saving ? this._t("saving") : this._t("save")}</button>
+              <button type="button" data-device-settings-cancel ${settings.saving ? "disabled" : ""}>${this._t("cancel")}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderAdditionalEntitiesDialog() {
+    const settings = this._deviceSettings;
+    if (!settings || !this._additionalEntitiesDialogOpen) return "";
+    return `
+      <div class="dialog-backdrop secondary" role="presentation">
+        <div class="dialog additional-entities-dialog" role="dialog" aria-modal="true" aria-label="${this._t("additionalEntities")}">
+          <h2>${this._t("additionalEntities")}</h2>
+          <form data-climate-entities-form>
             <div class="value-selection">
-              <strong>Zusammengesetzte Climate-Entitäten</strong>
+              <strong>${this._t("compositeClimate")}</strong>
               ${(settings.climateEntities || []).map((climate, index) => `<fieldset>
                 <legend>Climate ${index + 1}</legend>
                 <label>Name
                   <input name="climate_${index}_name" type="text" required value="${this._escape(climate.name || "Thermostat")}" />
                 </label>
-                <label>Isttemperatur (Uplink)
+                <label>${this._t("currentTemperature")}
                   <select name="climate_${index}_current">${this._climateEntityOptions(settings.availableEntities, climate.current_temperature_entity_id, ["sensor", "number"])}</select>
                 </label>
-                <label>Solltemperatur lesen (Uplink, optional)
+                <label>${this._t("readTargetTemperature")}
                   <select name="climate_${index}_target_state">${this._climateEntityOptions(settings.availableEntities, climate.target_temperature_state_entity_id, ["sensor", "number"])}</select>
                 </label>
-                <label>Solltemperatur setzen (Downlink, optional)
+                <label>${this._t("setTargetTemperature")}
                   <select name="climate_${index}_target_command">${this._climateEntityOptions(settings.availableEntities, climate.target_temperature_command_entity_id, ["number"])}</select>
                 </label>
-                <label>Betriebsmodus lesen (optional)
+                <label>${this._t("readHvacMode")}
                   <select name="climate_${index}_mode_state">${this._climateEntityOptions(settings.availableEntities, climate.hvac_mode_state_entity_id, ["sensor", "select", "switch"])}</select>
                 </label>
-                <label>Betriebsmodus setzen (Downlink, optional)
+                <label>${this._t("setHvacMode")}
                   <select name="climate_${index}_mode_command">${this._climateEntityOptions(settings.availableEntities, climate.hvac_mode_command_entity_id, ["select", "switch"])}</select>
                 </label>
-                <button type="button" data-climate-remove="${index}">Climate entfernen</button>
+                <button type="button" data-climate-remove="${index}">${this._t("removeClimate")}</button>
               </fieldset>`).join("")}
-              <button type="button" data-climate-add>Entität hinzufügen und zuweisen</button>
+              <button type="button" data-climate-add>${this._t("addAndAssignEntity")}</button>
             </div>
             <div class="actions">
-              <button class="save" type="submit" ${settings.saving ? "disabled" : ""}>${settings.saving ? "Speichert…" : "Speichern"}</button>
-              <button type="button" data-device-settings-cancel ${settings.saving ? "disabled" : ""}>Abbrechen</button>
+              <button class="save" type="button" data-additional-entities-close>${this._t("done")}</button>
             </div>
           </form>
         </div>
@@ -1526,8 +1712,8 @@ class LoRaWANPanel extends HTMLElement {
     const selectedIndex = messages.indexOf(this._selectedMessage);
     return `
       <div class="dialog-backdrop" role="presentation">
-        <div class="dialog" role="dialog" aria-modal="true" aria-label="Letzte Nachrichten">
-          <h2>Letzte Nachrichten</h2>
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="${this._t("recentMessages")}">
+          <h2>${this._t("recentMessages")}</h2>
           <div class="message-list">
             ${messages.map((message, index) => `
               <button class="message-item ${index === selectedIndex ? "selected" : ""}" type="button" data-message-index="${index}">
@@ -1538,12 +1724,12 @@ class LoRaWANPanel extends HTMLElement {
           </div>
           <h3>Topic</h3>
           <code>${this._escape(this._selectedMessage.topic)}</code>
-          <h3>Richtung</h3>
+          <h3>${this._t("direction")}</h3>
           <div>${this._selectedMessage.direction === "downlink" ? "Downlink · " + this._escape(this._selectedMessage.event || "event") : "Uplink"}</div>
           <h3>Payload</h3>
           <pre class="payload">${this._escape(this._selectedMessage.payload)}</pre>
           <div class="actions">
-            <button type="button" data-messages-close>Schließen</button>
+            <button type="button" data-messages-close>${this._t("close")}</button>
           </div>
         </div>
       </div>
@@ -1563,18 +1749,18 @@ class LoRaWANPanel extends HTMLElement {
     }
     const renderPayload = (title, value) => `
       <h3>${title}</h3>
-      <pre class="payload">${value === null ? "Nicht aktiviert oder noch kein Uplink empfangen." : this._escape(JSON.stringify(value, null, 2))}</pre>
+      <pre class="payload">${value === null ? this._t("diagnosticUnavailable") : this._escape(JSON.stringify(value, null, 2))}</pre>
     `;
     return `
       <div class="dialog-backdrop" role="presentation">
-        <div class="dialog" role="dialog" aria-modal="true" aria-label="MQTT-Daten">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="${this._t("showMqttData")}">
           <h2>${this._escape(diagnostics.name)}</h2>
-          ${diagnostics.loading ? "Daten werden geladen..." : diagnostics.error ? "Daten konnten nicht geladen werden." : `
+          ${diagnostics.loading ? this._t("dataLoading") : diagnostics.error ? this._t("dataLoadFailed") : `
             ${renderPayload("Raw JSON", diagnostics.raw)}
-            ${renderPayload("Weitere MQTT-Daten", diagnostics.remaining)}
+            ${renderPayload(this._t("moreMqttData"), diagnostics.remaining)}
           `}
           <div class="actions">
-            <button type="button" data-device-diagnostics-close>Schließen</button>
+            <button type="button" data-device-diagnostics-close>${this._t("close")}</button>
           </div>
         </div>
       </div>
@@ -1586,8 +1772,8 @@ class LoRaWANPanel extends HTMLElement {
       return `
         <div class="device-card">
           <div>
-            <div class="device-name">Keine Geraete gefunden</div>
-            <div class="muted">Geraete erscheinen hier nach dem ersten passenden Uplink.</div>
+            <div class="device-name">${this._t("noDevices")}</div>
+            <div class="muted">${this._t("devicesAfterUplink")}</div>
           </div>
         </div>
       `;
@@ -1603,13 +1789,13 @@ class LoRaWANPanel extends HTMLElement {
             <div>
               <div class="device-card-header">
                 <div class="device-name">${this._escape(device.name)}</div>
-                <span class="device-status status" title="${device.online ? "Online" : "Offline"}">
-                  <span class="dot ${device.online ? "connected" : "error"}"></span>${device.online ? "Online" : "Offline"}
+                <span class="device-status status" title="${device.online ? this._t("online") : this._t("offline")}">
+                  <span class="dot ${device.online ? "connected" : "error"}"></span>${device.online ? this._t("online") : this._t("offline")}
                 </span>
-                <span class="last-uplink">Letzter Uplink: ${this._escape(this._formatDate(device.last_uplink_at))}</span>
+                <span class="last-uplink">${this._t("lastUplink")}: ${this._escape(this._formatDate(device.last_uplink_at))}</span>
               </div>
               <div class="muted">${this._escape(subtitle)}</div>
-              ${device.application_name ? `<div class="muted">Applikation: ${this._escape(device.application_name)}</div>` : ""}
+              ${device.application_name ? `<div class="muted">${this._t("application")}: ${this._escape(device.application_name)}</div>` : ""}
               <div class="device-meta-row">
                 <div class="device-eui muted">DevEUI<br /><code>${this._escape(identifier)}</code></div>
                 ${indicators.length ? `<div class="device-indicators">${indicators.map((indicator) => `
@@ -1633,7 +1819,7 @@ class LoRaWANPanel extends HTMLElement {
             <button
               class="icon-button device-settings"
               type="button"
-              title="Geräteeinstellungen"
+              title="${this._t("deviceSettings")}"
               data-device-settings="${this._escape(identifier)}"
               data-entry-id="${this._escape(device.entry_id || "")}"
               data-device-name="${this._escape(device.name)}"
@@ -1647,7 +1833,7 @@ class LoRaWANPanel extends HTMLElement {
             ${device.create_raw_sensors || device.create_remaining_sensors ? `<button
               class="icon-button device-json"
               type="button"
-              title="MQTT-Daten anzeigen"
+              title="${this._t("showMqttData")}"
               data-device-json="${this._escape(identifier)}"
               data-device-name="${this._escape(device.name)}"
             >{ }</button>` : ""}
@@ -1660,18 +1846,18 @@ class LoRaWANPanel extends HTMLElement {
   _renderProtocol() {
     const events = this._status.protocol_events || [];
     if (!events.length) {
-      return `<div class="card"><h2>Protokoll</h2><div class="muted">Noch keine Ereignisse aufgezeichnet.</div></div>`;
+      return `<div class="card"><h2>${this._t("protocol")}</h2><div class="muted">${this._t("noEvents")}</div></div>`;
     }
     return `<div class="protocol-list">${events.map((event) => `
       <div class="protocol-event ${this._escape(event.level || "info")}" style="border-left: 4px solid ${this._escape(event.connection_color || "var(--primary-color)")}">
-        <span class="protocol-level"></span>
+        <span class="protocol-level" style="background: ${this._escape(event.connection_color || "var(--primary-color)")}"></span>
         <div>
-          <div class="protocol-title">${this._escape(event.title || "Ereignis")}</div>
+          <div class="protocol-title">${this._escape(event.title || this._t("event"))}</div>
           <div class="protocol-message">${this._escape(event.message || "")}</div>
           <div class="protocol-meta">
             <span class="tag">${this._escape(this._protocolCategory(event.category))}</span>
             ${event.connection_name ? `<span class="tag">${this._escape(event.connection_name)}</span>` : ""}
-            ${event.application_name ? `<span class="tag">Applikation: ${this._escape(event.application_name)}</span>` : ""}
+            ${event.application_name ? `<span class="tag">${this._t("application")}: ${this._escape(event.application_name)}</span>` : ""}
             ${event.dev_eui ? `<span class="tag"><code>${this._escape(event.dev_eui)}</code></span>` : ""}
           </div>
         </div>
@@ -1681,7 +1867,7 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _protocolCategory(category) {
-    return { connection: "LNS / MQTT", device: "Gerät", downlink: "Downlink" }[category] || "System";
+    return { connection: "LNS / MQTT", device: this._t("device"), downlink: "Downlink" }[category] || "System";
   }
 
   _connectionTagStyle(color) {
@@ -1696,14 +1882,14 @@ class LoRaWANPanel extends HTMLElement {
     const detected = [];
     if (counts?.ttn > 0) detected.push(`TTN ${counts.ttn}`);
     if (counts?.chirpstack > 0) detected.push(`ChirpStack ${counts.chirpstack}`);
-    return detected.length ? detected.join(", ") : "Noch keine Nachrichten";
+    return detected.length ? detected.join(", ") : this._t("noMessages");
   }
 
   _formatDownlinkEvents(counts) {
     const events = Object.entries(counts || {}).filter(([, count]) => count > 0);
     return events.length
       ? events.map(([event, count]) => `${this._escape(event)} ${count}`).join(", ")
-      : "Noch keine Bestätigung";
+      : this._t("noConfirmation");
   }
 
   _startStatusPolling() {
@@ -1787,18 +1973,18 @@ class LoRaWANPanel extends HTMLElement {
     if (!value) {
       return "-";
     }
-    return new Date(value).toLocaleString();
+    return new Date(value).toLocaleString(this._hass?.locale?.language || this._hass?.language || undefined);
   }
 
   _formatTileValue(value) {
     const domain = value.domain || String(value.entity_id || "").split(".")[0];
-    if (domain === "button") return "Drücken";
+    if (domain === "button") return this._t("press");
     if (domain === "text" && ["", "unknown", "unavailable"].includes(String(value.state ?? ""))) {
-      return "(leerer Wert)";
+      return this._t("emptyValue");
     }
     if (domain === "switch") {
-      if (value.state === "on") return "Ein";
-      if (value.state === "off") return "Aus";
+      if (value.state === "on") return this._t("on");
+      if (value.state === "off") return this._t("off");
     }
     if (domain === "binary_sensor") {
       if (value.state === "on") return this._binarySensorLabel(value.device_class, true);
@@ -1814,7 +2000,7 @@ class LoRaWANPanel extends HTMLElement {
     const entityId = this._escape(value.entity_id);
     const domain = value.domain || String(value.entity_id || "").split(".")[0];
     if (domain === "button") {
-      return `<button class="tile-control-button" type="button" data-entity-control="${entityId}" data-control-domain="button">Drücken</button>`;
+      return `<button class="tile-control-button" type="button" data-entity-control="${entityId}" data-control-domain="button">${this._t("press")}</button>`;
     }
     if (domain === "number") {
       return `<span class="tile-control-wrap"><input class="tile-control" type="number" value="${this._escape(value.state)}" ${value.min !== null ? `min="${this._escape(value.min)}"` : ""} ${value.max !== null ? `max="${this._escape(value.max)}"` : ""} ${value.step !== null ? `step="${this._escape(value.step)}"` : ""} data-entity-control="${entityId}" data-control-domain="number" />${value.unit ? `<span class="tile-control-unit">${this._escape(value.unit)}</span>` : ""}</span>`;
@@ -1832,7 +2018,7 @@ class LoRaWANPanel extends HTMLElement {
       if (value.target_temperature !== null || (Number(value.supported_features) & 1)) {
         return `<span class="tile-control-wrap"><input class="tile-control" type="number" value="${value.target_temperature !== null ? this._escape(value.target_temperature) : ""}" ${value.min !== null ? `min="${this._escape(value.min)}"` : ""} ${value.max !== null ? `max="${this._escape(value.max)}"` : ""} ${value.step !== null ? `step="${this._escape(value.step)}"` : ""} data-entity-control="${entityId}" data-control-domain="climate" /><span class="tile-control-unit">°C</span></span>`;
       }
-      return `<button class="tile-read-value" type="button" data-entity-more-info="${entityId}">${value.current_temperature !== null ? `${this._escape(value.current_temperature)} °C` : "Climate öffnen"}</button>`;
+      return `<button class="tile-read-value" type="button" data-entity-more-info="${entityId}">${value.current_temperature !== null ? `${this._escape(value.current_temperature)} °C` : this._t("openClimate")}</button>`;
     }
     return `<button class="tile-read-value" type="button" data-entity-more-info="${entityId}">${this._escape(this._formatTileValue(value))}</button>`;
   }
@@ -1842,7 +2028,7 @@ class LoRaWANPanel extends HTMLElement {
     const climateIcon = value.domain === "climate"
       ? '<ha-icon icon="mdi:thermostat"></ha-icon>'
       : "";
-    return `<button class="tile-entity-name" type="button" data-entity-more-info="${entityId}" title="${this._escape(value.name)} öffnen">${climateIcon}${this._escape(value.name)}</button>`;
+    return `<button class="tile-entity-name" type="button" data-entity-more-info="${entityId}" title="${this._escape(value.name)} ${this._t("open")}">${climateIcon}${this._escape(value.name)}</button>`;
   }
 
   _renderTileEntityValue(value) {
@@ -1850,9 +2036,9 @@ class LoRaWANPanel extends HTMLElement {
     const current = value.current_temperature;
     const target = value.target_temperature;
     const parts = [];
-    if (current !== null && current !== undefined) parts.push(`Ist ${this._escape(current)} °C`);
-    if (target !== null && target !== undefined) parts.push(`Soll ${this._escape(target)} °C`);
-    return `<button class="tile-read-value climate-summary" type="button" data-entity-more-info="${this._escape(value.entity_id)}">${parts.length ? parts.join(" · ") : "Climate öffnen"}</button>`;
+    if (current !== null && current !== undefined) parts.push(`${this._t("currentShort")} ${this._escape(current)} °C`);
+    if (target !== null && target !== undefined) parts.push(`${this._t("targetShort")} ${this._escape(target)} °C`);
+    return `<button class="tile-read-value climate-summary" type="button" data-entity-more-info="${this._escape(value.entity_id)}">${parts.length ? parts.join(" · ") : this._t("openClimate")}</button>`;
   }
 
   async _handleEntityControl(event) {
@@ -1864,7 +2050,7 @@ class LoRaWANPanel extends HTMLElement {
     const originalText = control.textContent;
     control.disabled = true;
     if (domain === "button") {
-      control.textContent = "Wird gesendet…";
+      control.textContent = this._t("sending");
       control.classList.add("sending");
     }
     try {
@@ -1877,7 +2063,7 @@ class LoRaWANPanel extends HTMLElement {
       if (domain === "button") {
         control.classList.remove("sending");
         control.classList.add("success");
-        control.textContent = "Gesendet ✓";
+        control.textContent = this._t("sent");
         setTimeout(() => this._loadDevices(), 1400);
         return;
       }
@@ -1886,11 +2072,11 @@ class LoRaWANPanel extends HTMLElement {
       if (domain === "button") {
         control.classList.remove("sending");
         control.classList.add("failed");
-        control.textContent = "Fehler ✕";
+        control.textContent = this._t("failed");
         setTimeout(() => this._loadDevices(), 1800);
         return;
       }
-      window.alert("Wert konnte nicht geschrieben werden.");
+      window.alert(this._t("writeFailed"));
       await this._loadDevices();
     } finally {
       if (domain !== "button") {
@@ -1911,18 +2097,18 @@ class LoRaWANPanel extends HTMLElement {
 
   _binarySensorLabel(deviceClass, active) {
     const labels = {
-      door: ["Geschlossen", "Geöffnet"],
-      garage_door: ["Geschlossen", "Geöffnet"],
-      opening: ["Geschlossen", "Geöffnet"],
-      window: ["Geschlossen", "Geöffnet"],
-      lock: ["Verriegelt", "Entriegelt"],
-      motion: ["Ruhe", "Bewegung erkannt"],
-      occupancy: ["Frei", "Belegt"],
+      door: [this._t("closed"), this._t("opened")],
+      garage_door: [this._t("closed"), this._t("opened")],
+      opening: [this._t("closed"), this._t("opened")],
+      window: [this._t("closed"), this._t("opened")],
+      lock: [this._t("locked"), this._t("unlocked")],
+      motion: [this._t("idle"), this._t("motionDetected")],
+      occupancy: [this._t("clear"), this._t("occupied")],
       problem: ["OK", "Problem"],
-      safety: ["Sicher", "Unsicher"],
-      smoke: ["Kein Rauch", "Rauch erkannt"],
+      safety: [this._t("safe"), this._t("unsafe")],
+      smoke: [this._t("noSmoke"), this._t("smokeDetected")],
     };
-    return (labels[String(deviceClass || "").toLowerCase()] || ["Aus", "Ein"])[active ? 1 : 0];
+    return (labels[String(deviceClass || "").toLowerCase()] || [this._t("off"), this._t("on")])[active ? 1 : 0];
   }
 
   _deviceIndicators(device) {
@@ -1937,8 +2123,9 @@ class LoRaWANPanel extends HTMLElement {
     }));
     const indicators = [];
     const battery = normalized.find((entity) =>
-      entity.deviceClass === "battery" || entity.hint.includes("batterypercent") ||
-      entity.hint.includes("batterypercentage") || entity.hint.includes("batterylevel")
+      entity.hint.includes("batterypercent") || entity.hint.includes("batterypercentage")
+    ) || normalized.find((entity) =>
+      entity.deviceClass === "battery" || entity.hint.includes("batterylevel")
     );
     if (battery) {
       const percent = Number.parseFloat(String(battery.state).replace(",", "."));
@@ -1946,7 +2133,7 @@ class LoRaWANPanel extends HTMLElement {
         indicators.push({
           icon: percent < 15 ? "mdi:battery-alert" : "mdi:battery",
           text: `${Math.round(percent)} %`,
-          title: `Batterie: ${percent} %`,
+          title: `${this._t("battery")}: ${percent} %`,
           className: percent < 15 ? "low-battery" : "",
         });
       }
@@ -1956,10 +2143,10 @@ class LoRaWANPanel extends HTMLElement {
       ["door", "window", "opening", "garage_door"].includes(entity.deviceClass) ||
       entity.hint.includes("contact") || entity.hint.includes("open");
     const contactTypes = [
-      { match: (entity) => entity.deviceClass === "garage_door" || entity.hint.includes("garage") || (deviceHint.includes("garage") && isContact(entity)), type: "garage", label: "Garagentor" },
-      { match: (entity) => entity.deviceClass === "window" || entity.hint.includes("openwindow"), type: "window", label: "Fenster" },
-      { match: (entity) => entity.deviceClass === "door" || entity.hint.includes("opendoor"), type: "door", label: "Tür" },
-      { match: isContact, type: "contact", label: "Kontakt" },
+      { match: (entity) => entity.deviceClass === "garage_door" || entity.hint.includes("garage") || (deviceHint.includes("garage") && isContact(entity)), type: "garage", label: this._t("garageDoor") },
+      { match: (entity) => entity.deviceClass === "window" || entity.hint.includes("openwindow"), type: "window", label: this._t("window") },
+      { match: (entity) => entity.deviceClass === "door" || entity.hint.includes("opendoor"), type: "door", label: this._t("door") },
+      { match: isContact, type: "contact", label: this._t("contact") },
     ];
     for (const contactType of contactTypes) {
       const entity = normalized.find(contactType.match);
@@ -1974,7 +2161,7 @@ class LoRaWANPanel extends HTMLElement {
             : ["mdi:door-closed", "mdi:door-open"];
       indicators.push({
         icon: icons[open ? 1 : 0],
-        title: `${contactType.label}: ${open ? "offen" : "geschlossen"}`,
+        title: `${contactType.label}: ${open ? this._t("opened") : this._t("closed")}`,
       });
       break;
     }

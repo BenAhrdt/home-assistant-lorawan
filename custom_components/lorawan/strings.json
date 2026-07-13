@@ -15,8 +15,8 @@
           "connection_color": "Connection color",
           "username": "Username",
           "password": "Password",
-          "create_raw_sensors": "Raw-Diagnose aktivieren",
-          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
+          "create_raw_sensors": "Enable raw diagnostics",
+          "create_remaining_sensors": "Enable remaining payload diagnostics",
           "offline_after_hours": "Mark devices offline after hours"
         }
       }
@@ -41,8 +41,8 @@
           "connection_color": "Connection color",
           "username": "Username",
           "password": "Password",
-          "create_raw_sensors": "Raw-Diagnose aktivieren",
-          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
+          "create_raw_sensors": "Enable raw diagnostics",
+          "create_remaining_sensors": "Enable remaining payload diagnostics",
           "offline_after_hours": "Mark devices offline after hours"
         }
       }

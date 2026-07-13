@@ -1,0 +1,51 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten."
+    },
+    "step": {
+      "user": {
+        "title": "LoRaWAN",
+        "description": "Dekodierte LoRaWAN-Uplinks über MQTT empfangen.",
+        "data": {
+          "name": "Name",
+          "host": "MQTT-Broker-Host",
+          "port": "MQTT-Broker-Port",
+          "ssl": "SSL verwenden",
+          "connection_color": "Verbindungsfarbe",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "create_raw_sensors": "Raw-Diagnose aktivieren",
+          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
+          "offline_after_hours": "Geräte nach Stunden als offline markieren"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Diese LoRaWAN-Instanz ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "error": {
+      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten."
+    },
+    "step": {
+      "init": {
+        "title": "LoRaWAN-Optionen",
+        "description": "MQTT-Verbindung, SSL-Einstellungen und Zugangsdaten werden beim Bestätigen geprüft. Die Einstellungen werden erst nach erfolgreicher Prüfung gespeichert.",
+        "data": {
+          "name": "Name",
+          "host": "MQTT-Broker-Host",
+          "port": "MQTT-Broker-Port",
+          "ssl": "SSL verwenden",
+          "connection_color": "Verbindungsfarbe",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "create_raw_sensors": "Raw-Diagnose aktivieren",
+          "create_remaining_sensors": "Verbleibende Payload-Diagnose aktivieren",
+          "offline_after_hours": "Geräte nach Stunden als offline markieren"
+        }
+      }
+    }
+  }
+}

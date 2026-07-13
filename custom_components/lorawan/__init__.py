@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.14",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.15",
                 "embed_iframe": False,
             }
         },
@@ -516,8 +516,9 @@ async def _websocket_devices(
                 "tile_value_keys": selected_tile_values,
                 "climate_entities": climate_overrides.get(clean_dev_eui, []),
                 "tile_values": [
-                    value for entity_id, value in entities_by_id.items()
-                    if entity_id in selected_tile_values or value["domain"] == "climate"
+                    entities_by_id[entity_id]
+                    for entity_id in selected_tile_values
+                    if entity_id in entities_by_id
                 ],
                 "offline_after_hours": offline_overrides.get(
                     _clean_dev_eui(dev_eui),
