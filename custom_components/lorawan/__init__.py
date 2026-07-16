@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.18",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.19",
                 "embed_iframe": False,
             }
         },
@@ -406,11 +406,7 @@ async def _websocket_devices(
 
     registry_by_eui = {}
     for device in device_registry.devices.values():
-        identifiers = {
-            str(identifier)
-            for domain, identifier in device.identifiers
-            if domain == DOMAIN
-        }
+        identifiers = _device_domain_identifiers(device.identifiers)
         for identifier in identifiers:
             registry_by_eui.setdefault(
                 _clean_dev_eui(identifier), (device, identifiers)
@@ -497,6 +493,18 @@ async def _websocket_devices(
 
     devices.sort(key=lambda item: item["name"].lower())
     connection.send_result(msg["id"], {"devices": devices})
+
+
+def _device_domain_identifiers(registry_identifiers) -> set[str]:
+    """Extract LoRaWAN identifiers from valid and extended registry tuples."""
+    identifiers = set()
+    for parts in registry_identifiers:
+        if not isinstance(parts, (tuple, list)) or len(parts) < 2:
+            continue
+        domain, identifier = parts[0], parts[1]
+        if domain == DOMAIN:
+            identifiers.add(str(identifier))
+    return identifiers
 
 
 def _panel_device_payload(
