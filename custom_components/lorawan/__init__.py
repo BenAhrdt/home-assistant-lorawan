@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.16",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.17",
                 "embed_iframe": False,
             }
         },
@@ -401,6 +401,7 @@ async def _websocket_devices(
     entity_registry = er.async_get(hass)
 
     devices = []
+    included_runtime_devices: set[tuple[str, str]] = set()
     entries = hass.config_entries.async_entries(DOMAIN)
     entries_by_id = {entry.entry_id: entry for entry in entries}
     entry_indexes = {entry.entry_id: index for index, entry in enumerate(entries)}
@@ -424,14 +425,28 @@ async def _websocket_devices(
                 and clean_dev_eui in getattr(runtimes.get(entry_id), "devices", {})
             ),
             next(
-                (entry_id for entry_id in device.config_entries if entry_id in entries_by_id),
-                None,
+                (
+                    entry_id
+                    for entry_id, runtime in runtimes.items()
+                    if entry_id in entries_by_id
+                    and clean_dev_eui in getattr(runtime, "devices", {})
+                ),
+                next(
+                    (
+                        entry_id
+                        for entry_id in device.config_entries
+                        if entry_id in entries_by_id
+                    ),
+                    None,
+                ),
             ),
         )
         entry = entries_by_id.get(entry_id)
         config = dict(entry.data) if entry else {}
         runtime: LoRaWANRuntime | None = runtimes.get(entry_id)
         runtime_device = runtime.devices.get(clean_dev_eui) if runtime else None
+        if runtime_device is not None and entry_id is not None:
+            included_runtime_devices.add((entry_id, clean_dev_eui))
         default_offline_after = config.get(
             CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
         )
@@ -539,6 +554,65 @@ async def _websocket_devices(
                 ),
             }
         )
+
+    # The runtime is the authoritative source for devices seen on MQTT. A device
+    # registry entry is normally created with its first entity, but that update can
+    # lag behind the uplink (or be missing when every entity is disabled). Keep such
+    # devices visible in the panel instead of incorrectly showing an empty list.
+    for entry_id, runtime in runtimes.items():
+        entry = entries_by_id.get(entry_id)
+        if entry is None:
+            continue
+        config = dict(entry.data)
+        default_offline_after = config.get(
+            CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
+        )
+        offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
+        raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+        remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
+        climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
+        for clean_dev_eui, runtime_device in runtime.devices.items():
+            clean_dev_eui = _clean_dev_eui(clean_dev_eui)
+            if (entry_id, clean_dev_eui) in included_runtime_devices:
+                continue
+            devices.append(
+                {
+                    "id": "",
+                    "name": (
+                        runtime_device.device_name
+                        or runtime_device.device_id
+                        or runtime_device.dev_eui
+                    ),
+                    "model": runtime_device.device_type,
+                    "manufacturer": "LoRaWAN",
+                    "sw_version": runtime_device.application_name,
+                    "application_name": runtime_device.application_name,
+                    "identifiers": [runtime_device.dev_eui],
+                    "entry_id": entry_id,
+                    "connection_name": _entry_name(entry),
+                    "connection_color": _connection_color(
+                        entry, entry_indexes[entry_id]
+                    ),
+                    "online": runtime.is_device_online(runtime_device.dev_eui),
+                    "last_uplink_at": runtime.last_seen_by_device.get(clean_dev_eui),
+                    "available_entities": [],
+                    "tile_value_keys": [],
+                    "climate_entities": climate_overrides.get(clean_dev_eui, []),
+                    "tile_values": [],
+                    "offline_after_hours": offline_overrides.get(
+                        clean_dev_eui, default_offline_after
+                    ),
+                    "offline_after_default_hours": default_offline_after,
+                    "create_raw_sensors": raw_overrides.get(
+                        clean_dev_eui,
+                        config.get(CONF_CREATE_RAW_SENSORS, True),
+                    ),
+                    "create_remaining_sensors": remaining_overrides.get(
+                        clean_dev_eui,
+                        config.get(CONF_CREATE_REMAINING_SENSORS, False),
+                    ),
+                }
+            )
 
     devices.sort(key=lambda item: item["name"].lower())
     connection.send_result(msg["id"], {"devices": devices})

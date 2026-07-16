@@ -123,6 +123,17 @@ class LoRaWANPanel extends HTMLElement {
     this._profileEditor = null;
     this._profileEditorOriginalType = null;
     this._openParameterEditorIndex = null;
+    this._narrow = false;
+  }
+
+  set narrow(narrow) {
+    this._narrow = Boolean(narrow);
+    this.toggleAttribute("narrow", this._narrow);
+    this._updateMenuButton();
+  }
+
+  get narrow() {
+    return this._narrow;
   }
 
   set hass(hass) {
@@ -136,6 +147,14 @@ class LoRaWANPanel extends HTMLElement {
     if (!this._rendered || previousLanguage !== this._language()) {
       if (this._activeTab !== "downlinks") this._render();
     }
+    this._updateMenuButton();
+  }
+
+  _updateMenuButton() {
+    const menuButton = this.shadowRoot?.querySelector("ha-menu-button");
+    if (!menuButton) return;
+    menuButton.hass = this._hass;
+    menuButton.narrow = this._narrow;
   }
 
   _language() {
@@ -195,7 +214,8 @@ class LoRaWANPanel extends HTMLElement {
         }
 
         .page {
-          max-width: 1160px;
+          box-sizing: border-box;
+          width: 100%;
           margin: 0 auto;
           padding: 24px;
         }
@@ -205,6 +225,16 @@ class LoRaWANPanel extends HTMLElement {
           align-items: center;
           gap: 16px;
           margin-bottom: 20px;
+        }
+
+        .menu-button {
+          display: none;
+          flex: 0 0 auto;
+          margin-left: -12px;
+        }
+
+        :host([narrow]) .menu-button {
+          display: block;
         }
 
         .logo {
@@ -403,6 +433,9 @@ class LoRaWANPanel extends HTMLElement {
           border: 1px solid var(--divider-color);
           border-radius: 10px;
           background: var(--card-background-color);
+        }
+
+        .device-card[data-device-open] {
           cursor: pointer;
         }
 
@@ -866,12 +899,14 @@ class LoRaWANPanel extends HTMLElement {
         .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
         @media (max-width: 720px) {
+          .page { padding: 12px; }
           .list, .downlink-layout { grid-template-columns: 1fr; }
           .parameter { grid-template-columns: 1fr; }
         }
       </style>
       <div class="page">
         <header>
+          <ha-menu-button class="menu-button"></ha-menu-button>
           <img class="logo" src="/lorawan_static/icon.svg" alt="" />
           <h1>LoRaWAN</h1>
         </header>
@@ -895,6 +930,8 @@ class LoRaWANPanel extends HTMLElement {
       ${this._renderDeviceDiagnosticsDialog()}
       ${this._renderMessagesDialog()}
     `;
+
+    this._updateMenuButton();
 
     this.shadowRoot.querySelectorAll("button[data-tab]").forEach((button) => {
       button.addEventListener("click", () =>
@@ -1797,8 +1834,11 @@ class LoRaWANPanel extends HTMLElement {
         const identifier = device.identifiers?.[0] || "-";
         const subtitle = device.model || device.manufacturer || "LoRaWAN";
         const indicators = this._deviceIndicators(device);
+        const openAttributes = device.id
+          ? `role="button" tabindex="0" data-device-open="${this._escape(device.id)}"`
+          : "";
         return `
-          <div class="device-card" style="border-top: 4px solid ${this._escape(device.connection_color || "var(--primary-color)")}" role="button" tabindex="0" data-device-open="${this._escape(device.id)}">
+          <div class="device-card" style="border-top: 4px solid ${this._escape(device.connection_color || "var(--primary-color)")}" ${openAttributes}>
             <div>
               <div class="device-card-header">
                 <div class="device-name">${this._escape(device.name)}</div>
