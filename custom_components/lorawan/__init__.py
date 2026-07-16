@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.19",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.20",
                 "embed_iframe": False,
             }
         },
@@ -400,28 +400,32 @@ async def _websocket_devices(
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     entries = hass.config_entries.async_entries(DOMAIN)
-    entries_by_id = {entry.entry_id: entry for entry in entries}
     entry_indexes = {entry.entry_id: index for index, entry in enumerate(entries)}
     runtimes = hass.data.get(DOMAIN, {})
 
-    registry_by_eui = {}
-    for device in device_registry.devices.values():
-        identifiers = _device_domain_identifiers(device.identifiers)
-        for identifier in identifiers:
-            registry_by_eui.setdefault(
-                _clean_dev_eui(identifier), (device, identifiers)
-            )
-
     devices = []
-    included_registry_devices = set()
     for entry in entries:
         runtime: LoRaWANRuntime | None = runtimes.get(entry.entry_id)
-        if runtime is None:
-            continue
-        for dev_eui, runtime_device in runtime.devices.items():
+        registry_devices = (
+            device_registry.devices.get_devices_for_config_entry_id(entry.entry_id)
+        )
+        registry_by_eui, registry_identifiers = _registry_devices_by_eui(
+            registry_devices
+        )
+
+        included_registry_devices = set()
+        runtime_devices = runtime.devices if runtime is not None else {}
+        for dev_eui, runtime_device in runtime_devices.items():
             clean_dev_eui = _clean_dev_eui(dev_eui)
-            registry_device, identifiers = registry_by_eui.get(
-                clean_dev_eui, (None, {runtime_device.dev_eui})
+            registry_device = registry_by_eui.get(clean_dev_eui)
+            if registry_device is None:
+                registry_device = device_registry.async_get_device(
+                    identifiers={(DOMAIN, runtime_device.dev_eui)}
+                )
+            identifiers = (
+                _device_domain_identifiers(registry_device.identifiers)
+                if registry_device is not None
+                else {runtime_device.dev_eui}
             )
             if registry_device is not None:
                 included_registry_devices.add(registry_device.id)
@@ -455,41 +459,35 @@ async def _websocket_devices(
                 )
             devices.append(payload)
 
-    # Retain registry devices from older cached data even when their runtime is not
-    # currently loaded. Runtime devices above never depend on this fallback path.
-    for registry_device, identifiers in registry_by_eui.values():
-        if registry_device.id in included_registry_devices:
-            continue
-        included_registry_devices.add(registry_device.id)
-        entry_id = next(
-            (
-                candidate
-                for candidate in registry_device.config_entries
-                if candidate in entries_by_id
-            ),
-            None,
-        )
-        entry = entries_by_id.get(entry_id)
-        dev_eui = next(iter(identifiers))
-        try:
-            payload = _panel_device_payload(
-                hass,
-                entity_registry,
-                registry_device,
-                identifiers,
-                entry,
-                entry_indexes.get(entry_id, 0),
-                None,
-                None,
-                _clean_dev_eui(dev_eui),
-            )
-        except Exception:  # noqa: BLE001 - ignore broken stale registry entries
-            _LOGGER.exception(
-                "Failed to add stale LoRaWAN registry device %s",
-                registry_device.id,
-            )
-            continue
-        devices.append(payload)
+        # Retain older registry devices belonging to this config entry even when
+        # they are not currently present in its runtime cache.
+        for registry_device in registry_devices:
+            if registry_device.id in included_registry_devices:
+                continue
+            identifiers = registry_identifiers[registry_device.id]
+            if not identifiers:
+                continue
+            included_registry_devices.add(registry_device.id)
+            dev_eui = next(iter(identifiers))
+            try:
+                payload = _panel_device_payload(
+                    hass,
+                    entity_registry,
+                    registry_device,
+                    identifiers,
+                    entry,
+                    entry_indexes[entry.entry_id],
+                    None,
+                    None,
+                    _clean_dev_eui(dev_eui),
+                )
+            except Exception:  # noqa: BLE001 - ignore broken stale registry entries
+                _LOGGER.exception(
+                    "Failed to add stale LoRaWAN registry device %s",
+                    registry_device.id,
+                )
+                continue
+            devices.append(payload)
 
     devices.sort(key=lambda item: item["name"].lower())
     connection.send_result(msg["id"], {"devices": devices})
@@ -505,6 +503,18 @@ def _device_domain_identifiers(registry_identifiers) -> set[str]:
         if domain == DOMAIN:
             identifiers.add(str(identifier))
     return identifiers
+
+
+def _registry_devices_by_eui(registry_devices) -> tuple[dict, dict]:
+    """Index devices from one config entry by normalized LoRaWAN DevEUI."""
+    devices_by_eui = {}
+    identifiers_by_device = {}
+    for registry_device in registry_devices:
+        identifiers = _device_domain_identifiers(registry_device.identifiers)
+        identifiers_by_device[registry_device.id] = identifiers
+        for identifier in identifiers:
+            devices_by_eui.setdefault(_clean_dev_eui(identifier), registry_device)
+    return devices_by_eui, identifiers_by_device
 
 
 def _panel_device_payload(
