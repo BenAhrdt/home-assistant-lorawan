@@ -75,7 +75,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.17",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.18",
                 "embed_iframe": False,
             }
         },
@@ -396,226 +396,233 @@ async def _websocket_devices(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Return LoRaWAN devices from the Home Assistant registries."""
+    """Return LoRaWAN devices, using the MQTT runtimes as primary source."""
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
-
-    devices = []
-    included_runtime_devices: set[tuple[str, str]] = set()
     entries = hass.config_entries.async_entries(DOMAIN)
     entries_by_id = {entry.entry_id: entry for entry in entries}
     entry_indexes = {entry.entry_id: index for index, entry in enumerate(entries)}
     runtimes = hass.data.get(DOMAIN, {})
+
+    registry_by_eui = {}
     for device in device_registry.devices.values():
         identifiers = {
-            identifier
+            str(identifier)
             for domain, identifier in device.identifiers
             if domain == DOMAIN
         }
-        if not identifiers:
-            continue
+        for identifier in identifiers:
+            registry_by_eui.setdefault(
+                _clean_dev_eui(identifier), (device, identifiers)
+            )
 
-        dev_eui = next(iter(identifiers))
-        clean_dev_eui = _clean_dev_eui(dev_eui)
+    devices = []
+    included_registry_devices = set()
+    for entry in entries:
+        runtime: LoRaWANRuntime | None = runtimes.get(entry.entry_id)
+        if runtime is None:
+            continue
+        for dev_eui, runtime_device in runtime.devices.items():
+            clean_dev_eui = _clean_dev_eui(dev_eui)
+            registry_device, identifiers = registry_by_eui.get(
+                clean_dev_eui, (None, {runtime_device.dev_eui})
+            )
+            if registry_device is not None:
+                included_registry_devices.add(registry_device.id)
+            try:
+                payload = _panel_device_payload(
+                    hass,
+                    entity_registry,
+                    registry_device,
+                    identifiers,
+                    entry,
+                    entry_indexes[entry.entry_id],
+                    runtime,
+                    runtime_device,
+                    clean_dev_eui,
+                )
+            except Exception:  # noqa: BLE001 - registry data must not hide runtime devices
+                _LOGGER.exception(
+                    "Failed to enrich LoRaWAN device %s from the registries",
+                    runtime_device.dev_eui,
+                )
+                payload = _panel_device_payload(
+                    hass,
+                    entity_registry,
+                    None,
+                    {runtime_device.dev_eui},
+                    entry,
+                    entry_indexes[entry.entry_id],
+                    runtime,
+                    runtime_device,
+                    clean_dev_eui,
+                )
+            devices.append(payload)
+
+    # Retain registry devices from older cached data even when their runtime is not
+    # currently loaded. Runtime devices above never depend on this fallback path.
+    for registry_device, identifiers in registry_by_eui.values():
+        if registry_device.id in included_registry_devices:
+            continue
+        included_registry_devices.add(registry_device.id)
         entry_id = next(
             (
-                entry_id
-                for entry_id in device.config_entries
-                if entry_id in entries_by_id
-                and clean_dev_eui in getattr(runtimes.get(entry_id), "devices", {})
+                candidate
+                for candidate in registry_device.config_entries
+                if candidate in entries_by_id
             ),
-            next(
-                (
-                    entry_id
-                    for entry_id, runtime in runtimes.items()
-                    if entry_id in entries_by_id
-                    and clean_dev_eui in getattr(runtime, "devices", {})
-                ),
-                next(
-                    (
-                        entry_id
-                        for entry_id in device.config_entries
-                        if entry_id in entries_by_id
-                    ),
-                    None,
-                ),
-            ),
+            None,
         )
         entry = entries_by_id.get(entry_id)
-        config = dict(entry.data) if entry else {}
-        runtime: LoRaWANRuntime | None = runtimes.get(entry_id)
-        runtime_device = runtime.devices.get(clean_dev_eui) if runtime else None
-        if runtime_device is not None and entry_id is not None:
-            included_runtime_devices.add((entry_id, clean_dev_eui))
-        default_offline_after = config.get(
-            CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
-        )
-        offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
-        raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
-        remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
-        tile_value_overrides = config.get(CONF_DEVICE_TILE_VALUES) or {}
-        climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
-        available_entities = []
-        for entity in entity_registry.entities.values():
-            if entity.device_id != device.id or entity.disabled_by is not None:
-                continue
-            state = hass.states.get(entity.entity_id)
-            available_entities.append(
-                {
-                    "entity_id": entity.entity_id,
-                    "unique_id": entity.unique_id,
-                    "domain": entity.entity_id.partition(".")[0],
-                    "name": (
-                        entity.name
-                        or entity.original_name
-                        or (state.attributes.get("friendly_name") if state else None)
-                        or entity.entity_id
-                    ),
-                    "state": state.state if state else "unavailable",
-                    "unit": (
-                        state.attributes.get("unit_of_measurement") if state else None
-                    ),
-                    "min": (
-                        state.attributes.get("min", state.attributes.get("min_temp"))
-                        if state else None
-                    ),
-                    "max": (
-                        state.attributes.get("max", state.attributes.get("max_temp"))
-                        if state else None
-                    ),
-                    "step": (
-                        state.attributes.get("step", state.attributes.get("target_temp_step"))
-                        if state else None
-                    ),
-                    "target_temperature": (
-                        state.attributes.get("temperature") if state else None
-                    ),
-                    "current_temperature": (
-                        state.attributes.get("current_temperature") if state else None
-                    ),
-                    "supported_features": (
-                        state.attributes.get("supported_features", 0) if state else 0
-                    ),
-                    "options": state.attributes.get("options", []) if state else [],
-                    "device_class": (
-                        state.attributes.get("device_class") if state else None
-                    )
-                    or getattr(entity, "original_device_class", None),
-                }
+        dev_eui = next(iter(identifiers))
+        try:
+            payload = _panel_device_payload(
+                hass,
+                entity_registry,
+                registry_device,
+                identifiers,
+                entry,
+                entry_indexes.get(entry_id, 0),
+                None,
+                None,
+                _clean_dev_eui(dev_eui),
             )
-        available_entities.sort(key=lambda item: item["name"].lower())
-        selected_tile_values = tile_value_overrides.get(clean_dev_eui, [])
-        entities_by_id = {
-            value["entity_id"]: value for value in available_entities
-        }
-        devices.append(
-            {
-                "id": device.id,
-                "name": device.name_by_user or device.name or dev_eui,
-                "model": device.model,
-                "manufacturer": device.manufacturer,
-                "sw_version": device.sw_version,
-                "application_name": (
-                    runtime_device.application_name if runtime_device else None
-                ),
-                "identifiers": sorted(identifiers),
-                "entry_id": entry_id,
-                "connection_name": _entry_name(entry) if entry else None,
-                "connection_color": (
-                    _connection_color(entry, entry_indexes[entry_id]) if entry else None
-                ),
-                "online": runtime.is_device_online(dev_eui) if runtime else False,
-                "last_uplink_at": (
-                    runtime.last_seen_by_device.get(clean_dev_eui) if runtime else None
-                ),
-                "available_entities": available_entities,
-                "tile_value_keys": selected_tile_values,
-                "climate_entities": climate_overrides.get(clean_dev_eui, []),
-                "tile_values": [
-                    entities_by_id[entity_id]
-                    for entity_id in selected_tile_values
-                    if entity_id in entities_by_id
-                ],
-                "offline_after_hours": offline_overrides.get(
-                    _clean_dev_eui(dev_eui),
-                    default_offline_after,
-                ),
-                "offline_after_default_hours": default_offline_after,
-                "create_raw_sensors": raw_overrides.get(
-                    _clean_dev_eui(dev_eui),
-                    config.get(CONF_CREATE_RAW_SENSORS, True),
-                ),
-                "create_remaining_sensors": remaining_overrides.get(
-                    _clean_dev_eui(dev_eui),
-                    config.get(
-                        CONF_CREATE_REMAINING_SENSORS,
-                        False,
-                    ),
-                ),
-            }
-        )
-
-    # The runtime is the authoritative source for devices seen on MQTT. A device
-    # registry entry is normally created with its first entity, but that update can
-    # lag behind the uplink (or be missing when every entity is disabled). Keep such
-    # devices visible in the panel instead of incorrectly showing an empty list.
-    for entry_id, runtime in runtimes.items():
-        entry = entries_by_id.get(entry_id)
-        if entry is None:
+        except Exception:  # noqa: BLE001 - ignore broken stale registry entries
+            _LOGGER.exception(
+                "Failed to add stale LoRaWAN registry device %s",
+                registry_device.id,
+            )
             continue
-        config = dict(entry.data)
-        default_offline_after = config.get(
-            CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
-        )
-        offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
-        raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
-        remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
-        climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
-        for clean_dev_eui, runtime_device in runtime.devices.items():
-            clean_dev_eui = _clean_dev_eui(clean_dev_eui)
-            if (entry_id, clean_dev_eui) in included_runtime_devices:
-                continue
-            devices.append(
-                {
-                    "id": "",
-                    "name": (
-                        runtime_device.device_name
-                        or runtime_device.device_id
-                        or runtime_device.dev_eui
-                    ),
-                    "model": runtime_device.device_type,
-                    "manufacturer": "LoRaWAN",
-                    "sw_version": runtime_device.application_name,
-                    "application_name": runtime_device.application_name,
-                    "identifiers": [runtime_device.dev_eui],
-                    "entry_id": entry_id,
-                    "connection_name": _entry_name(entry),
-                    "connection_color": _connection_color(
-                        entry, entry_indexes[entry_id]
-                    ),
-                    "online": runtime.is_device_online(runtime_device.dev_eui),
-                    "last_uplink_at": runtime.last_seen_by_device.get(clean_dev_eui),
-                    "available_entities": [],
-                    "tile_value_keys": [],
-                    "climate_entities": climate_overrides.get(clean_dev_eui, []),
-                    "tile_values": [],
-                    "offline_after_hours": offline_overrides.get(
-                        clean_dev_eui, default_offline_after
-                    ),
-                    "offline_after_default_hours": default_offline_after,
-                    "create_raw_sensors": raw_overrides.get(
-                        clean_dev_eui,
-                        config.get(CONF_CREATE_RAW_SENSORS, True),
-                    ),
-                    "create_remaining_sensors": remaining_overrides.get(
-                        clean_dev_eui,
-                        config.get(CONF_CREATE_REMAINING_SENSORS, False),
-                    ),
-                }
-            )
+        devices.append(payload)
 
     devices.sort(key=lambda item: item["name"].lower())
     connection.send_result(msg["id"], {"devices": devices})
+
+
+def _panel_device_payload(
+    hass,
+    entity_registry,
+    registry_device,
+    identifiers,
+    entry,
+    entry_index,
+    runtime,
+    runtime_device,
+    clean_dev_eui,
+) -> dict:
+    """Build one JSON-safe device description for the sidebar panel."""
+    config = dict(entry.data) if entry else {}
+    default_offline_after = config.get(
+        CONF_OFFLINE_AFTER_HOURS, DEFAULT_OFFLINE_AFTER_HOURS
+    )
+    offline_overrides = config.get(CONF_DEVICE_OFFLINE_AFTER_HOURS) or {}
+    raw_overrides = config.get(CONF_DEVICE_CREATE_RAW_SENSORS) or {}
+    remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
+    tile_value_overrides = config.get(CONF_DEVICE_TILE_VALUES) or {}
+    climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
+    available_entities = _panel_device_entities(
+        hass, entity_registry, registry_device.id if registry_device else None
+    )
+    selected_tile_values = tile_value_overrides.get(clean_dev_eui, [])
+    entities_by_id = {value["entity_id"]: value for value in available_entities}
+    dev_eui = runtime_device.dev_eui if runtime_device else next(iter(identifiers))
+    return {
+        "id": registry_device.id if registry_device else "",
+        "name": str(
+            (registry_device.name_by_user or registry_device.name or dev_eui)
+            if registry_device
+            else (
+                runtime_device.device_name
+                or runtime_device.device_id
+                or runtime_device.dev_eui
+            )
+        ),
+        "model": (
+            registry_device.model if registry_device else runtime_device.device_type
+        ),
+        "manufacturer": (
+            registry_device.manufacturer if registry_device else "LoRaWAN"
+        ),
+        "sw_version": (
+            registry_device.sw_version
+            if registry_device
+            else runtime_device.application_name
+        ),
+        "application_name": (
+            runtime_device.application_name if runtime_device else None
+        ),
+        "identifiers": sorted(identifiers),
+        "entry_id": entry.entry_id if entry else None,
+        "connection_name": _entry_name(entry) if entry else None,
+        "connection_color": (
+            _connection_color(entry, entry_index) if entry else None
+        ),
+        "online": runtime.is_device_online(dev_eui) if runtime else False,
+        "last_uplink_at": (
+            runtime.last_seen_by_device.get(clean_dev_eui) if runtime else None
+        ),
+        "available_entities": available_entities,
+        "tile_value_keys": selected_tile_values,
+        "climate_entities": climate_overrides.get(clean_dev_eui, []),
+        "tile_values": [
+            entities_by_id[entity_id]
+            for entity_id in selected_tile_values
+            if entity_id in entities_by_id
+        ],
+        "offline_after_hours": offline_overrides.get(
+            clean_dev_eui, default_offline_after
+        ),
+        "offline_after_default_hours": default_offline_after,
+        "create_raw_sensors": raw_overrides.get(
+            clean_dev_eui, config.get(CONF_CREATE_RAW_SENSORS, True)
+        ),
+        "create_remaining_sensors": remaining_overrides.get(
+            clean_dev_eui, config.get(CONF_CREATE_REMAINING_SENSORS, False)
+        ),
+    }
+
+
+def _panel_device_entities(hass, entity_registry, device_id) -> list[dict]:
+    """Return enabled, JSON-safe registry entities for one device."""
+    if not device_id:
+        return []
+    entities = []
+    for entity in entity_registry.entities.values():
+        if entity.device_id != device_id or entity.disabled_by is not None:
+            continue
+        state = hass.states.get(entity.entity_id)
+        attributes = state.attributes if state else {}
+        name = str(
+            entity.name
+            or entity.original_name
+            or attributes.get("friendly_name")
+            or entity.entity_id
+        )
+        device_class = attributes.get("device_class") or getattr(
+            entity, "original_device_class", None
+        )
+        entities.append(
+            {
+                "entity_id": entity.entity_id,
+                "unique_id": entity.unique_id,
+                "domain": entity.entity_id.partition(".")[0],
+                "name": name,
+                "state": state.state if state else "unavailable",
+                "unit": attributes.get("unit_of_measurement"),
+                "min": attributes.get("min", attributes.get("min_temp")),
+                "max": attributes.get("max", attributes.get("max_temp")),
+                "step": attributes.get(
+                    "step", attributes.get("target_temp_step")
+                ),
+                "target_temperature": attributes.get("temperature"),
+                "current_temperature": attributes.get("current_temperature"),
+                "supported_features": attributes.get("supported_features", 0),
+                "options": list(attributes.get("options") or []),
+                "device_class": str(device_class) if device_class else None,
+            }
+        )
+    entities.sort(key=lambda item: item["name"].lower())
+    return entities
 
 
 @websocket_api.websocket_command(

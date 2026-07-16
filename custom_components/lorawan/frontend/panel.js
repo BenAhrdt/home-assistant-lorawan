@@ -42,7 +42,7 @@ const TRANSLATIONS = {
     opened: "Geöffnet", closed: "Geschlossen", locked: "Verriegelt", unlocked: "Entriegelt",
     idle: "Ruhe", motionDetected: "Bewegung erkannt", clear: "Frei", occupied: "Belegt", safe: "Sicher",
     unsafe: "Unsicher", noSmoke: "Kein Rauch", smokeDetected: "Rauch erkannt", dataLoading: "Daten werden geladen…",
-    dataLoadFailed: "Daten konnten nicht geladen werden.", diagnosticUnavailable: "Nicht aktiviert oder noch kein Uplink empfangen.",
+    dataLoadFailed: "Daten konnten nicht geladen werden.", deviceLoadFailed: "Geräteliste konnte nicht geladen werden.", diagnosticUnavailable: "Nicht aktiviert oder noch kein Uplink empfangen.",
     moreMqttData: "Weitere MQTT-Daten", noMessages: "Noch keine Nachrichten",
     noConfirmation: "Noch keine Bestätigung", profileDeleteFailed: "Profil konnte nicht gelöscht werden",
     downlinkSent: "Downlink gesendet", downlinkSendFailed: "Downlink konnte nicht gesendet werden"
@@ -84,7 +84,7 @@ const TRANSLATIONS = {
     window: "Window", door: "Door", contact: "Contact", opened: "open", closed: "closed", locked: "Locked",
     unlocked: "Unlocked", idle: "Idle", motionDetected: "Motion detected", clear: "Clear", occupied: "Occupied",
     safe: "Safe", unsafe: "Unsafe", noSmoke: "No smoke", smokeDetected: "Smoke detected", dataLoading: "Loading data…",
-    dataLoadFailed: "Data could not be loaded.", diagnosticUnavailable: "Not enabled or no uplink received yet.",
+    dataLoadFailed: "Data could not be loaded.", deviceLoadFailed: "Device list could not be loaded.", diagnosticUnavailable: "Not enabled or no uplink received yet.",
     moreMqttData: "Additional MQTT data", noMessages: "No messages yet", noConfirmation: "No confirmation yet",
     profileDeleteFailed: "Profile could not be deleted", downlinkSent: "Downlink sent",
     downlinkSendFailed: "Downlink could not be sent"
@@ -112,6 +112,7 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceUnsubscribe = undefined;
     this._deviceSubscribePending = false;
     this._devices = [];
+    this._devicesError = null;
     this._deviceSettings = null;
     this._additionalEntitiesDialogOpen = false;
     this._deviceDiagnostics = null;
@@ -1818,6 +1819,16 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _renderDevices() {
+    if (this._devicesError) {
+      return `
+        <div class="device-card">
+          <div>
+            <div class="device-name">${this._t("deviceLoadFailed")}</div>
+            <div class="muted">${this._escape(this._devicesError)}</div>
+          </div>
+        </div>
+      `;
+    }
     if (!this._devices.length) {
       return `
         <div class="device-card">
@@ -2004,9 +2015,12 @@ class LoRaWANPanel extends HTMLElement {
     try {
       const devices = await this._hass.callWS({ type: "lorawan/devices" });
       this._devices = devices.devices || [];
+      this._devicesError = null;
       if (this._activeTab !== "downlinks" && !this._deviceSettings) this._render();
     } catch (error) {
       this._devices = [];
+      this._devicesError = error?.message || String(error);
+      console.error("Could not load LoRaWAN devices", error);
       if (this._activeTab !== "downlinks" && !this._deviceSettings) this._render();
     }
   }
