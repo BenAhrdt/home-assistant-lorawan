@@ -65,6 +65,16 @@ This integration expects the LoRaWAN network server to provide decoded payloads:
 - TTN: `uplink_message.decoded_payload`
 - ChirpStack: `object`
 
+For both network servers, the normalizer detects the device type from the same
+decoded-payload keys: `DeviceType`, `Device`, `Hardware_mode`, or `model_id`.
+Key matching is case-insensitive. An existing device type learned from an
+earlier uplink or entered manually is not overwritten by later uplinks.
+
+Home Assistant entity metadata such as device class, state class, and unit is
+assigned by field name only to decoded uplink values. Raw payload diagnostics,
+remaining transport data, and downlink entities do not use these automatic
+uplink assignments.
+
 Raw payload diagnostic sensors can be enabled during setup.
 
 ## DISCLAIMER

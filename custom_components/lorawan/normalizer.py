@@ -10,6 +10,9 @@ from typing import Any
 from .models import LoRaWANDevice, LoRaWANMessage, LoRaWANValue
 
 
+DEVICE_TYPE_KEYS = ("DeviceType", "Device", "Hardware_mode", "model_id")
+
+
 def normalize_message(topic: str, payload: dict[str, Any]) -> LoRaWANMessage | None:
     """Normalize one MQTT message from a supported LoRaWAN network server."""
     if topic.startswith("v3/") or "end_device_ids" in payload:
@@ -39,7 +42,7 @@ def _normalize_ttn(topic: str, payload: dict[str, Any]) -> LoRaWANMessage | None
         device_name=str(ids.get("device_id") or dev_eui),
         device_type=_first_string(
             decoded_payload,
-            ("deviceType", "devicetype", "device", "Device", "model_id"),
+            DEVICE_TYPE_KEYS,
         ),
         network="ttn",
     )
@@ -92,7 +95,7 @@ def _normalize_chirpstack(topic: str, payload: dict[str, Any]) -> LoRaWANMessage
         device_name=str(info.get("deviceName") or dev_eui),
         device_type=_first_string(
             decoded_payload,
-            ("devicetype", "device", "Device", "Hardware_mode", "model_id"),
+            DEVICE_TYPE_KEYS,
         ),
         network="chirpstack",
     )
@@ -238,8 +241,9 @@ def _topic_part(topic: str, marker: str) -> str | None:
 
 
 def _first_string(data: dict[str, Any], keys: Iterable[str]) -> str | None:
+    casefolded = {str(key).casefold(): value for key, value in data.items()}
     for key in keys:
-        value = data.get(key)
+        value = casefolded.get(key.casefold())
         if isinstance(value, str) and value:
             return value
     return None
