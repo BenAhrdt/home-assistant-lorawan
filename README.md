@@ -15,9 +15,11 @@ entities from decoded payload values.
   - The Things Stack / TTN
   - ChirpStack
 - Creates Home Assistant devices automatically from incoming messages.
-- Creates sensor entities for numeric, text, and raw payload values.
+- Creates sensor entities for numeric, text, and raw payload values. Numeric
+  decoder values use two decimal places as their default display precision.
 - Creates binary sensor entities for boolean decoded values.
-- Supports downlinks
+- Supports downlinks, including optimistic switch controls that retain their
+  displayed state across Home Assistant restarts.
 - Dedicated MQTT broker credentials independent of Home Assistant's MQTT
   integration.
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,

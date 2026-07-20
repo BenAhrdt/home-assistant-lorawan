@@ -4,6 +4,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN, SIGNAL_ADD_DOWNLINK_CONTROL, SIGNAL_REMOVE_DOWNLINK_CONTROL
 from .downlink_entity import LoRaWANDownlinkEntity
@@ -28,8 +29,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entry.async_on_unload(add_runtime_listener(hass, SIGNAL_REMOVE_DOWNLINK_CONTROL, entry.entry_id, remove))
 
 
-class LoRaWANDownlinkSwitch(LoRaWANDownlinkEntity, SwitchEntity):
-    @property
-    def is_on(self) -> bool | None: return None
-    async def async_turn_on(self, **kwargs) -> None: self._send(True)
-    async def async_turn_off(self, **kwargs) -> None: self._send(False)
+class LoRaWANDownlinkSwitch(LoRaWANDownlinkEntity, SwitchEntity, RestoreEntity):
+    """An optimistic boolean downlink represented as a regular switch."""
+
+    _attr_is_on = False
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the displayed state without sending a downlink."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state in {"on", "off"}:
+            self._attr_is_on = last_state.state == "on"
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Send the enabled state and optimistically update the switch."""
+        self._send(True)
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Send the disabled state and optimistically update the switch."""
+        self._send(False)
+        self._attr_is_on = False
+        self.async_write_ha_state()

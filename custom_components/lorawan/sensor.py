@@ -46,6 +46,14 @@ class LoRaWANSensor(LoRaWANEntity, SensorEntity):
     """A LoRaWAN sensor entity."""
 
     @property
+    def suggested_display_precision(self) -> int | None:
+        """Show numeric decoder values with two decimal places by default."""
+        value = self.value
+        if value is None or isinstance(value.value, bool):
+            return None
+        return 2 if isinstance(value.value, (int, float)) else None
+
+    @property
     def native_value(self) -> Any:
         """Return the sensor value."""
         value = self.value
