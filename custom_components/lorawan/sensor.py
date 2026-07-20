@@ -51,7 +51,9 @@ class LoRaWANSensor(LoRaWANEntity, SensorEntity):
         value = self.value
         if value is None or isinstance(value.value, bool):
             return None
-        return 2 if isinstance(value.value, (int, float)) else None
+        if not isinstance(value.value, (int, float)):
+            return None
+        return 0 if self.native_unit_of_measurement == "%" else 2
 
     @property
     def native_value(self) -> Any:

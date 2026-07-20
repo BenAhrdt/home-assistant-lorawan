@@ -16,7 +16,8 @@ entities from decoded payload values.
   - ChirpStack
 - Creates Home Assistant devices automatically from incoming messages.
 - Creates sensor entities for numeric, text, and raw payload values. Numeric
-  decoder values use two decimal places as their default display precision.
+  decoder values use two decimal places as their default display precision;
+  percentage values are displayed without decimal places by default.
 - Creates binary sensor entities for boolean decoded values.
 - Supports downlinks, including optimistic switch controls that retain their
   displayed state across Home Assistant restarts.
