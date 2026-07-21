@@ -26,9 +26,10 @@ entities from decoded payload values.
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,
   spreading factor, frequency, frame port, and frame count when available.
 
+<img width="1065" height="890" alt="image" src="https://github.com/user-attachments/assets/92530515-aca4-4701-9431-ecdff6a2a89b" />
+
 ## Not Yet Included
 
-- Import of ioBroker downlink profiles.
 - Automated tests against a Home Assistant test harness.
 
 ## Installation
