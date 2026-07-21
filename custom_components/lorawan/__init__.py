@@ -23,6 +23,8 @@ from .const import (
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
     CONF_CONNECTION_COLOR,
     CONF_DOWNLINK_PROFILES,
+    CONF_KNOWN_DEFAULT_PROFILE_TYPES,
+    CONF_RESTORE_DEFAULT_PROFILES_ON_START,
     CONF_DEVICE_CREATE_RAW_SENSORS,
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_TILE_VALUES,
@@ -75,7 +77,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.20",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.26",
                 "embed_iframe": False,
             }
         },
@@ -103,7 +105,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         DOMAIN,
         SERVICE_CONFIGURE_DOWNLINK_PROFILES,
         async_configure_downlink_profiles_service,
-        schema=vol.Schema({vol.Required(CONF_DOWNLINK_PROFILES): list}),
+        schema=vol.Schema(
+            {
+                vol.Required(CONF_DOWNLINK_PROFILES): list,
+                vol.Optional(CONF_RESTORE_DEFAULT_PROFILES_ON_START): bool,
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN,
@@ -208,7 +215,15 @@ async def _async_configure_downlink_profiles(hass: HomeAssistant, call: ServiceC
         return
     entry = entries[0]
     data = dict(entry.data)
-    data[CONF_DOWNLINK_PROFILES] = call.data[CONF_DOWNLINK_PROFILES]
+    data[CONF_DOWNLINK_PROFILES] = [
+        profile
+        for profile in call.data[CONF_DOWNLINK_PROFILES]
+        if isinstance(profile, dict)
+    ]
+    if CONF_RESTORE_DEFAULT_PROFILES_ON_START in call.data:
+        data[CONF_RESTORE_DEFAULT_PROFILES_ON_START] = call.data[
+            CONF_RESTORE_DEFAULT_PROFILES_ON_START
+        ]
     hass.config_entries.async_update_entry(entry, data=data)
 
 
@@ -334,7 +349,11 @@ async def _websocket_downlinks(hass: HomeAssistant, connection: websocket_api.Ac
             }
             for device in runtime.devices.values()
         ]
-    configured_profiles = data.get(CONF_DOWNLINK_PROFILES, [])
+    configured_profiles = [
+        profile
+        for profile in data.get(CONF_DOWNLINK_PROFILES, [])
+        if isinstance(profile, dict)
+    ]
     connection.send_result(
         msg["id"],
         {
@@ -342,6 +361,10 @@ async def _websocket_downlinks(hass: HomeAssistant, connection: websocket_api.Ac
             "profiles": merged_profiles(configured_profiles),
             "configured_profiles": configured_profiles,
             "builtin_profile_types": [profile["deviceType"] for profile in BUILTIN_PROFILES],
+            "builtin_profiles": BUILTIN_PROFILES,
+            "restore_default_profiles_on_start": data.get(
+                CONF_RESTORE_DEFAULT_PROFILES_ON_START, True
+            ),
         },
     )
 
@@ -702,6 +725,38 @@ async def _websocket_subscribe_devices(
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up LoRaWAN from a config entry."""
+    if not hass.is_running:
+        configured_profiles = list(entry.data.get(CONF_DOWNLINK_PROFILES) or [])
+        current_default_types = [profile["deviceType"] for profile in BUILTIN_PROFILES]
+        known_default_types = entry.data.get(CONF_KNOWN_DEFAULT_PROFILE_TYPES)
+        restore_defaults = entry.data.get(
+            CONF_RESTORE_DEFAULT_PROFILES_ON_START, True
+        )
+        if restore_defaults:
+            startup_profiles = [
+                profile for profile in configured_profiles if not profile.get("_deleted")
+            ]
+        elif known_default_types is not None:
+            configured_types = {
+                profile.get("deviceType") for profile in configured_profiles
+            }
+            startup_profiles = list(configured_profiles)
+            startup_profiles.extend(
+                {"deviceType": device_type, "_deleted": True}
+                for device_type in current_default_types
+                if device_type not in known_default_types
+                and device_type not in configured_types
+            )
+        else:
+            startup_profiles = configured_profiles
+        if (
+            startup_profiles != configured_profiles
+            or known_default_types != current_default_types
+        ):
+            data = dict(entry.data)
+            data[CONF_DOWNLINK_PROFILES] = startup_profiles
+            data[CONF_KNOWN_DEFAULT_PROFILE_TYPES] = current_default_types
+            hass.config_entries.async_update_entry(entry, data=data)
     _sync_entry_title(hass, entry)
     _remove_obsolete_remaining_entities(hass, entry)
     runtime = LoRaWANRuntime(hass, entry)

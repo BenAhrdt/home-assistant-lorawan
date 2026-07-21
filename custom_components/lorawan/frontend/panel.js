@@ -45,7 +45,13 @@ const TRANSLATIONS = {
     dataLoadFailed: "Daten konnten nicht geladen werden.", deviceLoadFailed: "Geräteliste konnte nicht geladen werden.", diagnosticUnavailable: "Nicht aktiviert oder noch kein Uplink empfangen.",
     moreMqttData: "Weitere MQTT-Daten", noMessages: "Noch keine Nachrichten",
     noConfirmation: "Noch keine Bestätigung", profileDeleteFailed: "Profil konnte nicht gelöscht werden",
-    downlinkSent: "Downlink gesendet", downlinkSendFailed: "Downlink konnte nicht gesendet werden"
+    downlinkSent: "Downlink gesendet", downlinkSendFailed: "Downlink konnte nicht gesendet werden",
+    importProfiles: "Profile importieren", exportAllProfiles: "Alle exportieren", exportProfile: "Exportieren",
+    restoreDefault: "Standard wiederherstellen", profileImportFailed: "Profile konnten nicht importiert werden",
+    profileImportSuccess: "Profilimport abgeschlossen", profilesAdded: "hinzugefügt", profilesSkipped: "vorhanden und übersprungen",
+    importDefaultProfiles: "Standardprofile importieren", selectDefaultProfiles: "Standardprofile auswählen",
+    restoreDefaultsOnStart: "Nicht vorhandene Standardprofile beim Start laden", importSelected: "Ausgewählte importieren",
+    overwriteExistingProfiles: "Vorhandene Profile beim Import überschreiben", importing: "Importiert…"
   },
   en: {
     devices: "Devices", protocol: "Log", connection: "Connection", active: "Active",
@@ -87,7 +93,13 @@ const TRANSLATIONS = {
     dataLoadFailed: "Data could not be loaded.", deviceLoadFailed: "Device list could not be loaded.", diagnosticUnavailable: "Not enabled or no uplink received yet.",
     moreMqttData: "Additional MQTT data", noMessages: "No messages yet", noConfirmation: "No confirmation yet",
     profileDeleteFailed: "Profile could not be deleted", downlinkSent: "Downlink sent",
-    downlinkSendFailed: "Downlink could not be sent"
+    downlinkSendFailed: "Downlink could not be sent", importProfiles: "Import profiles",
+    exportAllProfiles: "Export all", exportProfile: "Export", restoreDefault: "Restore default",
+    profileImportFailed: "Profiles could not be imported", profileImportSuccess: "Profile import completed",
+    profilesAdded: "added", profilesSkipped: "already present and skipped", importDefaultProfiles: "Import default profiles",
+    selectDefaultProfiles: "Select default profiles", restoreDefaultsOnStart: "Load missing default profiles on startup",
+    importSelected: "Import selected", overwriteExistingProfiles: "Overwrite existing profiles when importing",
+    importing: "Importing…"
   }
 };
 
@@ -124,6 +136,14 @@ class LoRaWANPanel extends HTMLElement {
     this._profileEditor = null;
     this._profileEditorOriginalType = null;
     this._openParameterEditorIndex = null;
+    this._standardProfileImportOpen = false;
+    this._profileImporting = false;
+    this._standardProfileImporting = false;
+    try {
+      this._overwriteProfileImports = window.localStorage.getItem("lorawan.overwriteProfileImports") === "true";
+    } catch (_error) {
+      this._overwriteProfileImports = false;
+    }
     this._narrow = false;
   }
 
@@ -930,6 +950,7 @@ class LoRaWANPanel extends HTMLElement {
       ${this._renderAdditionalEntitiesDialog()}
       ${this._renderDeviceDiagnosticsDialog()}
       ${this._renderMessagesDialog()}
+      ${this._renderStandardProfileImportDialog()}
     `;
 
     this._updateMenuButton();
@@ -994,6 +1015,38 @@ class LoRaWANPanel extends HTMLElement {
       this._openParameterEditorIndex = null;
       this._render();
     });
+    this.shadowRoot.querySelector("button[data-profile-export-all]")?.addEventListener("click", () => {
+      const profiles = (this._downlinks.profiles || []).filter((profile) => profile.deviceType !== "internalBaseDevice");
+      this._downloadJson("lorawan-downlink-profiles.json", profiles);
+    });
+    this.shadowRoot.querySelector("button[data-profile-import]")?.addEventListener("click", () => {
+      this.shadowRoot.querySelector("input[data-profile-import-file]")?.click();
+    });
+    this.shadowRoot.querySelector("button[data-default-profile-import]")?.addEventListener("click", () => {
+      this._standardProfileImportOpen = true;
+      this._render();
+    });
+    this.shadowRoot.querySelector("input[data-restore-defaults-on-start]")?.addEventListener("change", (event) => {
+      this._setRestoreDefaultsOnStart(event.currentTarget.checked);
+    });
+    this.shadowRoot.querySelector("input[data-overwrite-profile-imports]")?.addEventListener("change", (event) => {
+      this._overwriteProfileImports = event.currentTarget.checked;
+      try {
+        window.localStorage.setItem("lorawan.overwriteProfileImports", String(this._overwriteProfileImports));
+      } catch (_error) {
+        // The preference still remains active for this panel session.
+      }
+    });
+    this.shadowRoot.querySelector("button[data-default-profile-import-close]")?.addEventListener("click", () => {
+      this._standardProfileImportOpen = false;
+      this._render();
+    });
+    this.shadowRoot.querySelector("form[data-default-profile-import-form]")?.addEventListener("submit", (event) => this._importDefaultProfiles(event));
+    this.shadowRoot.querySelector("input[data-profile-import-file]")?.addEventListener("change", (event) => this._importProfiles(event));
+    this.shadowRoot.querySelectorAll("button[data-profile-export-type]").forEach((button) => button.addEventListener("click", () => {
+      const profile = this._downlinks.profiles.find((item) => item.deviceType === button.getAttribute("data-profile-export-type"));
+      if (profile) this._downloadJson(`${this._safeFilename(profile.deviceType)}.json`, profile);
+    }));
     this.shadowRoot.querySelectorAll("button[data-profile-edit-type]").forEach((button) => button.addEventListener("click", () => {
       this._downlinkProfile = button.getAttribute("data-profile-edit-type");
       this._profileEditor = this._cloneProfile(this._selectedDownlinkProfile());
@@ -1016,6 +1069,9 @@ class LoRaWANPanel extends HTMLElement {
     }));
     this.shadowRoot.querySelectorAll("button[data-profile-delete-type]").forEach((button) => button.addEventListener("click", () => {
       this._deleteProfile(this._downlinks.profiles.find((profile) => profile.deviceType === button.getAttribute("data-profile-delete-type")));
+    }));
+    this.shadowRoot.querySelectorAll("button[data-profile-restore-type]").forEach((button) => button.addEventListener("click", () => {
+      this._restoreDefaultProfile(this._downlinks.profiles.find((profile) => profile.deviceType === button.getAttribute("data-profile-restore-type")));
     }));
     this.shadowRoot.querySelector("form[data-profile-editor]")?.addEventListener("submit", (event) => this._saveProfile(event));
     this.shadowRoot.querySelector("button[data-profile-cancel]")?.addEventListener("click", () => { this._profileEditor = null; this._profileEditorOriginalType = null; this._openParameterEditorIndex = null; this._render(); });
@@ -1231,6 +1287,151 @@ class LoRaWANPanel extends HTMLElement {
     this._render();
   }
 
+  _safeFilename(value) {
+    return String(value || "profile").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim() || "profile";
+  }
+
+  _downloadJson(filename, value) {
+    const blob = new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  _validateImportedProfile(profile) {
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) throw new Error("JSON enthält kein Profilobjekt");
+    if (typeof profile.deviceType !== "string" || !profile.deviceType.trim()) throw new Error("deviceType fehlt");
+    if (profile.deviceType === "internalBaseDevice") throw new Error("internalBaseDevice kann nicht importiert werden");
+    if (!Array.isArray(profile.downlinkParameter)) throw new Error(`${profile.deviceType}: downlinkParameter muss eine Liste sein`);
+    if (profile.downlinkParameter.some((parameter) => !parameter || typeof parameter !== "object" || Array.isArray(parameter))) {
+      throw new Error(`${profile.deviceType}: ungültiger Parameter`);
+    }
+    const result = this._cloneProfile(profile);
+    delete result._deleted;
+    return result;
+  }
+
+  async _importProfiles(event) {
+    const input = event.currentTarget;
+    const files = [...(input.files || [])];
+    input.value = "";
+    if (!files.length) return;
+    this._profileImporting = true;
+    this._render();
+    try {
+      const imported = [];
+      for (const file of files) {
+        const json = JSON.parse(await file.text());
+        imported.push(...(Array.isArray(json) ? json : Array.isArray(json?.profiles) ? json.profiles : [json]));
+      }
+      if (!imported.length) throw new Error("Die Datei enthält keine Profile");
+      const profiles = imported.map((profile) => this._validateImportedProfile(profile));
+      const byType = new Map((this._downlinks.configured_profiles || []).map((profile) => [profile.deviceType, profile]));
+      const existingTypes = new Set((this._downlinks.profiles || []).map((profile) => profile.deviceType));
+      let added = 0;
+      let skipped = 0;
+      profiles.forEach((profile) => {
+        if (existingTypes.has(profile.deviceType) && !this._overwriteProfileImports) {
+          skipped += 1;
+          return;
+        }
+        byType.set(profile.deviceType, profile);
+        existingTypes.add(profile.deviceType);
+        added += 1;
+      });
+      if (!added) {
+        this._profileImporting = false;
+        this._render();
+        window.alert(`${this._t("profileImportSuccess")}: 0 ${this._t("profilesAdded")}, ${skipped} ${this._t("profilesSkipped")}`);
+        return;
+      }
+      const configured = [...byType.values()];
+      await this._hass.callService("lorawan", "configure_downlink_profiles", { downlink_profiles: configured });
+      const visibleProfiles = new Map((this._downlinks.profiles || []).map((profile) => [profile.deviceType, profile]));
+      profiles.forEach((profile) => {
+        if (this._overwriteProfileImports || !visibleProfiles.has(profile.deviceType)) visibleProfiles.set(profile.deviceType, profile);
+      });
+      this._downlinks.configured_profiles = configured;
+      this._downlinks.profiles = [...visibleProfiles.values()];
+      const openImportedProfile = profiles.find((profile) => profile.deviceType === this._profileEditorOriginalType);
+      if (openImportedProfile && (this._overwriteProfileImports || !existingTypes.has(openImportedProfile.deviceType))) {
+        this._profileEditor = this._cloneProfile(openImportedProfile);
+      }
+      this._profileImporting = false;
+      this._render();
+      this._scheduleDownlinkReload();
+      window.alert(`${this._t("profileImportSuccess")}: ${added} ${this._t("profilesAdded")}, ${skipped} ${this._t("profilesSkipped")}`);
+    } catch (error) {
+      this._profileImporting = false;
+      this._render();
+      window.alert(`${this._t("profileImportFailed")}: ${error.message || error}`);
+    }
+  }
+
+  async _setRestoreDefaultsOnStart(enabled) {
+    try {
+      await this._hass.callService("lorawan", "configure_downlink_profiles", {
+        downlink_profiles: this._downlinks.configured_profiles || [],
+        restore_default_profiles_on_start: enabled,
+      });
+      this._downlinks.restore_default_profiles_on_start = enabled;
+    } catch (error) {
+      window.alert(`${this._t("saveFailed")}: ${error.message || error}`);
+      await this._loadDownlinks();
+      this._render();
+    }
+  }
+
+  _scheduleDownlinkReload() {
+    window.setTimeout(async () => {
+      await this._loadDownlinks();
+      if (this._activeTab === "downlinks") this._render();
+    }, 750);
+  }
+
+  async _importDefaultProfiles(event) {
+    event.preventDefault();
+    const selectedTypes = new Set(new FormData(event.currentTarget).getAll("default_profile"));
+    if (!selectedTypes.size) return;
+    this._standardProfileImporting = true;
+    this._render();
+    try {
+      const existingTypes = new Set((this._downlinks.profiles || []).map((profile) => profile.deviceType));
+      const selected = (this._downlinks.builtin_profiles || []).filter((profile) =>
+        selectedTypes.has(profile.deviceType)
+        && (this._overwriteProfileImports || !existingTypes.has(profile.deviceType))
+      );
+      const importedTypes = new Set(selected.map((profile) => profile.deviceType));
+      const configured = (this._downlinks.configured_profiles || []).filter((profile) => !importedTypes.has(profile.deviceType));
+      const skipped = selectedTypes.size - selected.length;
+      if (!selected.length) {
+        this._standardProfileImporting = false;
+        this._render();
+        window.alert(`${this._t("profileImportSuccess")}: 0 ${this._t("profilesAdded")}, ${skipped} ${this._t("profilesSkipped")}`);
+        return;
+      }
+      await this._hass.callService("lorawan", "configure_downlink_profiles", { downlink_profiles: configured });
+      this._standardProfileImportOpen = false;
+      const visibleProfiles = new Map((this._downlinks.profiles || []).map((profile) => [profile.deviceType, profile]));
+      selected.forEach((profile) => visibleProfiles.set(profile.deviceType, this._cloneProfile(profile)));
+      this._downlinks.configured_profiles = configured;
+      this._downlinks.profiles = [...visibleProfiles.values()];
+      const openImportedProfile = selected.find((profile) => profile.deviceType === this._profileEditorOriginalType);
+      if (openImportedProfile) this._profileEditor = this._cloneProfile(openImportedProfile);
+      this._standardProfileImporting = false;
+      this._render();
+      this._scheduleDownlinkReload();
+      window.alert(`${this._t("profileImportSuccess")}: ${selected.length} ${this._t("profilesAdded")}, ${skipped} ${this._t("profilesSkipped")}`);
+    } catch (error) {
+      this._standardProfileImporting = false;
+      this._render();
+      window.alert(`${this._t("profileImportFailed")}: ${error.message || error}`);
+    }
+  }
+
   _duplicateParameter(index) {
     const parameters = this._profileEditor?.downlinkParameter;
     if (!Array.isArray(parameters) || !parameters[index]) return;
@@ -1250,14 +1451,15 @@ class LoRaWANPanel extends HTMLElement {
   async _deleteProfile(profile) {
     if (!profile) return;
     const configured = this._downlinks.configured_profiles || [];
-    const isBuiltIn = (this._downlinks.builtin_profile_types || []).includes(profile.deviceType);
     const message = this._language() === "de"
       ? `Downlink-Profil „${profile.deviceType}“ wirklich löschen?`
       : `Really delete downlink profile “${profile.deviceType}”?`;
     if (!window.confirm(message)) return;
     try {
       const remaining = configured.filter((item) => item.deviceType !== profile.deviceType);
-      if (isBuiltIn) remaining.push({ deviceType: profile.deviceType, _deleted: true });
+      if ((this._downlinks.builtin_profile_types || []).includes(profile.deviceType)) {
+        remaining.push({ deviceType: profile.deviceType, _deleted: true });
+      }
       await this._hass.callService("lorawan", "configure_downlink_profiles", {
         downlink_profiles: remaining,
       });
@@ -1270,6 +1472,22 @@ class LoRaWANPanel extends HTMLElement {
       await this._loadDownlinks();
       this._render();
     } catch (error) { window.alert(`${this._t("profileDeleteFailed")}: ${error.message || error}`); }
+  }
+
+  async _restoreDefaultProfile(profile) {
+    if (!profile) return;
+    const message = this._language() === "de"
+      ? `Lokale Änderungen an „${profile.deviceType}“ verwerfen und den Standard wiederherstellen?`
+      : `Discard local changes to “${profile.deviceType}” and restore its default?`;
+    if (!window.confirm(message)) return;
+    try {
+      const remaining = (this._downlinks.configured_profiles || []).filter((item) => item.deviceType !== profile.deviceType);
+      await this._hass.callService("lorawan", "configure_downlink_profiles", { downlink_profiles: remaining });
+      await this._loadDownlinks();
+      this._profileEditor = null;
+      this._profileEditorOriginalType = null;
+      this._render();
+    } catch (error) { window.alert(`${this._t("profileImportFailed")}: ${error.message || error}`); }
   }
 
   _renderDownlinks() {
@@ -1290,11 +1508,17 @@ class LoRaWANPanel extends HTMLElement {
       <div class="card">
         <h2>${this._t("deviceProfiles")}</h2>
         <p class="muted">${this._t("profileDescription")}</p>
-        <div class="profile-actions"><button class="save" type="button" data-profile-new>${this._t("createProfile")}</button></div>
+        <div class="profile-actions"><button class="save" type="button" data-profile-new ${this._profileImporting ? "disabled" : ""}>${this._t("createProfile")}</button><button class="action" type="button" data-profile-import ${this._profileImporting ? "disabled" : ""}>${this._profileImporting ? this._t("importing") : this._t("importProfiles")}</button><button class="action" type="button" data-profile-export-all ${this._profileImporting ? "disabled" : ""}>${this._t("exportAllProfiles")}</button><button class="action" type="button" data-default-profile-import ${this._profileImporting ? "disabled" : ""}>${this._t("importDefaultProfiles")}</button><input data-profile-import-file type="file" accept="application/json,.json" multiple hidden /></div>
+        <label class="checkbox"><input type="checkbox" data-restore-defaults-on-start ${this._downlinks.restore_default_profiles_on_start !== false ? "checked" : ""} /> ${this._t("restoreDefaultsOnStart")}</label>
+        <label class="checkbox"><input type="checkbox" data-overwrite-profile-imports ${this._overwriteProfileImports ? "checked" : ""} /> ${this._t("overwriteExistingProfiles")}</label>
         ${this._profileEditor && this._profileEditorOriginalType === null ? `<div class="new-profile-editor"><h3>${this._t("newProfile")}</h3>${editor(this._profileEditor)}</div>` : ""}
         <div class="profile-list">${profiles.map((profile) => {
           const editing = this._profileEditor && this._profileEditorOriginalType === profile.deviceType;
-          const profileActions = `<div class="actions"><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">${this._t("duplicate")}</button><button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">${this._t("delete")}</button></div>`;
+          const isModifiedDefault = (this._downlinks.builtin_profile_types || []).includes(profile.deviceType)
+            && (this._downlinks.configured_profiles || []).some((item) => item.deviceType === profile.deviceType && !item._deleted);
+          const restoreAction = isModifiedDefault ? `<button class="action" type="button" data-profile-restore-type="${this._escape(profile.deviceType)}">${this._t("restoreDefault")}</button>` : "";
+          const deleteAction = `<button class="action danger" type="button" data-profile-delete-type="${this._escape(profile.deviceType)}">${this._t("delete")}</button>`;
+          const profileActions = `<div class="actions"><button class="action" type="button" data-profile-export-type="${this._escape(profile.deviceType)}">${this._t("exportProfile")}</button><button class="action duplicate" type="button" data-profile-duplicate-type="${this._escape(profile.deviceType)}">${this._t("duplicate")}</button>${restoreAction}${deleteAction}</div>`;
           return `<details ${editing ? "open" : ""} data-profile-type="${this._escape(profile.deviceType)}"><summary><strong>${this._escape(profile.deviceType)}</strong> <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></summary><div class="profile-content">${editing ? `${editor(this._profileEditor)}${profileActions}` : `<ul class="profile-parameters">${(profile.downlinkParameter || []).map((parameter) => `<li class="profile-parameter"><strong>${this._escape(parameter.name)}</strong> <span class="muted">${this._escape(parameter.type || "number")}${parameter.unit ? ` · ${this._escape(parameter.unit)}` : ""}</span></li>`).join("")}</ul>${profileActions}`}</div></details>`;
         }).join("")}</div>
       </div>`;
@@ -1653,6 +1877,26 @@ class LoRaWANPanel extends HTMLElement {
       };
     }
     this._render();
+  }
+
+  _renderStandardProfileImportDialog() {
+    if (!this._standardProfileImportOpen) return "";
+    const profiles = this._downlinks.builtin_profiles || [];
+    return `
+      <div class="dialog-backdrop" role="presentation">
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="${this._t("selectDefaultProfiles")}">
+          <h2>${this._t("selectDefaultProfiles")}</h2>
+          <form data-default-profile-import-form>
+            <div class="value-selection">
+              ${profiles.map((profile) => `<label class="checkbox"><input type="checkbox" name="default_profile" value="${this._escape(profile.deviceType)}" /> ${this._escape(profile.deviceType)} <span class="muted">(${(profile.downlinkParameter || []).length} Parameter)</span></label>`).join("")}
+            </div>
+            <div class="actions">
+              <button class="save" type="submit" ${this._standardProfileImporting ? "disabled" : ""}>${this._standardProfileImporting ? this._t("importing") : this._t("importSelected")}</button>
+              <button type="button" data-default-profile-import-close ${this._standardProfileImporting ? "disabled" : ""}>${this._t("cancel")}</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
   }
 
   _renderDeviceSettingsDialog() {

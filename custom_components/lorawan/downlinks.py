@@ -140,7 +140,11 @@ INTERNAL_BASE_PROFILE: dict[str, Any] = {
 
 
 def merged_profiles(configured: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
-    """Merge user profiles over built-ins by device type, honoring tombstones."""
+    """Merge local profiles over the bundled defaults by device type.
+
+    ``_deleted`` tombstones allow users to hide bundled profiles. They can be
+    cleared explicitly by importing defaults or automatically on HA startup.
+    """
     profiles = {
         INTERNAL_BASE_PROFILE["deviceType"]: deepcopy(INTERNAL_BASE_PROFILE),
         **{profile["deviceType"]: deepcopy(profile) for profile in BUILTIN_PROFILES},

@@ -70,3 +70,9 @@ configure_downlink_profiles:
       required: true
       selector:
         object:
+    restore_default_profiles_on_start:
+      name: Nicht vorhandene Standardprofile beim Start laden
+      description: Lädt fehlende oder neu mitgelieferte Standardprofile beim nächsten Home-Assistant-Start.
+      required: false
+      selector:
+        boolean:
