@@ -7,7 +7,7 @@ This is the bridge-free Home Assistant port start for the LoRaWAN part of
 ChirpStack, creates Home Assistant devices from incoming DevEUIs, and creates
 entities from decoded payload values.
 
-## Current MVP
+## Current Version
 
 - Config flow in Home Assistant UI.
 - Uses the existing Home Assistant MQTT integration.
@@ -32,7 +32,12 @@ entities from decoded payload values.
 
 - Automated tests against a Home Assistant test harness.
 
+## Wiki
+
+[Link to HomeAssistant LoRaWAN Wiki](https://github.com/BenAhrdt/home-assistant-lorawan/wiki)
+
 ## Installation
+(see Wiki for details)
 
 Copy or install this repository as a HACS custom repository.
 
