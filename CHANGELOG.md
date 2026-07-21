@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.27 - 2026-07-21
+
+- LT22222-Downlink-Profil aktualisiert und Parameter verständlicher benannt.
+- LT22222-Befehle für Arbeitsmodus und Triggermodus ergänzt.
+
 ## 0.1.26 - 2026-07-21
 
 - Downlink-Profile einzeln oder gesammelt als ioBroker-kompatible JSON-Dateien exportieren.
