@@ -61,6 +61,30 @@ configure_device:
       required: false
       selector:
         object:
+    device_cover_entities:
+      required: false
+      selector:
+        object:
+    device_light_entities:
+      required: false
+      selector:
+        object:
+    device_humidifier_entities:
+      required: false
+      selector:
+        object:
+    device_lock_entities:
+      required: false
+      selector:
+        object:
+    device_lawn_mower_entities:
+      required: false
+      selector:
+        object:
+    device_vacuum_entities:
+      required: false
+      selector:
+        object:
 
 configure_downlink_profiles:
   name: Downlink-Profile konfigurieren

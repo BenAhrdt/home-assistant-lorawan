@@ -4,7 +4,22 @@ from __future__ import annotations
 
 DOMAIN = "lorawan"
 
-PLATFORMS = ["sensor", "binary_sensor", "number", "select", "switch", "button", "text", "climate"]
+PLATFORMS = [
+    "sensor",
+    "binary_sensor",
+    "number",
+    "select",
+    "switch",
+    "button",
+    "text",
+    "climate",
+    "cover",
+    "light",
+    "humidifier",
+    "lock",
+    "lawn_mower",
+    "vacuum",
+]
 
 CONF_CREATE_RAW_SENSORS = "create_raw_sensors"
 CONF_CREATE_REMAINING_SENSORS = "create_remaining_sensors"
@@ -13,6 +28,12 @@ CONF_DEVICE_CREATE_RAW_SENSORS = "device_create_raw_sensors"
 CONF_DEVICE_CREATE_REMAINING_SENSORS = "device_create_remaining_sensors"
 CONF_DEVICE_TILE_VALUES = "device_tile_values"
 CONF_DEVICE_CLIMATE_ENTITIES = "device_climate_entities"
+CONF_DEVICE_COVER_ENTITIES = "device_cover_entities"
+CONF_DEVICE_LIGHT_ENTITIES = "device_light_entities"
+CONF_DEVICE_HUMIDIFIER_ENTITIES = "device_humidifier_entities"
+CONF_DEVICE_LOCK_ENTITIES = "device_lock_entities"
+CONF_DEVICE_LAWN_MOWER_ENTITIES = "device_lawn_mower_entities"
+CONF_DEVICE_VACUUM_ENTITIES = "device_vacuum_entities"
 CONF_DOWNLINK_PROFILES = "downlink_profiles"
 CONF_RESTORE_DEFAULT_PROFILES_ON_START = "restore_default_profiles_on_start"
 CONF_KNOWN_DEFAULT_PROFILE_TYPES = "known_default_profile_types"

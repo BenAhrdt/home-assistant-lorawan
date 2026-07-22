@@ -29,6 +29,12 @@ from .const import (
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_TILE_VALUES,
     CONF_DEVICE_CLIMATE_ENTITIES,
+    CONF_DEVICE_COVER_ENTITIES,
+    CONF_DEVICE_LIGHT_ENTITIES,
+    CONF_DEVICE_HUMIDIFIER_ENTITIES,
+    CONF_DEVICE_LOCK_ENTITIES,
+    CONF_DEVICE_LAWN_MOWER_ENTITIES,
+    CONF_DEVICE_VACUUM_ENTITIES,
     CONF_CREATE_RAW_SENSORS,
     CONF_CREATE_REMAINING_SENSORS,
     CONF_OFFLINE_AFTER_HOURS,
@@ -77,7 +83,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.26",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.28",
                 "embed_iframe": False,
             }
         },
@@ -128,6 +134,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 vol.Required(CONF_CREATE_REMAINING_SENSORS): bool,
                 vol.Required(CONF_DEVICE_TILE_VALUES): [str],
                 vol.Optional(CONF_DEVICE_CLIMATE_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_COVER_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_LIGHT_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_HUMIDIFIER_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_LOCK_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_LAWN_MOWER_ENTITIES): [dict],
+                vol.Optional(CONF_DEVICE_VACUUM_ENTITIES): [dict],
             }
         ),
     )
@@ -205,6 +217,25 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
             call.data[CONF_DEVICE_CLIMATE_ENTITIES]
         )
         data[CONF_DEVICE_CLIMATE_ENTITIES] = climate_overrides
+    if CONF_DEVICE_COVER_ENTITIES in call.data:
+        cover_overrides = dict(data.get(CONF_DEVICE_COVER_ENTITIES) or {})
+        cover_overrides[_clean_dev_eui(call.data["dev_eui"])] = list(
+            call.data[CONF_DEVICE_COVER_ENTITIES]
+        )
+        data[CONF_DEVICE_COVER_ENTITIES] = cover_overrides
+    for config_key in (
+        CONF_DEVICE_LIGHT_ENTITIES,
+        CONF_DEVICE_HUMIDIFIER_ENTITIES,
+        CONF_DEVICE_LOCK_ENTITIES,
+        CONF_DEVICE_LAWN_MOWER_ENTITIES,
+        CONF_DEVICE_VACUUM_ENTITIES,
+    ):
+        if config_key in call.data:
+            entity_overrides = dict(data.get(config_key) or {})
+            entity_overrides[_clean_dev_eui(call.data["dev_eui"])] = list(
+                call.data[config_key]
+            )
+            data[config_key] = entity_overrides
     hass.config_entries.async_update_entry(entry, data=data)
 
 
@@ -561,6 +592,14 @@ def _panel_device_payload(
     remaining_overrides = config.get(CONF_DEVICE_CREATE_REMAINING_SENSORS) or {}
     tile_value_overrides = config.get(CONF_DEVICE_TILE_VALUES) or {}
     climate_overrides = config.get(CONF_DEVICE_CLIMATE_ENTITIES) or {}
+    cover_overrides = config.get(CONF_DEVICE_COVER_ENTITIES) or {}
+    composite_overrides = {
+        "light_entities": config.get(CONF_DEVICE_LIGHT_ENTITIES) or {},
+        "humidifier_entities": config.get(CONF_DEVICE_HUMIDIFIER_ENTITIES) or {},
+        "lock_entities": config.get(CONF_DEVICE_LOCK_ENTITIES) or {},
+        "lawn_mower_entities": config.get(CONF_DEVICE_LAWN_MOWER_ENTITIES) or {},
+        "vacuum_entities": config.get(CONF_DEVICE_VACUUM_ENTITIES) or {},
+    }
     available_entities = _panel_device_entities(
         hass, entity_registry, registry_device.id if registry_device else None
     )
@@ -605,6 +644,11 @@ def _panel_device_payload(
         "available_entities": available_entities,
         "tile_value_keys": selected_tile_values,
         "climate_entities": climate_overrides.get(clean_dev_eui, []),
+        "cover_entities": cover_overrides.get(clean_dev_eui, []),
+        **{
+            payload_key: overrides.get(clean_dev_eui, [])
+            for payload_key, overrides in composite_overrides.items()
+        },
         "tile_values": [
             entities_by_id[entity_id]
             for entity_id in selected_tile_values
@@ -765,6 +809,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await runtime.async_start()
     _remove_stale_downlink_entities(hass, entry, runtime)
     _remove_stale_climate_entities(hass, entry)
+    _remove_stale_cover_entities(hass, entry)
+    for domain, config_key in (
+        ("light", CONF_DEVICE_LIGHT_ENTITIES),
+        ("humidifier", CONF_DEVICE_HUMIDIFIER_ENTITIES),
+        ("lock", CONF_DEVICE_LOCK_ENTITIES),
+        ("lawn_mower", CONF_DEVICE_LAWN_MOWER_ENTITIES),
+        ("vacuum", CONF_DEVICE_VACUUM_ENTITIES),
+    ):
+        _remove_stale_composed_entities(hass, entry, domain, config_key)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True
@@ -813,6 +866,56 @@ def _remove_stale_climate_entities(hass: HomeAssistant, entry: ConfigEntry) -> N
             and entity.domain == "climate"
             and entity.unique_id.startswith(marker)
             and "_climate_" in entity.unique_id
+            and entity.unique_id not in valid
+        ):
+            registry.async_remove(entity.entity_id)
+
+
+def _remove_stale_cover_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove composed cover entities deleted in the device settings."""
+    data = dict(entry.data)
+    data.update(entry.options)
+    valid = {
+        f"{entry.entry_id}_{_clean_dev_eui(dev_eui)}_cover_{definition['id']}"
+        for dev_eui, definitions in (data.get(CONF_DEVICE_COVER_ENTITIES) or {}).items()
+        if isinstance(definitions, list)
+        for definition in definitions
+        if isinstance(definition, dict) and definition.get("id")
+    }
+    registry = er.async_get(hass)
+    marker = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if (
+            entity.config_entry_id == entry.entry_id
+            and entity.domain == "cover"
+            and entity.unique_id.startswith(marker)
+            and "_cover_" in entity.unique_id
+            and entity.unique_id not in valid
+        ):
+            registry.async_remove(entity.entity_id)
+
+
+def _remove_stale_composed_entities(
+    hass: HomeAssistant, entry: ConfigEntry, domain: str, config_key: str
+) -> None:
+    """Remove deleted user-composed entities for one platform."""
+    data = dict(entry.data)
+    data.update(entry.options)
+    valid = {
+        f"{entry.entry_id}_{_clean_dev_eui(dev_eui)}_{domain}_{definition['id']}"
+        for dev_eui, definitions in (data.get(config_key) or {}).items()
+        if isinstance(definitions, list)
+        for definition in definitions
+        if isinstance(definition, dict) and definition.get("id")
+    }
+    registry = er.async_get(hass)
+    marker = f"{entry.entry_id}_"
+    for entity in list(registry.entities.values()):
+        if (
+            entity.config_entry_id == entry.entry_id
+            and entity.domain == domain
+            and entity.unique_id.startswith(marker)
+            and f"_{domain}_" in entity.unique_id
             and entity.unique_id not in valid
         ):
             registry.async_remove(entity.entity_id)

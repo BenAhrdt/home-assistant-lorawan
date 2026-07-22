@@ -24,7 +24,38 @@ const TRANSLATIONS = {
     enableRemainingDiagnostics: "Verbleibende Payload-Diagnose aktivieren", tileValues: "Werte auf der Gerätekachel",
     moveUp: "Nach oben", moveDown: "Nach unten", noActiveEntities: "Diesem Gerät sind noch keine aktiven Entitäten zugeordnet.",
     compositeClimate: "Zusammengesetzte Climate-Entitäten", notAssigned: "Nicht zugewiesen",
-    additionalEntities: "Zusätzliche Entitäten", configure: "Konfigurieren", done: "Fertig",
+    compositeCover: "Zusammengesetzte Cover-Entitäten", coverEntity: "Cover-Entität", coverEntities: "Cover-Entitäten",
+    removeCover: "Cover entfernen", closedLimit: "Endschalter geschlossen (Uplink, optional)",
+    openLimit: "Endschalter geöffnet (Uplink, optional)", invertSignal: "Aktiver Zustand wird erkannt bei",
+    endPositionSignalLevel: "Endlage wird erkannt bei", signalOn: "Signal EIN (true)", signalOff: "Signal AUS (false)",
+    coverPosition: "Position 0–100 % (Uplink, optional)", setCoverPosition: "Position setzen (Downlink, optional)",
+    openCommand: "Öffnen (Downlink, optional)", closeCommand: "Schließen (Downlink, optional)",
+    stopCommand: "Stoppen (Downlink, optional)", openTravelTime: "Öffnungszeit in Sekunden (optional)",
+    closeTravelTime: "Schließzeit in Sekunden (optional)", coverType: "Cover-Typ",
+    compositeLight: "Zusammengesetzte Light-Entitäten", compositeHumidifier: "Zusammengesetzte Humidifier-Entitäten",
+    compositeLock: "Zusammengesetzte Lock-Entitäten", compositeLawnMower: "Zusammengesetzte Mähroboter-Entitäten",
+    compositeVacuum: "Zusammengesetzte Vacuum-Entitäten", stateUplink: "Zustand (Uplink, optional)",
+    brightnessUplink: "Helligkeit (Uplink, optional)", brightnessDownlink: "Helligkeit setzen (Downlink, optional)",
+    brightnessScale: "Maximalwert der Helligkeitsquelle", turnOnCommand: "Einschalten (Downlink, optional)",
+    turnOffCommand: "Ausschalten (Downlink, optional)", currentHumidity: "Aktuelle Luftfeuchtigkeit (Uplink)",
+    targetHumidityUplink: "Zielfeuchtigkeit lesen (Uplink, optional)", targetHumidityDownlink: "Zielfeuchtigkeit setzen (Downlink, optional)",
+    minHumidity: "Minimale Luftfeuchtigkeit", maxHumidity: "Maximale Luftfeuchtigkeit", modeUplink: "Modus (Uplink, optional)",
+    modeDownlink: "Modus setzen (Downlink, optional)", lockState: "Verriegelt (Uplink, optional)",
+    lockCommand: "Verriegeln (Downlink, optional)", unlockCommand: "Entriegeln (Downlink, optional)",
+    unlatchCommand: "Falle öffnen (Downlink, optional)", activityUplink: "Aktivität (Uplink, optional)",
+    startCommand: "Starten (Downlink, optional)", pauseCommand: "Pausieren (Downlink, optional)",
+    dockCommand: "Zur Station (Downlink, optional)", vacuumStopCommand: "Stoppen (Downlink, optional)",
+    fanSpeedUplink: "Saugstufe (Uplink, optional)", fanSpeedDownlink: "Saugstufe setzen (Downlink, optional)",
+    deviceClass: "Geräteklasse", removeEntity: "Entität entfernen",
+    typeClimate: "Climate", typeCover: "Cover", typeLight: "Licht", typeHumidifier: "Luftbefeuchter",
+    typeLock: "Schloss", typeLawnMower: "Mähroboter", typeVacuum: "Saugroboter",
+    defaultCoverName: "Tor", defaultLightName: "Licht", defaultHumidifierName: "Luftbefeuchter",
+    defaultLockName: "Schloss", defaultLawnMowerName: "Mähroboter", defaultVacuumName: "Saugroboter",
+    option_garage: "Garagentor", option_gate: "Einfahrtstor", option_door: "Tür", option_shutter: "Rollladen",
+    option_blind: "Jalousie", option_curtain: "Vorhang", option_awning: "Markise", option_shade: "Beschattung",
+    option_window: "Fenster", option_damper: "Klappe", option_humidifier: "Luftbefeuchter",
+    option_dehumidifier: "Luftentfeuchter",
+    additionalEntities: "Zusätzliche Entitäten", configure: "Konfigurieren", done: "Fertig", apply: "Übernehmen",
     climateEntity: "Climate-Entität", climateEntities: "Climate-Entitäten",
     noAdditionalEntities: "Noch keine zusätzlichen Entitäten konfiguriert", configured: "konfiguriert",
     currentTemperature: "Isttemperatur (Uplink)", readTargetTemperature: "Solltemperatur lesen (Uplink, optional)",
@@ -75,7 +106,38 @@ const TRANSLATIONS = {
     enableRemainingDiagnostics: "Enable remaining payload diagnostics", tileValues: "Values on the device card",
     moveUp: "Move up", moveDown: "Move down", noActiveEntities: "No active entities are assigned to this device yet.",
     compositeClimate: "Composite climate entities", notAssigned: "Not assigned", currentTemperature: "Current temperature (uplink)",
-    additionalEntities: "Additional entities", configure: "Configure", done: "Done",
+    compositeCover: "Composite cover entities", coverEntity: "cover entity", coverEntities: "cover entities",
+    removeCover: "Remove cover", closedLimit: "Closed limit switch (uplink, optional)",
+    openLimit: "Open limit switch (uplink, optional)", invertSignal: "Active state is detected when",
+    endPositionSignalLevel: "End position is detected when", signalOn: "Signal ON (true)", signalOff: "Signal OFF (false)",
+    coverPosition: "Position 0–100% (uplink, optional)", setCoverPosition: "Set position (downlink, optional)",
+    openCommand: "Open (downlink, optional)", closeCommand: "Close (downlink, optional)",
+    stopCommand: "Stop (downlink, optional)", openTravelTime: "Opening time in seconds (optional)",
+    closeTravelTime: "Closing time in seconds (optional)", coverType: "Cover type",
+    compositeLight: "Composite light entities", compositeHumidifier: "Composite humidifier entities",
+    compositeLock: "Composite lock entities", compositeLawnMower: "Composite lawn mower entities",
+    compositeVacuum: "Composite vacuum entities", stateUplink: "State (uplink, optional)",
+    brightnessUplink: "Brightness (uplink, optional)", brightnessDownlink: "Set brightness (downlink, optional)",
+    brightnessScale: "Maximum brightness source value", turnOnCommand: "Turn on (downlink, optional)",
+    turnOffCommand: "Turn off (downlink, optional)", currentHumidity: "Current humidity (uplink)",
+    targetHumidityUplink: "Read target humidity (uplink, optional)", targetHumidityDownlink: "Set target humidity (downlink, optional)",
+    minHumidity: "Minimum humidity", maxHumidity: "Maximum humidity", modeUplink: "Mode (uplink, optional)",
+    modeDownlink: "Set mode (downlink, optional)", lockState: "Locked (uplink, optional)",
+    lockCommand: "Lock (downlink, optional)", unlockCommand: "Unlock (downlink, optional)",
+    unlatchCommand: "Open latch (downlink, optional)", activityUplink: "Activity (uplink, optional)",
+    startCommand: "Start (downlink, optional)", pauseCommand: "Pause (downlink, optional)",
+    dockCommand: "Return to dock (downlink, optional)", vacuumStopCommand: "Stop (downlink, optional)",
+    fanSpeedUplink: "Fan speed (uplink, optional)", fanSpeedDownlink: "Set fan speed (downlink, optional)",
+    deviceClass: "Device class", removeEntity: "Remove entity",
+    typeClimate: "Climate", typeCover: "Cover", typeLight: "Light", typeHumidifier: "Humidifier",
+    typeLock: "Lock", typeLawnMower: "Lawn mower", typeVacuum: "Vacuum",
+    defaultCoverName: "Gate", defaultLightName: "Light", defaultHumidifierName: "Humidifier",
+    defaultLockName: "Lock", defaultLawnMowerName: "Lawn mower", defaultVacuumName: "Vacuum",
+    option_garage: "Garage door", option_gate: "Gate", option_door: "Door", option_shutter: "Shutter",
+    option_blind: "Blind", option_curtain: "Curtain", option_awning: "Awning", option_shade: "Shade",
+    option_window: "Window", option_damper: "Damper", option_humidifier: "Humidifier",
+    option_dehumidifier: "Dehumidifier",
+    additionalEntities: "Additional entities", configure: "Configure", done: "Done", apply: "Apply",
     climateEntity: "climate entity", climateEntities: "climate entities",
     noAdditionalEntities: "No additional entities configured yet", configured: "configured",
     readTargetTemperature: "Read target temperature (uplink, optional)", setTargetTemperature: "Set target temperature (downlink, optional)",
@@ -103,6 +165,38 @@ const TRANSLATIONS = {
   }
 };
 
+const SIMPLE_COMPOSITE_TYPES = {
+  light: { list: "lightEntities", title: "compositeLight", typeLabel: "typeLight", defaultName: "defaultLightName", fields: [
+    ["state_entity_id", "stateUplink", "entity", ["binary_sensor", "switch"]], ["state_inverted", "invertSignal", "checkbox"],
+    ["brightness_entity_id", "brightnessUplink", "entity", ["sensor", "number"]], ["brightness_command_entity_id", "brightnessDownlink", "entity", ["number"]],
+    ["brightness_scale", "brightnessScale", "number", 100], ["turn_on_command_entity_id", "turnOnCommand", "entity", ["button", "switch"]],
+    ["turn_off_command_entity_id", "turnOffCommand", "entity", ["button", "switch"]],
+  ]},
+  humidifier: { list: "humidifierEntities", title: "compositeHumidifier", typeLabel: "typeHumidifier", defaultName: "defaultHumidifierName", fields: [
+    ["device_class", "deviceClass", "choice", ["humidifier", "dehumidifier"]], ["state_entity_id", "stateUplink", "entity", ["binary_sensor", "switch"]],
+    ["state_inverted", "invertSignal", "checkbox"], ["current_humidity_entity_id", "currentHumidity", "entity", ["sensor", "number"]],
+    ["target_humidity_state_entity_id", "targetHumidityUplink", "entity", ["sensor", "number"]], ["target_humidity_command_entity_id", "targetHumidityDownlink", "entity", ["number"]],
+    ["min_humidity", "minHumidity", "number", 0], ["max_humidity", "maxHumidity", "number", 100],
+    ["mode_state_entity_id", "modeUplink", "entity", ["sensor", "select"]], ["mode_command_entity_id", "modeDownlink", "entity", ["select"]],
+    ["turn_on_command_entity_id", "turnOnCommand", "entity", ["button", "switch"]], ["turn_off_command_entity_id", "turnOffCommand", "entity", ["button", "switch"]],
+  ]},
+  lock: { list: "lockEntities", title: "compositeLock", typeLabel: "typeLock", defaultName: "defaultLockName", fields: [
+    ["locked_state_entity_id", "lockState", "entity", ["binary_sensor", "switch"]], ["locked_state_inverted", "invertSignal", "checkbox"],
+    ["lock_command_entity_id", "lockCommand", "entity", ["button", "switch"]], ["unlock_command_entity_id", "unlockCommand", "entity", ["button", "switch"]],
+    ["open_command_entity_id", "unlatchCommand", "entity", ["button", "switch"]],
+  ]},
+  lawn_mower: { list: "lawnMowerEntities", title: "compositeLawnMower", typeLabel: "typeLawnMower", defaultName: "defaultLawnMowerName", fields: [
+    ["activity_entity_id", "activityUplink", "entity", ["sensor", "select"]], ["start_command_entity_id", "startCommand", "entity", ["button", "switch"]],
+    ["pause_command_entity_id", "pauseCommand", "entity", ["button", "switch"]], ["dock_command_entity_id", "dockCommand", "entity", ["button", "switch"]],
+  ]},
+  vacuum: { list: "vacuumEntities", title: "compositeVacuum", typeLabel: "typeVacuum", defaultName: "defaultVacuumName", fields: [
+    ["activity_entity_id", "activityUplink", "entity", ["sensor", "select"]], ["start_command_entity_id", "startCommand", "entity", ["button", "switch"]],
+    ["pause_command_entity_id", "pauseCommand", "entity", ["button", "switch"]], ["stop_command_entity_id", "vacuumStopCommand", "entity", ["button", "switch"]],
+    ["return_command_entity_id", "dockCommand", "entity", ["button", "switch"]], ["fan_speed_state_entity_id", "fanSpeedUplink", "entity", ["sensor", "select"]],
+    ["fan_speed_command_entity_id", "fanSpeedDownlink", "entity", ["select"]],
+  ]},
+};
+
 class LoRaWANPanel extends HTMLElement {
   constructor() {
     super();
@@ -127,6 +221,7 @@ class LoRaWANPanel extends HTMLElement {
     this._devicesError = null;
     this._deviceSettings = null;
     this._additionalEntitiesDialogOpen = false;
+    this._openAdditionalEntitySections = new Set();
     this._deviceDiagnostics = null;
     this._selectedMessage = null;
     this._selectedConnectionId = null;
@@ -185,6 +280,11 @@ class LoRaWANPanel extends HTMLElement {
 
   _t(key) {
     return TRANSLATIONS[this._language()][key] || TRANSLATIONS.de[key] || key;
+  }
+
+  _optionLabel(value) {
+    const key = `option_${value}`;
+    return TRANSLATIONS[this._language()][key] || TRANSLATIONS.de[key] || value;
   }
 
   connectedCallback() {
@@ -566,6 +666,15 @@ class LoRaWANPanel extends HTMLElement {
           background: var(--secondary-background-color);
         }
 
+        .tile-value[data-entity-row] {
+          cursor: pointer;
+        }
+
+        .tile-value[data-entity-row]:focus-visible {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 1px;
+        }
+
         button.tile-entity-name,
         button.tile-read-value,
         button.tile-control-button {
@@ -796,12 +905,81 @@ class LoRaWANPanel extends HTMLElement {
         }
 
         .additional-entities-dialog form {
-          gap: 12px;
+          gap: 22px;
         }
 
         .additional-entities-dialog .value-selection {
+          gap: 14px;
           max-height: none;
           overflow: visible;
+          padding: 16px;
+          border-radius: 8px;
+        }
+
+        .additional-entities-dialog .value-selection > strong {
+          padding-bottom: 4px;
+          font-size: 1.02em;
+        }
+
+        .additional-entities-dialog details.entity-type-section {
+          display: block;
+        }
+
+        .additional-entities-dialog details.entity-type-section > summary {
+          padding: 2px 0;
+          color: var(--primary-text-color);
+          font-weight: 600;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .additional-entities-dialog details.entity-type-section[open] > summary {
+          margin-bottom: 14px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--divider-color);
+        }
+
+        .additional-entities-dialog fieldset {
+          display: grid;
+          gap: 18px;
+          margin: 2px 0 8px;
+          padding: 18px;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          background: color-mix(in srgb, var(--secondary-background-color) 45%, transparent);
+        }
+
+        .additional-entities-dialog fieldset legend {
+          padding: 0 8px;
+          color: var(--primary-text-color);
+          font-weight: 600;
+        }
+
+        .additional-entities-dialog fieldset > label {
+          gap: 8px;
+          color: var(--primary-text-color);
+          font-weight: 500;
+        }
+
+        .additional-entities-dialog fieldset > label input,
+        .additional-entities-dialog fieldset > label select {
+          color: var(--primary-text-color);
+          font-weight: 400;
+        }
+
+        .additional-entities-dialog fieldset > button.danger {
+          justify-self: start;
+          margin-top: 4px;
+        }
+
+        .additional-entities-dialog .value-selection > button:last-child {
+          justify-self: start;
+          min-height: 40px;
+          border: 1px solid var(--divider-color);
+          border-radius: 6px;
+          padding: 0 14px;
+          color: var(--primary-text-color);
+          background: var(--secondary-background-color);
         }
 
         .dialog form, .profile-editor {
@@ -982,13 +1160,34 @@ class LoRaWANPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("button[data-climate-remove]").forEach((button) => {
       button.addEventListener("click", () => this._removeClimateEntity(Number(button.dataset.climateRemove)));
     });
+    this.shadowRoot.querySelectorAll("button[data-cover-add]").forEach((button) => {
+      button.addEventListener("click", () => this._addCoverEntity());
+    });
+    this.shadowRoot.querySelectorAll("button[data-cover-remove]").forEach((button) => {
+      button.addEventListener("click", () => this._removeCoverEntity(Number(button.dataset.coverRemove)));
+    });
+    this.shadowRoot.querySelectorAll("button[data-composite-add]").forEach((button) => {
+      button.addEventListener("click", () => this._addSimpleComposite(button.dataset.compositeAdd));
+    });
+    this.shadowRoot.querySelectorAll("button[data-composite-remove]").forEach((button) => {
+      button.addEventListener("click", () => this._removeSimpleComposite(button.dataset.compositeType, Number(button.dataset.compositeRemove)));
+    });
+    this.shadowRoot.querySelectorAll("details[data-composite-section]").forEach((details) => {
+      details.addEventListener("toggle", () => {
+        const type = details.dataset.compositeSection;
+        if (details.open) this._openAdditionalEntitySections.add(type);
+        else this._openAdditionalEntitySections.delete(type);
+      });
+    });
     this.shadowRoot.querySelector("button[data-additional-entities-open]")?.addEventListener("click", () => {
       this._syncDeviceSettingsForm();
+      this._openAdditionalEntitySections.clear();
       this._additionalEntitiesDialogOpen = true;
       this._render();
     });
+    this.shadowRoot.querySelector("button[data-additional-entities-apply]")?.addEventListener("click", () => this._applyAdditionalEntities());
     this.shadowRoot.querySelector("button[data-additional-entities-close]")?.addEventListener("click", () => {
-      this._syncClimateEntitiesForm();
+      this._syncAdditionalEntitiesForm();
       this._additionalEntitiesDialogOpen = false;
       this._render();
     });
@@ -1110,6 +1309,22 @@ class LoRaWANPanel extends HTMLElement {
         this._showEntityMoreInfo(button.getAttribute("data-entity-more-info"));
       });
     });
+    this.shadowRoot.querySelectorAll("[data-entity-row]").forEach((row) => {
+      const openEntity = (event) => {
+        if (
+          event.target.closest("[data-entity-control]")
+          || (event.target !== row && event.target.closest("button, input, select, textarea, a"))
+        ) return;
+        event.stopPropagation();
+        this._showEntityMoreInfo(row.getAttribute("data-entity-row"));
+      };
+      row.addEventListener("click", openEntity);
+      row.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openEntity(event);
+      });
+    });
     this.shadowRoot.querySelectorAll("[data-entity-control]").forEach((control) => {
       const eventName = control.tagName === "BUTTON" ? "click" : "change";
       control.addEventListener(eventName, (event) => this._handleEntityControl(event));
@@ -1122,7 +1337,7 @@ class LoRaWANPanel extends HTMLElement {
       });
     this.shadowRoot.querySelectorAll("[data-device-open]").forEach((card) => {
       card.addEventListener("click", (event) => {
-        if (event.target.closest("button, input, select, textarea, a")) {
+        if (event.target.closest(".tile-value, button, input, select, textarea, a")) {
           return;
         }
         window.location.href = `/config/devices/device/${card.getAttribute("data-device-open")}`;
@@ -1704,6 +1919,7 @@ class LoRaWANPanel extends HTMLElement {
 
   async _handleDeviceSettings(button) {
     this._additionalEntitiesDialogOpen = false;
+    this._openAdditionalEntitySections.clear();
     this._deviceSettings = {
       devEui: button.getAttribute("data-device-settings"),
       entryId: button.getAttribute("data-entry-id") || "",
@@ -1714,6 +1930,12 @@ class LoRaWANPanel extends HTMLElement {
       availableEntities: JSON.parse(button.getAttribute("data-device-entities") || "[]"),
       tileValueKeys: JSON.parse(button.getAttribute("data-device-tile-value-keys") || "[]"),
       climateEntities: JSON.parse(button.getAttribute("data-device-climate-entities") || "[]"),
+      coverEntities: JSON.parse(button.getAttribute("data-device-cover-entities") || "[]"),
+      lightEntities: JSON.parse(button.getAttribute("data-device-light-entities") || "[]"),
+      humidifierEntities: JSON.parse(button.getAttribute("data-device-humidifier-entities") || "[]"),
+      lockEntities: JSON.parse(button.getAttribute("data-device-lock-entities") || "[]"),
+      lawnMowerEntities: JSON.parse(button.getAttribute("data-device-lawn-mower-entities") || "[]"),
+      vacuumEntities: JSON.parse(button.getAttribute("data-device-vacuum-entities") || "[]"),
     };
     this._render();
   }
@@ -1734,15 +1956,8 @@ class LoRaWANPanel extends HTMLElement {
     const saveButton = event.currentTarget.querySelector('button[type="submit"]');
     if (saveButton) saveButton.textContent = this._t("saving");
     try {
-      await this._hass.callService("lorawan", "configure_device", {
-        dev_eui: this._deviceSettings.devEui,
-        entry_id: this._deviceSettings.entryId,
-        offline_after_hours: hours,
-        create_raw_sensors: formData.get("create_raw_sensors") === "on",
-        create_remaining_sensors: formData.get("create_remaining_sensors") === "on",
-        device_tile_values: this._deviceSettings.tileValueKeys,
-        device_climate_entities: this._deviceSettings.climateEntities,
-      });
+      await this._hass.callService("lorawan", "configure_device", this._deviceSettingsPayload(hours));
+      await this._waitForConfiguredEntities();
       this._deviceSettings = null;
       await this._loadDevices();
       await this._loadStatus();
@@ -1751,6 +1966,83 @@ class LoRaWANPanel extends HTMLElement {
       controls.forEach((control) => { control.disabled = false; });
       if (saveButton) saveButton.textContent = this._t("save");
       window.alert(this._t("saveFailed"));
+    }
+  }
+
+  _deviceSettingsPayload(hours = Number(this._deviceSettings.hours)) {
+    return {
+      dev_eui: this._deviceSettings.devEui,
+      entry_id: this._deviceSettings.entryId,
+      offline_after_hours: hours,
+      create_raw_sensors: this._deviceSettings.raw,
+      create_remaining_sensors: this._deviceSettings.remaining,
+      device_tile_values: this._deviceSettings.tileValueKeys,
+      device_climate_entities: this._deviceSettings.climateEntities,
+      device_cover_entities: this._deviceSettings.coverEntities,
+      device_light_entities: this._deviceSettings.lightEntities,
+      device_humidifier_entities: this._deviceSettings.humidifierEntities,
+      device_lock_entities: this._deviceSettings.lockEntities,
+      device_lawn_mower_entities: this._deviceSettings.lawnMowerEntities,
+      device_vacuum_entities: this._deviceSettings.vacuumEntities,
+    };
+  }
+
+  _configuredEntityUniqueIds() {
+    const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
+    const entryId = this._deviceSettings.entryId;
+    const groups = [
+      ["climate", this._deviceSettings.climateEntities], ["cover", this._deviceSettings.coverEntities],
+      ["light", this._deviceSettings.lightEntities], ["humidifier", this._deviceSettings.humidifierEntities],
+      ["lock", this._deviceSettings.lockEntities], ["lawn_mower", this._deviceSettings.lawnMowerEntities],
+      ["vacuum", this._deviceSettings.vacuumEntities],
+    ];
+    return groups.flatMap(([domain, entities]) => entities.map((entity) => `${entryId}_${cleanDevEui}_${domain}_${entity.id}`));
+  }
+
+  async _waitForConfiguredEntities() {
+    const expected = new Set(this._configuredEntityUniqueIds());
+    const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
+    const composedPrefix = `${this._deviceSettings.entryId}_${cleanDevEui}_`;
+    const composedDomains = ["climate", "cover", "light", "humidifier", "lock", "lawn_mower", "vacuum"];
+    let matchingDevice = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      try {
+        const response = await this._hass.callWS({ type: "lorawan/devices" });
+        this._devices = response.devices || [];
+        matchingDevice = this._devices.find((device) =>
+          device.entry_id === this._deviceSettings.entryId
+          && (device.identifiers || []).some((identifier) => identifier.replace(/[:-]/g, "").toUpperCase() === this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase())
+        );
+        const present = new Set((matchingDevice?.available_entities || []).map((entity) => entity.unique_id));
+        const presentComposed = [...present].filter((uniqueId) =>
+          composedDomains.some((domain) => uniqueId.startsWith(`${composedPrefix}${domain}_`))
+        );
+        if (
+          [...expected].every((uniqueId) => present.has(uniqueId))
+          && presentComposed.every((uniqueId) => expected.has(uniqueId))
+        ) return matchingDevice;
+      } catch (_error) {
+        // The config entry can be briefly unavailable while Home Assistant reloads it.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return matchingDevice;
+  }
+
+  async _applyAdditionalEntities() {
+    if (!this._deviceSettings || this._deviceSettings.saving) return;
+    this._syncAdditionalEntitiesForm();
+    this._deviceSettings.saving = true;
+    this._render();
+    try {
+      await this._hass.callService("lorawan", "configure_device", this._deviceSettingsPayload());
+      const device = await this._waitForConfiguredEntities();
+      if (device) this._deviceSettings.availableEntities = device.available_entities || [];
+    } catch (_error) {
+      window.alert(this._t("saveFailed"));
+    } finally {
+      if (this._deviceSettings) this._deviceSettings.saving = false;
+      this._render();
     }
   }
 
@@ -1792,6 +2084,14 @@ class LoRaWANPanel extends HTMLElement {
     this._deviceSettings.raw = data.get("create_raw_sensors") === "on";
     this._deviceSettings.remaining = data.get("create_remaining_sensors") === "on";
     this._syncClimateEntitiesForm();
+    this._syncCoverEntitiesForm();
+    this._syncSimpleCompositeForms();
+  }
+
+  _syncAdditionalEntitiesForm() {
+    this._syncClimateEntitiesForm();
+    this._syncCoverEntitiesForm();
+    this._syncSimpleCompositeForms();
   }
 
   _syncClimateEntitiesForm() {
@@ -1810,7 +2110,7 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   _addClimateEntity() {
-    this._syncClimateEntitiesForm();
+    this._syncAdditionalEntitiesForm();
     this._deviceSettings.climateEntities.push({
       id: `climate_${Date.now()}`,
       name: "Thermostat",
@@ -1820,11 +2120,14 @@ class LoRaWANPanel extends HTMLElement {
       hvac_mode_state_entity_id: "",
       hvac_mode_command_entity_id: "",
     });
+    this._openAdditionalEntitySections.clear();
+    this._openAdditionalEntitySections.add("climate");
     this._render();
+    this._focusAddedComposite("climate");
   }
 
   _removeClimateEntity(index) {
-    this._syncClimateEntitiesForm();
+    this._syncAdditionalEntitiesForm();
     const [removedClimate] = this._deviceSettings.climateEntities.splice(index, 1);
     if (removedClimate?.id) {
       const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
@@ -1840,6 +2143,147 @@ class LoRaWANPanel extends HTMLElement {
         .filter((entityId) => !removedEntityIds.has(entityId));
     }
     this._render();
+  }
+
+  _syncCoverEntitiesForm() {
+    const form = this.shadowRoot.querySelector("form[data-climate-entities-form]");
+    if (!form || !this._deviceSettings) return;
+    const data = new FormData(form);
+    this._deviceSettings.coverEntities = this._deviceSettings.coverEntities.map((cover, index) => ({
+      ...cover,
+      name: String(data.get(`cover_${index}_name`) || this._t("defaultCoverName")),
+      device_class: String(data.get(`cover_${index}_class`) || "garage"),
+      closed_limit_entity_id: String(data.get(`cover_${index}_closed_limit`) || ""),
+      closed_limit_inverted: data.get(`cover_${index}_closed_inverted`) === "true",
+      open_limit_entity_id: String(data.get(`cover_${index}_open_limit`) || ""),
+      open_limit_inverted: data.get(`cover_${index}_open_inverted`) === "true",
+      position_entity_id: String(data.get(`cover_${index}_position`) || ""),
+      position_command_entity_id: String(data.get(`cover_${index}_position_command`) || ""),
+      open_command_entity_id: String(data.get(`cover_${index}_open_command`) || ""),
+      close_command_entity_id: String(data.get(`cover_${index}_close_command`) || ""),
+      stop_command_entity_id: String(data.get(`cover_${index}_stop_command`) || ""),
+      open_travel_time: Number(data.get(`cover_${index}_open_time`) || 0),
+      close_travel_time: Number(data.get(`cover_${index}_close_time`) || 0),
+    }));
+  }
+
+  _addCoverEntity() {
+    this._syncAdditionalEntitiesForm();
+    this._deviceSettings.coverEntities.push({
+      id: `cover_${Date.now()}`, name: this._t("defaultCoverName"), device_class: "garage",
+      closed_limit_entity_id: "", closed_limit_inverted: false,
+      open_limit_entity_id: "", open_limit_inverted: false,
+      position_entity_id: "", position_command_entity_id: "",
+      open_command_entity_id: "", close_command_entity_id: "", stop_command_entity_id: "",
+      open_travel_time: 0, close_travel_time: 0,
+    });
+    this._openAdditionalEntitySections.clear();
+    this._openAdditionalEntitySections.add("cover");
+    this._render();
+    this._focusAddedComposite("cover");
+  }
+
+  _removeCoverEntity(index) {
+    this._syncAdditionalEntitiesForm();
+    const [removedCover] = this._deviceSettings.coverEntities.splice(index, 1);
+    if (removedCover?.id) {
+      const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
+      const uniqueId = `${this._deviceSettings.entryId}_${cleanDevEui}_cover_${removedCover.id}`;
+      const removedIds = new Set(this._deviceSettings.availableEntities.filter((entity) => entity.unique_id === uniqueId).map((entity) => entity.entity_id));
+      this._deviceSettings.availableEntities = this._deviceSettings.availableEntities.filter((entity) => !removedIds.has(entity.entity_id));
+      this._deviceSettings.tileValueKeys = this._deviceSettings.tileValueKeys.filter((entityId) => !removedIds.has(entityId));
+    }
+    this._render();
+  }
+
+  _syncSimpleCompositeForms() {
+    const form = this.shadowRoot.querySelector("form[data-climate-entities-form]");
+    if (!form || !this._deviceSettings) return;
+    const data = new FormData(form);
+    Object.entries(SIMPLE_COMPOSITE_TYPES).forEach(([type, schema]) => {
+      this._deviceSettings[schema.list] = this._deviceSettings[schema.list].map((entity, index) => {
+        const updated = { ...entity, name: String(data.get(`${type}_${index}_name`) || this._t(schema.defaultName)) };
+        schema.fields.forEach(([key, _label, kind, defaultValue]) => {
+          const field = `${type}_${index}_${key}`;
+          if (kind === "checkbox") updated[key] = data.get(field) === "true";
+          else if (kind === "number") updated[key] = Number(data.get(field) || defaultValue || 0);
+          else updated[key] = String(data.get(field) || (kind === "choice" ? defaultValue?.[0] || "" : ""));
+        });
+        return updated;
+      });
+    });
+  }
+
+  _addSimpleComposite(type) {
+    this._syncAdditionalEntitiesForm();
+    const schema = SIMPLE_COMPOSITE_TYPES[type];
+    if (!schema) return;
+    const entity = { id: `${type}_${Date.now()}`, name: this._t(schema.defaultName) };
+    schema.fields.forEach(([key, _label, kind, value]) => {
+      entity[key] = kind === "checkbox" ? false : kind === "number" ? value : kind === "choice" ? value[0] : "";
+    });
+    this._deviceSettings[schema.list].push(entity);
+    this._openAdditionalEntitySections.clear();
+    this._openAdditionalEntitySections.add(type);
+    this._render();
+    this._focusAddedComposite(type);
+  }
+
+  _focusAddedComposite(type) {
+    requestAnimationFrame(() => {
+      const section = this.shadowRoot.querySelector(`details[data-composite-section="${type}"]`);
+      const fieldsets = section?.querySelectorAll("fieldset") || [];
+      const added = fieldsets[fieldsets.length - 1];
+      if (!added) return;
+      added.scrollIntoView({ behavior: "smooth", block: "center" });
+      added.querySelector("input, select")?.focus({ preventScroll: true });
+    });
+  }
+
+  _removeSimpleComposite(type, index) {
+    this._syncAdditionalEntitiesForm();
+    const schema = SIMPLE_COMPOSITE_TYPES[type];
+    if (!schema) return;
+    const [removed] = this._deviceSettings[schema.list].splice(index, 1);
+    if (removed?.id) {
+      const cleanDevEui = this._deviceSettings.devEui.replace(/[:-]/g, "").toUpperCase();
+      const uniqueId = `${this._deviceSettings.entryId}_${cleanDevEui}_${type}_${removed.id}`;
+      const removedIds = new Set(this._deviceSettings.availableEntities.filter((entity) => entity.unique_id === uniqueId).map((entity) => entity.entity_id));
+      this._deviceSettings.availableEntities = this._deviceSettings.availableEntities.filter((entity) => !removedIds.has(entity.entity_id));
+      this._deviceSettings.tileValueKeys = this._deviceSettings.tileValueKeys.filter((entityId) => !removedIds.has(entityId));
+    }
+    this._render();
+  }
+
+  _renderSimpleCompositeSections(settings) {
+    return Object.entries(SIMPLE_COMPOSITE_TYPES).map(([type, schema]) => `<details class="value-selection entity-type-section" data-composite-section="${type}" ${this._openAdditionalEntitySections.has(type) ? "open" : ""}>
+      <summary>${this._t(schema.title)}${(settings[schema.list] || []).length ? ` (${settings[schema.list].length})` : ""}</summary>
+      ${(settings[schema.list] || []).map((entity, index) => `<fieldset>
+        <legend>${this._t(schema.typeLabel)} ${index + 1}</legend>
+        <label>Name<input name="${type}_${index}_name" type="text" required value="${this._escape(entity.name || this._t(schema.defaultName))}" /></label>
+        ${schema.fields.map(([key, label, kind, options]) => {
+          const name = `${type}_${index}_${key}`;
+          if (kind === "entity") return `<label>${this._t(label)}<select name="${name}">${this._climateEntityOptions(settings.availableEntities, entity[key], options)}</select></label>`;
+          if (kind === "checkbox") return `<label>${this._t(label)}<select name="${name}"><option value="false" ${!entity[key] ? "selected" : ""}>${this._t("signalOn")}</option><option value="true" ${entity[key] ? "selected" : ""}>${this._t("signalOff")}</option></select></label>`;
+          if (kind === "choice") return `<label>${this._t(label)}<select name="${name}">${options.map((value) => `<option value="${value}" ${entity[key] === value ? "selected" : ""}>${this._optionLabel(value)}</option>`).join("")}</select></label>`;
+          return `<label>${this._t(label)}<input name="${name}" type="number" min="0" step="1" value="${this._escape(entity[key] ?? options ?? 0)}" /></label>`;
+        }).join("")}
+        <button class="action danger" type="button" data-composite-type="${type}" data-composite-remove="${index}">${this._t("removeEntity")}</button>
+      </fieldset>`).join("")}
+      <button type="button" data-composite-add="${type}">${this._t("addAndAssignEntity")}</button>
+    </details>`).join("");
+  }
+
+  _additionalEntitySummary(settings) {
+    const parts = [];
+    if (settings.climateEntities.length) parts.push(`${settings.climateEntities.length} ${settings.climateEntities.length === 1 ? this._t("climateEntity") : this._t("climateEntities")}`);
+    if (settings.coverEntities.length) parts.push(`${settings.coverEntities.length} ${settings.coverEntities.length === 1 ? this._t("coverEntity") : this._t("coverEntities")}`);
+    Object.values(SIMPLE_COMPOSITE_TYPES).forEach((schema) => {
+      if (settings[schema.list].length) parts.push(`${settings[schema.list].length} ${this._t(schema.title)}`);
+    });
+    return parts.length
+      ? `${parts.join(", ")} ${this._t("configured")}`
+      : this._t("noAdditionalEntities");
   }
 
   _climateEntityOptions(entities, selected, domains) {
@@ -1941,9 +2385,7 @@ class LoRaWANPanel extends HTMLElement {
             </div>
             <div class="settings-subsection">
               <strong>${this._t("additionalEntities")}</strong>
-              <span class="muted">${settings.climateEntities.length
-                ? `${settings.climateEntities.length} ${settings.climateEntities.length === 1 ? this._t("climateEntity") : this._t("climateEntities")} ${this._t("configured")}`
-                : this._t("noAdditionalEntities")}</span>
+              <span class="muted">${this._additionalEntitySummary(settings)}</span>
               <button type="button" data-additional-entities-open>${this._t("configure")}</button>
             </div>
             <div class="actions">
@@ -1964,10 +2406,10 @@ class LoRaWANPanel extends HTMLElement {
         <div class="dialog additional-entities-dialog" role="dialog" aria-modal="true" aria-label="${this._t("additionalEntities")}">
           <h2>${this._t("additionalEntities")}</h2>
           <form data-climate-entities-form>
-            <div class="value-selection">
-              <strong>${this._t("compositeClimate")}</strong>
+            <details class="value-selection entity-type-section" data-composite-section="climate" ${this._openAdditionalEntitySections.has("climate") ? "open" : ""}>
+              <summary>${this._t("compositeClimate")}${(settings.climateEntities || []).length ? ` (${settings.climateEntities.length})` : ""}</summary>
               ${(settings.climateEntities || []).map((climate, index) => `<fieldset>
-                <legend>Climate ${index + 1}</legend>
+                <legend>${this._t("typeClimate")} ${index + 1}</legend>
                 <label>Name
                   <input name="climate_${index}_name" type="text" required value="${this._escape(climate.name || "Thermostat")}" />
                 </label>
@@ -1989,9 +2431,32 @@ class LoRaWANPanel extends HTMLElement {
                 <button class="action danger" type="button" data-climate-remove="${index}">${this._t("removeClimate")}</button>
               </fieldset>`).join("")}
               <button type="button" data-climate-add>${this._t("addAndAssignEntity")}</button>
-            </div>
+            </details>
+            <details class="value-selection entity-type-section" data-composite-section="cover" ${this._openAdditionalEntitySections.has("cover") ? "open" : ""}>
+              <summary>${this._t("compositeCover")}${(settings.coverEntities || []).length ? ` (${settings.coverEntities.length})` : ""}</summary>
+              ${(settings.coverEntities || []).map((cover, index) => `<fieldset>
+                <legend>${this._t("typeCover")} ${index + 1}</legend>
+                <label>Name<input name="cover_${index}_name" type="text" required value="${this._escape(cover.name || this._t("defaultCoverName"))}" /></label>
+                <label>${this._t("coverType")}<select name="cover_${index}_class">${["garage", "gate", "door", "shutter", "blind", "curtain", "awning", "shade", "window", "damper"].map((value) => `<option value="${value}" ${cover.device_class === value ? "selected" : ""}>${this._optionLabel(value)}</option>`).join("")}</select></label>
+                <label>${this._t("closedLimit")}<select name="cover_${index}_closed_limit">${this._climateEntityOptions(settings.availableEntities, cover.closed_limit_entity_id, ["binary_sensor", "switch"])}</select></label>
+                <label>${this._t("endPositionSignalLevel")}<select name="cover_${index}_closed_inverted"><option value="false" ${!cover.closed_limit_inverted ? "selected" : ""}>${this._t("signalOn")}</option><option value="true" ${cover.closed_limit_inverted ? "selected" : ""}>${this._t("signalOff")}</option></select></label>
+                <label>${this._t("openLimit")}<select name="cover_${index}_open_limit">${this._climateEntityOptions(settings.availableEntities, cover.open_limit_entity_id, ["binary_sensor", "switch"])}</select></label>
+                <label>${this._t("endPositionSignalLevel")}<select name="cover_${index}_open_inverted"><option value="false" ${!cover.open_limit_inverted ? "selected" : ""}>${this._t("signalOn")}</option><option value="true" ${cover.open_limit_inverted ? "selected" : ""}>${this._t("signalOff")}</option></select></label>
+                <label>${this._t("coverPosition")}<select name="cover_${index}_position">${this._climateEntityOptions(settings.availableEntities, cover.position_entity_id, ["sensor", "number"])}</select></label>
+                <label>${this._t("setCoverPosition")}<select name="cover_${index}_position_command">${this._climateEntityOptions(settings.availableEntities, cover.position_command_entity_id, ["number"])}</select></label>
+                <label>${this._t("openCommand")}<select name="cover_${index}_open_command">${this._climateEntityOptions(settings.availableEntities, cover.open_command_entity_id, ["button", "switch"])}</select></label>
+                <label>${this._t("closeCommand")}<select name="cover_${index}_close_command">${this._climateEntityOptions(settings.availableEntities, cover.close_command_entity_id, ["button", "switch"])}</select></label>
+                <label>${this._t("stopCommand")}<select name="cover_${index}_stop_command">${this._climateEntityOptions(settings.availableEntities, cover.stop_command_entity_id, ["button", "switch"])}</select></label>
+                <label>${this._t("openTravelTime")}<input name="cover_${index}_open_time" type="number" min="0" step="1" value="${this._escape(cover.open_travel_time || 0)}" /></label>
+                <label>${this._t("closeTravelTime")}<input name="cover_${index}_close_time" type="number" min="0" step="1" value="${this._escape(cover.close_travel_time || 0)}" /></label>
+                <button class="action danger" type="button" data-cover-remove="${index}">${this._t("removeCover")}</button>
+              </fieldset>`).join("")}
+              <button type="button" data-cover-add>${this._t("addAndAssignEntity")}</button>
+            </details>
+            ${this._renderSimpleCompositeSections(settings)}
             <div class="actions">
-              <button class="save" type="button" data-additional-entities-close>${this._t("done")}</button>
+              <button class="save" type="button" data-additional-entities-apply ${settings.saving ? "disabled" : ""}>${settings.saving ? this._t("saving") : this._t("apply")}</button>
+              <button type="button" data-additional-entities-close ${settings.saving ? "disabled" : ""}>${this._t("done")}</button>
             </div>
           </form>
         </div>
@@ -2119,7 +2584,7 @@ class LoRaWANPanel extends HTMLElement {
               </div>
             </div>
             ${device.tile_values?.length ? `<div class="tile-values">${device.tile_values.map((value) => `
-              <div class="tile-value">
+              <div class="tile-value" role="button" tabindex="0" data-entity-row="${this._escape(value.entity_id)}">
                 ${this._renderTileEntityName(value)}
                 ${this._renderTileEntityValue(value)}
               </div>
@@ -2137,6 +2602,12 @@ class LoRaWANPanel extends HTMLElement {
               data-device-entities="${this._escape(JSON.stringify(device.available_entities || []))}"
               data-device-tile-value-keys="${this._escape(JSON.stringify(device.tile_value_keys || []))}"
               data-device-climate-entities="${this._escape(JSON.stringify(device.climate_entities || []))}"
+              data-device-cover-entities="${this._escape(JSON.stringify(device.cover_entities || []))}"
+              data-device-light-entities="${this._escape(JSON.stringify(device.light_entities || []))}"
+              data-device-humidifier-entities="${this._escape(JSON.stringify(device.humidifier_entities || []))}"
+              data-device-lock-entities="${this._escape(JSON.stringify(device.lock_entities || []))}"
+              data-device-lawn-mower-entities="${this._escape(JSON.stringify(device.lawn_mower_entities || []))}"
+              data-device-vacuum-entities="${this._escape(JSON.stringify(device.vacuum_entities || []))}"
             >⚙</button>
             ${device.create_raw_sensors || device.create_remaining_sensors ? `<button
               class="icon-button device-json"
@@ -2336,10 +2807,19 @@ class LoRaWANPanel extends HTMLElement {
 
   _renderTileEntityName(value) {
     const entityId = this._escape(value.entity_id);
-    const climateIcon = value.domain === "climate"
-      ? '<ha-icon icon="mdi:thermostat"></ha-icon>'
+    const domainIcons = {
+      climate: "mdi:thermostat",
+      cover: "mdi:window-shutter",
+      light: "mdi:lightbulb",
+      humidifier: "mdi:air-humidifier",
+      lock: "mdi:lock",
+      lawn_mower: "mdi:robot-mower",
+      vacuum: "mdi:robot-vacuum",
+    };
+    const icon = domainIcons[value.domain]
+      ? `<ha-icon icon="${domainIcons[value.domain]}"></ha-icon>`
       : "";
-    return `<button class="tile-entity-name" type="button" data-entity-more-info="${entityId}" title="${this._escape(value.name)} ${this._t("open")}">${climateIcon}${this._escape(value.name)}</button>`;
+    return `<button class="tile-entity-name" type="button" data-entity-more-info="${entityId}" title="${this._escape(value.name)} ${this._t("open")}">${icon}${this._escape(value.name)}</button>`;
   }
 
   _renderTileEntityValue(value) {

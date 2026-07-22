@@ -21,6 +21,22 @@ entities from decoded payload values.
 - Creates binary sensor entities for boolean decoded values.
 - Supports downlinks, including optimistic switch controls that retain their
   displayed state across Home Assistant restarts.
+- Supports user-composed Home Assistant entities that combine existing LoRaWAN
+  uplink values with downlink controls:
+  - Climate
+  - Cover, including open/closed limit switches and optional travel-time based
+    position estimation
+  - Light
+  - Humidifier and dehumidifier
+  - Lock
+  - Lawn mower
+  - Vacuum
+- Composite entities are configured per LoRaWAN device in the sidebar panel.
+  Only assigned controls are exposed as supported features. Newly applied
+  entities are available immediately for selection on the device card.
+- The composite-entity editor supports German and English labels, collapsible
+  entity-type sections, clearly selectable active signal levels, and matching
+  icons on device cards.
 - Dedicated MQTT broker credentials independent of Home Assistant's MQTT
   integration.
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,
@@ -85,6 +101,20 @@ remaining transport data, and downlink entities do not use these automatic
 uplink assignments.
 
 Raw payload diagnostic sensors can be enabled during setup.
+
+## Composite Entities
+
+Open a LoRaWAN device in the sidebar panel, select **Configure**, and then open
+**Additional entities**. Add the required entity type and assign its uplink
+state sources and optional downlink controls. Choose **Apply** to create or
+update the Home Assistant entities without closing the editor. **Done** returns
+to the device settings, where the new entity can be selected for display on the
+device card.
+
+For binary state sources, select whether `ON (true)` or `OFF (false)` represents
+the active state. Cover entities can use either one or two limit switches, an
+actual position source, or configured opening and closing times for an estimated
+position. A real position source always takes precedence over estimation.
 
 ## DISCLAIMER
 The rights of the trademarks and company names, remain with their owners and have no relation to this adapter. The fairuse policy must continue to be adhered to by the operator of the adapter. If this repository is forked, it must be cited as the source.
