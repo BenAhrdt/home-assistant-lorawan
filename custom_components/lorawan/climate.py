@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import CONF_DEVICE_CLIMATE_ENTITIES, DOMAIN
+from .const import CONF_DEVICE_CLIMATE_ENTITIES, DOMAIN, device_identifier
 from .runtime import LoRaWANRuntime
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,7 +62,11 @@ class LoRaWANClimate(ClimateEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Attach the entity to its LoRaWAN device."""
-        return {"identifiers": {(DOMAIN, self.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, self.dev_eui))
+            }
+        }
 
     @property
     def available(self) -> bool:

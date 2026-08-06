@@ -9,7 +9,7 @@ from homeassistant.core import callback
 
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN, SIGNAL_UPDATE_DOWNLINK_CONTROLS
+from .const import DOMAIN, SIGNAL_UPDATE_DOWNLINK_CONTROLS, device_identifier
 from .runtime import LoRaWANRuntime
 
 
@@ -39,7 +39,11 @@ class LoRaWANDownlinkEntity(Entity):
         if control is None:
             return None
         device = control["device"]
-        return {"identifiers": {(DOMAIN, device.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, device.dev_eui))
+            }
+        }
 
     @property
     def available(self) -> bool:

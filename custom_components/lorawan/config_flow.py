@@ -46,9 +46,11 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a LoRaWAN config entry."""
         errors = {}
         if user_input is not None:
-            if await _async_test_mqtt_connection(user_input):
-                await self.async_set_unique_id(user_input[CONF_NAME].lower())
-                self._abort_if_unique_id_configured()
+            name = user_input[CONF_NAME].strip()
+            if _name_in_use(self.hass, name):
+                errors[CONF_NAME] = "name_exists"
+            elif await _async_test_mqtt_connection(user_input):
+                user_input[CONF_NAME] = name
                 return self.async_create_entry(
                     title=_entry_title(
                         user_input[CONF_NAME], user_input[CONF_CONNECTION_COLOR]
@@ -74,7 +76,8 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_DOWNLINK_PROFILES: [],
                     },
                 )
-            errors["base"] = "cannot_connect"
+            else:
+                errors["base"] = "cannot_connect"
 
         schema = vol.Schema(
             {
@@ -128,7 +131,11 @@ class LoRaWANOptionsFlow(config_entries.OptionsFlow):
         errors = {}
 
         if user_input is not None:
-            if await _async_test_mqtt_connection(user_input):
+            name = user_input[CONF_NAME].strip()
+            if _name_in_use(self.hass, name, self._config_entry.entry_id):
+                errors[CONF_NAME] = "name_exists"
+            elif await _async_test_mqtt_connection(user_input):
+                user_input[CONF_NAME] = name
                 data = {
                     CONF_NAME: user_input[CONF_NAME],
                     CONF_HOST: user_input[CONF_HOST],
@@ -165,7 +172,8 @@ class LoRaWANOptionsFlow(config_entries.OptionsFlow):
                     options={},
                 )
                 return self.async_create_entry(title="", data={})
-            errors["base"] = "cannot_connect"
+            else:
+                errors["base"] = "cannot_connect"
 
         schema = vol.Schema(
             {
@@ -263,6 +271,21 @@ async def _async_test_mqtt_connection(config: dict) -> bool:
     finally:
         client.disconnect()
         client.loop_stop()
+
+
+def _normalized_name(name: str) -> str:
+    """Normalize a config-entry name for case-insensitive comparison."""
+    return name.strip().casefold()
+
+
+def _name_in_use(hass, name: str, exclude_entry_id: str | None = None) -> bool:
+    """Return whether another LoRaWAN config entry already uses this name."""
+    normalized = _normalized_name(name)
+    return any(
+        entry.entry_id != exclude_entry_id
+        and _normalized_name(str(entry.data.get(CONF_NAME) or entry.title)) == normalized
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    )
 
 
 def _entry_title(name: str, color: list[int]) -> str:

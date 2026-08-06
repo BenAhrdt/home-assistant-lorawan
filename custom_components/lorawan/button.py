@@ -6,7 +6,13 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SIGNAL_ADD_DOWNLINK_CONTROL, SIGNAL_DEVICE_ADDED, SIGNAL_REMOVE_DOWNLINK_CONTROL
+from .const import (
+    DOMAIN,
+    SIGNAL_ADD_DOWNLINK_CONTROL,
+    SIGNAL_DEVICE_ADDED,
+    SIGNAL_REMOVE_DOWNLINK_CONTROL,
+    device_identifier,
+)
 from .downlink_entity import LoRaWANDownlinkEntity
 from .runtime import LoRaWANRuntime, add_runtime_listener
 
@@ -62,7 +68,11 @@ class LoRaWANNextSendPushButton(ButtonEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, self.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, self.dev_eui))
+            }
+        }
 
     async def async_press(self) -> None:
         self.runtime.push_queued_downlink(self.dev_eui)

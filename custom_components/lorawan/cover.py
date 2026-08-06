@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
-from .const import CONF_DEVICE_COVER_ENTITIES, DOMAIN
+from .const import CONF_DEVICE_COVER_ENTITIES, DOMAIN, device_identifier
 from .runtime import LoRaWANRuntime
 
 
@@ -70,7 +70,11 @@ class LoRaWANCover(CoverEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return {"identifiers": {(DOMAIN, self.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, self.dev_eui))
+            }
+        }
 
     @property
     def available(self) -> bool:

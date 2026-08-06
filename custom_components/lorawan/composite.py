@@ -9,7 +9,7 @@ from homeassistant.core import Event, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN
+from .const import DOMAIN, device_identifier
 
 
 class LoRaWANCompositeEntity:
@@ -27,7 +27,11 @@ class LoRaWANCompositeEntity:
 
     @property
     def device_info(self) -> DeviceInfo:
-        return {"identifiers": {(DOMAIN, self.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, self.dev_eui))
+            }
+        }
 
     @property
     def available(self) -> bool:

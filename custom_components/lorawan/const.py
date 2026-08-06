@@ -4,6 +4,11 @@ from __future__ import annotations
 
 DOMAIN = "lorawan"
 
+
+def device_identifier(entry_id: str, dev_eui: str) -> str:
+    """Return an identifier unique to one device and config entry."""
+    return f"{entry_id}_{dev_eui}"
+
 PLATFORMS = [
     "sensor",
     "binary_sensor",

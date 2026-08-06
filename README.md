@@ -15,6 +15,11 @@ entities from decoded payload values.
   - The Things Stack / TTN
   - ChirpStack
 - Creates Home Assistant devices automatically from incoming messages.
+- Keeps devices with the same DevEUI separate for every configured TTN or
+  ChirpStack connection by using the Home Assistant config entry together with
+  the DevEUI as the device identifier.
+- Requires a unique connection name when creating or renaming an integration
+  entry. Name comparisons ignore surrounding whitespace and letter case.
 - Creates sensor entities for numeric, text, and raw payload values. Numeric
   decoder values use two decimal places as their default display precision;
   percentage values are displayed without decimal places by default.
@@ -65,6 +70,10 @@ custom_components/lorawan
 
 must exist inside your Home Assistant configuration directory. Restart Home
 Assistant, then add **LoRaWAN** from **Settings -> Devices & services**.
+
+Multiple TTN and ChirpStack entries can be configured at the same time. Each
+entry must have a unique display name. A DevEUI occurring in more than one
+entry is represented by a separate Home Assistant device for each entry.
 
 ## MQTT Topic Defaults
 

@@ -1,7 +1,8 @@
 {
   "config": {
     "error": {
-      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials."
+      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials.",
+      "name_exists": "This name is already in use. Please choose a unique name."
     },
     "step": {
       "user": {
@@ -27,7 +28,8 @@
   },
   "options": {
     "error": {
-      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials."
+      "cannot_connect": "MQTT connection failed. Check host, port, SSL and credentials.",
+      "name_exists": "This name is already in use. Please choose a unique name."
     },
     "step": {
       "init": {

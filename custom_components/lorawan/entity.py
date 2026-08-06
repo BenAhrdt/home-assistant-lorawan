@@ -10,7 +10,7 @@ from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.core import callback
 
-from .const import DOMAIN, SIGNAL_UPDATE_ENTITY
+from .const import DOMAIN, SIGNAL_UPDATE_ENTITY, device_identifier
 from .models import LoRaWANDevice, LoRaWANValue
 from .runtime import LoRaWANRuntime
 
@@ -64,7 +64,9 @@ class LoRaWANEntity(Entity):
         if device is None:
             return None
         info: DeviceInfo = {
-            "identifiers": {(DOMAIN, device.dev_eui)},
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, device.dev_eui))
+            },
             "name": device.device_name,
             "manufacturer": "LoRaWAN",
             "model": device.device_type or None,

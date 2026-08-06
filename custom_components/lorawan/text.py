@@ -13,6 +13,7 @@ from .const import (
     SIGNAL_DEVICE_ADDED,
     SIGNAL_REMOVE_DOWNLINK_CONTROL,
     SIGNAL_UPDATE_DOWNLINK_CONTROLS,
+    device_identifier,
 )
 from .downlink_entity import LoRaWANDownlinkEntity
 from .runtime import LoRaWANRuntime, add_runtime_listener
@@ -81,7 +82,11 @@ class LoRaWANDeviceTypeText(TextEntity):
 
     @property
     def device_info(self):
-        return {"identifiers": {(DOMAIN, self.dev_eui)}}
+        return {
+            "identifiers": {
+                (DOMAIN, device_identifier(self.runtime.entry.entry_id, self.dev_eui))
+            }
+        }
 
     async def async_set_value(self, value: str) -> None:
         self.runtime.set_device_type(self.dev_eui, value)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.29 - 2026-08-06
+
+- Geräte werden jetzt anhand der Kombination aus Config-Entry-ID und DevEUI
+  registriert. Identische DevEUIs in mehreren TTN- oder ChirpStack-Einträgen
+  bleiben dadurch getrennte Geräte mit ihren jeweils eigenen Entitäten.
+- Bestehende, zuvor nur über die DevEUI zusammengeführte Geräte werden beim
+  Start von den betroffenen Config-Einträgen gelöst und korrekt neu zugeordnet.
+- Eintragsnamen werden beim Anlegen und Umbenennen ohne Beachtung von Groß- und
+  Kleinschreibung auf Eindeutigkeit geprüft. Doppelte Namen werden mit einer
+  verständlichen Fehlermeldung abgewiesen.
+
 ## 0.1.28 - 2026-07-22
 
 - Zusammengesetzte Cover-, Light-, Humidifier-, Lock-, Mähroboter- und

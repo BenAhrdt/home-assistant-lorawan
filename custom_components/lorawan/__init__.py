@@ -46,6 +46,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SIGNAL_DEVICE_ADDED,
+    device_identifier,
 )
 from .runtime import LoRaWANRuntime
 from .downlinks import BUILTIN_PROFILES, merged_profiles, parameter_payload, profile_for_device
@@ -464,7 +465,7 @@ async def _websocket_devices(
             device_registry.devices.get_devices_for_config_entry_id(entry.entry_id)
         )
         registry_by_eui, registry_identifiers = _registry_devices_by_eui(
-            registry_devices
+            registry_devices, entry.entry_id
         )
 
         included_registry_devices = set()
@@ -474,10 +475,15 @@ async def _websocket_devices(
             registry_device = registry_by_eui.get(clean_dev_eui)
             if registry_device is None:
                 registry_device = device_registry.async_get_device(
-                    identifiers={(DOMAIN, runtime_device.dev_eui)}
+                    identifiers={
+                        (
+                            DOMAIN,
+                            device_identifier(entry.entry_id, runtime_device.dev_eui),
+                        )
+                    }
                 )
             identifiers = (
-                _device_domain_identifiers(registry_device.identifiers)
+                _device_domain_identifiers(registry_device.identifiers, entry.entry_id)
                 if registry_device is not None
                 else {runtime_device.dev_eui}
             )
@@ -547,7 +553,7 @@ async def _websocket_devices(
     connection.send_result(msg["id"], {"devices": devices})
 
 
-def _device_domain_identifiers(registry_identifiers) -> set[str]:
+def _device_domain_identifiers(registry_identifiers, entry_id: str) -> set[str]:
     """Extract LoRaWAN identifiers from valid and extended registry tuples."""
     identifiers = set()
     for parts in registry_identifiers:
@@ -555,19 +561,29 @@ def _device_domain_identifiers(registry_identifiers) -> set[str]:
             continue
         domain, identifier = parts[0], parts[1]
         if domain == DOMAIN:
-            identifiers.add(str(identifier))
+            identifier = str(identifier)
+            prefix = f"{entry_id}_"
+            if identifier.startswith(prefix):
+                identifiers.add(identifier[len(prefix):])
+            elif "_" not in identifier:
+                # Legacy identifiers consisted only of the DevEUI.
+                identifiers.add(identifier)
     return identifiers
 
 
-def _registry_devices_by_eui(registry_devices) -> tuple[dict, dict]:
+def _registry_devices_by_eui(registry_devices, entry_id: str) -> tuple[dict, dict]:
     """Index devices from one config entry by normalized LoRaWAN DevEUI."""
     devices_by_eui = {}
     identifiers_by_device = {}
     for registry_device in registry_devices:
-        identifiers = _device_domain_identifiers(registry_device.identifiers)
+        identifiers = _device_domain_identifiers(registry_device.identifiers, entry_id)
         identifiers_by_device[registry_device.id] = identifiers
         for identifier in identifiers:
-            devices_by_eui.setdefault(_clean_dev_eui(identifier), registry_device)
+            clean_identifier = _clean_dev_eui(identifier)
+            # Prefer the new entry-scoped registry device over a legacy shared one.
+            scoped = (DOMAIN, device_identifier(entry_id, identifier))
+            if clean_identifier not in devices_by_eui or scoped in registry_device.identifiers:
+                devices_by_eui[clean_identifier] = registry_device
     return devices_by_eui, identifiers_by_device
 
 
@@ -819,8 +835,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ):
         _remove_stale_composed_entities(hass, entry, domain, config_key)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _detach_legacy_shared_devices(hass, entry)
     entry.async_on_unload(entry.add_update_listener(async_update_entry))
     return True
+
+
+def _detach_legacy_shared_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Detach this entry from devices created with the old DevEUI-only identifier."""
+    device_registry = dr.async_get(hass)
+    for registry_device in list(
+        device_registry.devices.get_devices_for_config_entry_id(entry.entry_id)
+    ):
+        if any(
+            domain == DOMAIN and "_" not in str(identifier)
+            for domain, identifier in registry_device.identifiers
+        ):
+            device_registry.async_update_device(
+                registry_device.id,
+                remove_config_entry_id=entry.entry_id,
+            )
 
 
 def _remove_stale_downlink_entities(

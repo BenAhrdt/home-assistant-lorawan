@@ -1,7 +1,8 @@
 {
   "config": {
     "error": {
-      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten."
+      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten.",
+      "name_exists": "Dieser Name wird bereits verwendet. Bitte wähle einen eindeutigen Namen."
     },
     "step": {
       "user": {
@@ -27,7 +28,8 @@
   },
   "options": {
     "error": {
-      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten."
+      "cannot_connect": "MQTT-Verbindung fehlgeschlagen. Prüfe Host, Port, SSL und Zugangsdaten.",
+      "name_exists": "Dieser Name wird bereits verwendet. Bitte wähle einen eindeutigen Namen."
     },
     "step": {
       "init": {
