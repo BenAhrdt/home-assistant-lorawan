@@ -49,9 +49,6 @@ entities from decoded payload values.
 
 <img width="1065" height="890" alt="image" src="https://github.com/user-attachments/assets/92530515-aca4-4701-9431-ecdff6a2a89b" />
 
-## Not Yet Included
-
-- Automated tests against a Home Assistant test harness.
 
 ## Wiki
 
