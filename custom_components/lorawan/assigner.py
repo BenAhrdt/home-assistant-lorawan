@@ -56,7 +56,7 @@ DEFAULT_ASSIGNMENT_RULES: tuple[AssignmentRule, ...] = (
     AssignmentRule(("BatteryPercent", "battery_percent", "battery_level"), "battery", "measurement", "%", SENSOR, NUMERIC),
     AssignmentRule(("Battery", "BatteryVoltage", "batteryVoltage", "BatV", "LoRa_Voltage", "Supply_Voltage", "Volt", "Voltage"), "voltage", "measurement", "V", SENSOR, NUMERIC),
     AssignmentRule(("Gustspeed", "Windspeed"), "wind_speed", "measurement", "m/s", SENSOR, NUMERIC),
-    AssignmentRule(("Winddirection",), "wind_direction", "measurement", "°", SENSOR, NUMERIC),
+    AssignmentRule(("Winddirection",), "wind_direction", "measurement_angle", "°", SENSOR, NUMERIC),
     AssignmentRule(("Light", "Illuminance", "Brightness"), "illuminance", "measurement", "lx", SENSOR, NUMERIC),
     AssignmentRule(("Liter",), "volume", "measurement", "L", SENSOR, NUMERIC),
     AssignmentRule(("MotorPosition", "MotorRange"), None, "measurement", "INC", SENSOR, NUMERIC),

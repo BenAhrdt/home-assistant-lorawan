@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.30 - 2026-08-19
+
+- Windrichtung verwendet jetzt die neue Home-Assistant-State-Class
+  `measurement_angle`. Dadurch werden Winkelstatistiken korrekt zirkulär
+  berechnet und die Warnung zur ungültigen Kombination mit der Geräteklasse
+  `wind_direction` behoben.
+
 ## 0.1.29 - 2026-08-06
 
 - Geräte werden jetzt anhand der Kombination aus Config-Entry-ID und DevEUI
