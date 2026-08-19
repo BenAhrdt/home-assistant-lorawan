@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.31 - 2026-08-19
+
+- Die Zuordnung für momentane Volumenwerte mit dem Feldnamen `Liter` verwendet
+  jetzt die Home-Assistant-Geräteklasse `volume_storage`. Damit ist die
+  Kombination mit der State-Class `measurement` gemäß der aktuellen
+  Home-Assistant-Sensordokumentation gültig.
+
 ## 0.1.30 - 2026-08-19
 
 - Windrichtung verwendet jetzt die neue Home-Assistant-State-Class

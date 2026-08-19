@@ -58,7 +58,7 @@ DEFAULT_ASSIGNMENT_RULES: tuple[AssignmentRule, ...] = (
     AssignmentRule(("Gustspeed", "Windspeed"), "wind_speed", "measurement", "m/s", SENSOR, NUMERIC),
     AssignmentRule(("Winddirection",), "wind_direction", "measurement_angle", "°", SENSOR, NUMERIC),
     AssignmentRule(("Light", "Illuminance", "Brightness"), "illuminance", "measurement", "lx", SENSOR, NUMERIC),
-    AssignmentRule(("Liter",), "volume", "measurement", "L", SENSOR, NUMERIC),
+    AssignmentRule(("Liter",), "volume_storage", "measurement", "L", SENSOR, NUMERIC),
     AssignmentRule(("MotorPosition", "MotorRange"), None, "measurement", "INC", SENSOR, NUMERIC),
     AssignmentRule(("ValveOpenness", "Percent"), None, "measurement", "%", SENSOR, NUMERIC),
     AssignmentRule(("Pressure",), "pressure", "measurement", "mbar", SENSOR, NUMERIC),
