@@ -88,7 +88,7 @@ configure_device:
 
 configure_downlink_profiles:
   name: Downlink-Profile konfigurieren
-  description: Speichert eigene oder angepasste Downlink-Profile im ioBroker-kompatiblen JSON-Format.
+  description: Speichert eigene oder angepasste Downlink-Profile im ioBroker-kompatiblen JSON-Format für alle LoRaWAN-Integrationseinträge.
   fields:
     downlink_profiles:
       required: true

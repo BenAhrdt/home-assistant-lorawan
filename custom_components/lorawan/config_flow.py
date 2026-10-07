@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import colorsys
 import uuid
+from copy import deepcopy
 
 import voluptuous as vol
 from paho.mqtt import client as mqtt_client
@@ -27,6 +28,8 @@ from .const import (
     CONF_DEVICE_CREATE_REMAINING_SENSORS,
     CONF_DEVICE_OFFLINE_AFTER_HOURS,
     CONF_DOWNLINK_PROFILES,
+    CONF_KNOWN_DEFAULT_PROFILE_TYPES,
+    CONF_RESTORE_DEFAULT_PROFILES_ON_START,
     CONF_OFFLINE_AFTER_HOURS,
     CONF_SSL,
     DEFAULT_MQTT_PORT,
@@ -51,6 +54,16 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_NAME] = "name_exists"
             elif await _async_test_mqtt_connection(user_input):
                 user_input[CONF_NAME] = name
+                entries = self.hass.config_entries.async_entries(DOMAIN)
+                shared_downlinks = {
+                    key: deepcopy(entries[0].data[key])
+                    for key in (
+                        CONF_DOWNLINK_PROFILES,
+                        CONF_RESTORE_DEFAULT_PROFILES_ON_START,
+                        CONF_KNOWN_DEFAULT_PROFILE_TYPES,
+                    )
+                    if entries and key in entries[0].data
+                }
                 return self.async_create_entry(
                     title=_entry_title(
                         user_input[CONF_NAME], user_input[CONF_CONNECTION_COLOR]
@@ -74,6 +87,7 @@ class LoRaWANConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_DEVICE_CREATE_RAW_SENSORS: {},
                         CONF_DEVICE_CREATE_REMAINING_SENSORS: {},
                         CONF_DOWNLINK_PROFILES: [],
+                        **shared_downlinks,
                     },
                 )
             else:

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.32 - 2026-10-07
+
+- Änderungen an Downlink-Profilen und der Standardprofil-Startoption gelten für
+  alle LNS-Integrationseinträge. Neue Einträge übernehmen diese Einstellungen.
+- Hinweis zum Update: Bereits vorhandene Integrationseinträge werden durch das
+  Update allein nicht synchronisiert. Erst beim nächsten Speichern einer Änderung
+  im Downlink-Editor wird die dort angezeigte Konfiguration des ersten Eintrags
+  auf alle vorhandenen Einträge übertragen.
+- Beim Öffnen eines Geräts aus dem LoRaWAN-Dashboard bleibt der Rückweg zum
+  Dashboard erhalten, auch bei Bedienung über die Tastatur.
+
 ## 0.1.31 - 2026-08-19
 
 - Die Zuordnung für momentane Volumenwerte mit dem Feldnamen `Liter` verwendet

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import colorsys
 import logging
+from copy import deepcopy
 from pathlib import Path
 
 import voluptuous as vol
@@ -84,7 +85,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.28",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.32",
                 "embed_iframe": False,
             }
         },
@@ -241,22 +242,24 @@ async def _async_configure_device(hass: HomeAssistant, call: ServiceCall) -> Non
 
 
 async def _async_configure_downlink_profiles(hass: HomeAssistant, call: ServiceCall) -> None:
-    """Persist user-defined downlink profiles."""
+    """Persist the shared downlink configuration for every LNS entry."""
     entries = hass.config_entries.async_entries(DOMAIN)
     if not entries:
         return
-    entry = entries[0]
-    data = dict(entry.data)
-    data[CONF_DOWNLINK_PROFILES] = [
+    profiles = [
         profile
         for profile in call.data[CONF_DOWNLINK_PROFILES]
         if isinstance(profile, dict)
     ]
-    if CONF_RESTORE_DEFAULT_PROFILES_ON_START in call.data:
-        data[CONF_RESTORE_DEFAULT_PROFILES_ON_START] = call.data[
-            CONF_RESTORE_DEFAULT_PROFILES_ON_START
-        ]
-    hass.config_entries.async_update_entry(entry, data=data)
+    restore_defaults = call.data.get(
+        CONF_RESTORE_DEFAULT_PROFILES_ON_START,
+        entries[0].data.get(CONF_RESTORE_DEFAULT_PROFILES_ON_START, True),
+    )
+    for entry in entries:
+        data = dict(entry.data)
+        data[CONF_DOWNLINK_PROFILES] = deepcopy(profiles)
+        data[CONF_RESTORE_DEFAULT_PROFILES_ON_START] = restore_defaults
+        hass.config_entries.async_update_entry(entry, data=data)
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/status"})

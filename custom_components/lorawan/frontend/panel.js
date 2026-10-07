@@ -1340,7 +1340,7 @@ class LoRaWANPanel extends HTMLElement {
         if (event.target.closest(".tile-value, button, input, select, textarea, a")) {
           return;
         }
-        window.location.href = `/config/devices/device/${card.getAttribute("data-device-open")}`;
+        this._openDevice(card.getAttribute("data-device-open"));
       });
       card.addEventListener("keydown", (event) => {
         if (event.target.closest("button, input, select, textarea, a")) {
@@ -1348,7 +1348,7 @@ class LoRaWANPanel extends HTMLElement {
         }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          window.location.href = `/config/devices/device/${card.getAttribute("data-device-open")}`;
+          this._openDevice(card.getAttribute("data-device-open"));
         }
       });
     });
@@ -1374,6 +1374,16 @@ class LoRaWANPanel extends HTMLElement {
         this._selectedConnectionId = null;
         this._render();
       });
+  }
+
+  _openDevice(deviceId) {
+    const from = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.pushState(
+      { from },
+      "",
+      `/config/devices/device/${encodeURIComponent(deviceId)}?back=1`,
+    );
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
   }
 
   _renderContent() {
