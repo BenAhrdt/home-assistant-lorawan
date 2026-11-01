@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.34 - 2026-11-01
+
+- Netzwerkansicht als räumliche Knotenkarte statt einer langen Spaltenansicht
+  umgesetzt: LNS, Applikationen, Gateways und Geräte mit kompakten Symbolen.
+- Alle Geräte sind im Standard sichtbar. Elliptische Applikationssektoren und
+  Kollisionsabstände für Beschriftungen nutzen die verfügbare Breite und Höhe.
+  LNS-Netzgruppen stehen auf breiten Bildschirmen nebeneinander.
+- Funkempfang und logische Applikationszugehörigkeit erhalten verschiedene
+  Linien; Legende und farbige LNS-Auswahl ergänzt. Klick auf LNS/Applikation
+  fokussiert den entsprechenden Netzbereich.
+- Alte Positionen und der stark verkleinerte Viewport der ersten Darstellung
+  werden nicht in das neue Layout übernommen. Popup, Historie, Zoom, Drag-and-drop
+  und Rücknavigation bleiben erhalten.
+
+## 0.1.33 - 2026-11-01
+
+- Neuer Netzwerk-Reiter mit LNS-Farben, Applikationsgruppen, Suche und LNS-Filter.
+  Große Applikationen sind zunächst eingeklappt und lassen sich per Klick öffnen.
+- Alle Gateway-Empfänge eines TTN-/ChirpStack-Uplinks werden berücksichtigt.
+  Linien zeigen beobachtete Empfangswege und keine dauerhaften Funkverbindungen.
+- Geräte-Popup mit letztem Uplink, Spreading Factor, Frequenz, Frame Counter,
+  Port und RSSI/SNR je Gateway; bis zu 20 Uplinks je Gerät werden unabhängig
+  von Rohdaten-Sensoren gespeichert und über Neustarts erhalten.
+- Verschieben der Knoten und Ansicht, Mausrad-/Pinch-Zoom, Alles-einpassen und
+  Layout-Reset. Layout und Filter werden je HA-Benutzer im jeweiligen Browser
+  gespeichert. Die HA-Geräteseite erhält den Rückweg zur Netzwerkansicht.
+
 ## 0.1.32 - 2026-10-07
 
 - Änderungen an Downlink-Profilen und der Standardprofil-Startoption gelten für

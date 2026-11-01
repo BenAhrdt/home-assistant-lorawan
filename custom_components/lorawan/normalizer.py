@@ -208,12 +208,23 @@ def _without_paths(
 
 
 def _ttn_radio_attributes(uplink: dict[str, Any]) -> dict[str, Any]:
-    metadata = (uplink.get("rx_metadata") or [{}])[0] or {}
+    gateways = [
+        _compact({
+            "gateway_id": (item.get("gateway_ids") or {}).get("gateway_id")
+            or (item.get("gateway_ids") or {}).get("eui"),
+            "rssi": item.get("rssi") if item.get("rssi") is not None else item.get("channel_rssi"),
+            "snr": item.get("snr"),
+        })
+        for item in (uplink.get("rx_metadata") or [])
+        if isinstance(item, dict)
+    ]
+    metadata = gateways[0] if gateways else {}
     settings = uplink.get("settings") or {}
     lora = ((settings.get("data_rate") or {}).get("lora") or {})
     return {
-        "gateway_id": ((metadata.get("gateway_ids") or {}).get("gateway_id")),
-        "rssi": metadata.get("rssi") or metadata.get("channel_rssi"),
+        "gateways": gateways,
+        "gateway_id": metadata.get("gateway_id"),
+        "rssi": metadata.get("rssi"),
         "snr": metadata.get("snr"),
         "frequency": settings.get("frequency"),
         "spreading_factor": lora.get("spreading_factor"),
@@ -221,10 +232,20 @@ def _ttn_radio_attributes(uplink: dict[str, Any]) -> dict[str, Any]:
 
 
 def _chirpstack_radio_attributes(payload: dict[str, Any]) -> dict[str, Any]:
-    rx_info = (payload.get("rxInfo") or [{}])[0] or {}
+    gateways = [
+        _compact({
+            "gateway_id": item.get("gatewayId"),
+            "rssi": item.get("rssi"),
+            "snr": item.get("snr"),
+        })
+        for item in (payload.get("rxInfo") or [])
+        if isinstance(item, dict)
+    ]
+    rx_info = gateways[0] if gateways else {}
     lora = (((payload.get("txInfo") or {}).get("modulation") or {}).get("lora") or {})
     return {
-        "gateway_id": rx_info.get("gatewayId"),
+        "gateways": gateways,
+        "gateway_id": rx_info.get("gateway_id"),
         "rssi": rx_info.get("rssi"),
         "snr": rx_info.get("snr"),
         "frequency": (payload.get("txInfo") or {}).get("frequency"),

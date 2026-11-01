@@ -1,3 +1,5 @@
+import "./network.js?v=0.1.34";
+
 const TRANSLATIONS = {
   de: {
     devices: "Geräte", protocol: "Protokoll", connection: "Verbindung", active: "Aktiv",
@@ -201,7 +203,7 @@ class LoRaWANPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._activeTab = "devices";
+    this._activeTab = new URLSearchParams(window.location.search).get("view") === "network" ? "network" : "devices";
     this._rendered = false;
     this._status = {
       configured: false,
@@ -288,12 +290,23 @@ class LoRaWANPanel extends HTMLElement {
   }
 
   connectedCallback() {
+    this._networkLocationHandler = () => {
+      if (window.location.pathname !== "/lorawan") return;
+      if (new URLSearchParams(window.location.search).get("view") === "network") {
+        this._activeTab = "network";
+        this._render();
+      }
+    };
+    window.addEventListener("popstate", this._networkLocationHandler);
+    window.addEventListener("location-changed", this._networkLocationHandler);
     this._startStatusPolling();
     this._startDeviceSubscription();
     this._render();
   }
 
   disconnectedCallback() {
+    window.removeEventListener("popstate", this._networkLocationHandler);
+    window.removeEventListener("location-changed", this._networkLocationHandler);
     if (this._statusTimer) {
       clearInterval(this._statusTimer);
       this._statusTimer = undefined;
@@ -307,6 +320,10 @@ class LoRaWANPanel extends HTMLElement {
 
   _setActiveTab(tab) {
     this._activeTab = tab;
+    const url = new URL(window.location.href);
+    if (tab === "network") url.searchParams.set("view", "network");
+    else url.searchParams.delete("view");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     this._render();
   }
 
@@ -314,10 +331,16 @@ class LoRaWANPanel extends HTMLElement {
     if (!this.shadowRoot) {
       return;
     }
+    if (this._activeTab === "network" && this._renderLanguage === this._language() && this.shadowRoot.querySelector("lorawan-network")) {
+      this._updateNetwork();
+      return;
+    }
     this._rendered = true;
+    this._renderLanguage = this._language();
 
     const tabs = [
       ["devices", this._t("devices")],
+      ["network", this._language() === "de" ? "Netzwerk" : "Network"],
       ["lns", "LNS / MQTT"],
       ["uplinks", "Uplinks"],
       ["downlinks", "Downlinks"],
@@ -1132,6 +1155,7 @@ class LoRaWANPanel extends HTMLElement {
     `;
 
     this._updateMenuButton();
+    this._updateNetwork();
 
     this.shadowRoot.querySelectorAll("button[data-tab]").forEach((button) => {
       button.addEventListener("click", () =>
@@ -1386,7 +1410,23 @@ class LoRaWANPanel extends HTMLElement {
     window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
   }
 
+  _updateNetwork() {
+    const network = this.shadowRoot.querySelector("lorawan-network");
+    if (!network) return;
+    network.data = {
+      hass: this._hass,
+      devices: this._devices,
+      connections: this._status.connections || [],
+      error: this._devicesError,
+    };
+    if (!network._navigationBound) {
+      network.addEventListener("network-open-device", (event) => this._openDevice(event.detail.id));
+      network._navigationBound = true;
+    }
+  }
+
   _renderContent() {
+    if (this._activeTab === "network") return "<lorawan-network></lorawan-network>";
     if (this._activeTab === "lns") {
       const connections = this._status.connections || [];
       return `
@@ -2720,7 +2760,7 @@ class LoRaWANPanel extends HTMLElement {
       if (this._activeTab !== "downlinks" && !this._deviceSettings) {
         this._render();
       }
-      if (this._activeTab === "devices" && !this._deviceSettings) {
+      if (["devices", "network"].includes(this._activeTab) && !this._deviceSettings) {
         await this._loadDevices();
       }
     } catch (error) {

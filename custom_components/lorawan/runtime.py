@@ -43,6 +43,7 @@ from .const import (
 )
 from .models import LoRaWANDevice, LoRaWANMessage, LoRaWANValue
 from .normalizer import normalize_message
+from .uplinks import UPLINK_HISTORY_LIMIT, remember_uplink
 from .downlinks import (
     INTERNAL_BASE_PROFILE,
     downlink_message,
@@ -123,6 +124,7 @@ class LoRaWANRuntime:
         self.last_downlink_event_at: str | None = None
         self.last_downlink_topic: str | None = None
         self.last_seen_by_device: dict[str, str] = {}
+        self.uplinks_by_device: dict[str, list[dict[str, Any]]] = {}
         self.last_downlink_by_device: dict[str, dict[str, Any]] = {}
         self.next_downlink_by_device: dict[str, dict[str, Any]] = {}
         self.device_online_states: dict[str, bool] = {}
@@ -362,6 +364,7 @@ class LoRaWANRuntime:
     @callback
     def _store_message(self, message: LoRaWANMessage) -> None:
         device = message.device
+        remember_uplink(self.uplinks_by_device, message, self.last_message_at or _utc_now())
         is_new_device = device.dev_eui not in self.devices
         joined = message.message_type.casefold() in {
             "join",
@@ -886,6 +889,11 @@ class LoRaWANRuntime:
             for dev_eui, device in (data.get("devices") or {}).items()
         }
         self.last_seen_by_device = dict(data.get("last_seen_by_device") or {})
+        self.uplinks_by_device = {
+            dev_eui: records[:UPLINK_HISTORY_LIMIT]
+            for dev_eui, records in (data.get("uplinks_by_device") or {}).items()
+            if isinstance(records, list)
+        }
         cached_value_devices = data.get("value_devices") or {}
         self.values = {}
         for entity_key, value_data in (data.get("values") or {}).items():
@@ -928,6 +936,7 @@ class LoRaWANRuntime:
                 },
                 "entity_platforms": dict(self.entity_platforms),
                 "last_seen_by_device": dict(self.last_seen_by_device),
+                "uplinks_by_device": self.uplinks_by_device,
                 "last_message_at": self.last_message_at,
                 "last_topic": self.last_topic,
                 "recent_messages": list(self.recent_messages),

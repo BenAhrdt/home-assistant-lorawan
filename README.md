@@ -154,3 +154,39 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Network view
+
+The **Network** tab shows a spatial node map of LNS connections, applications,
+gateways and devices, using the configured connection colors. Gateways are shared between applications within
+one LNS; identical gateway/application/device IDs on different LNS connections
+remain separate. All devices are visible by default. Application sectors spread around their
+LNS; label-aware collision separation keeps the layout compact and deterministic.
+LNS islands sit beside each other on wide screens and stack on narrow screens.
+Click an application or LNS node to focus that part of the map.
+
+Lines represent gateway receptions reported in each device's **latest uplink**,
+not permanent connections or guaranteed downlink routes. All entries from TTN
+`rx_metadata` and ChirpStack `rxInfo` are retained. Missing metadata keeps the
+device visible without an invented gateway. Gateway details show when it was
+last observed, rather than assuming a gateway online/offline state.
+
+Click a device for radio diagnostics, selected device-tile values, and the last
+20 uplinks with decoded values and per-gateway RSSI/SNR. This history starts
+collecting after the update, survives HA restarts, and does not depend on raw or
+remaining sensor settings. Join/status/downlink events do not replace it.
+Device availability continues to use the integration's existing activity timeout.
+
+Drag nodes to arrange them, drag the canvas to pan, and use the mouse wheel or
+two-finger pinch to zoom. **Fit all** adjusts the viewport; **Reset layout** also
+restores automatic positions. Positions, filters and viewport are stored per HA user in the current
+browser, not synchronized between browsers. Search matches device names,
+DevEUIs, applications and gateways. The device-page button preserves the return
+path to `/lorawan?view=network` and the saved view.
+
+Network regression checks: `python3 -m unittest discover -s tests -v` and
+`node tests/network.test.cjs` (the latter requires Node.js).
+
+Version 0.1.34 replaces the initial column layout with a spatial map and uses a
+new layout-storage key, so the previous tiny viewport is not restored. Solid
+lines indicate radio reception; faint dashed lines indicate logical membership.

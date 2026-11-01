@@ -85,7 +85,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         config={
             "_panel_custom": {
                 "name": "lorawan-panel",
-                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.32",
+                "module_url": f"{PANEL_STATIC_URL}/panel.js?v=0.1.34",
                 "embed_iframe": False,
             }
         },
@@ -148,6 +148,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     websocket_api.async_register_command(hass, _websocket_status)
     websocket_api.async_register_command(hass, _websocket_devices)
     websocket_api.async_register_command(hass, _websocket_device_diagnostics)
+    websocket_api.async_register_command(hass, _websocket_device_uplinks)
     websocket_api.async_register_command(hass, _websocket_subscribe_devices)
     websocket_api.async_register_command(hass, _websocket_downlinks)
     websocket_api.async_register_command(hass, _websocket_send_downlink)
@@ -650,6 +651,12 @@ def _panel_device_payload(
         "application_name": (
             runtime_device.application_name if runtime_device else None
         ),
+        "application_id": runtime_device.application_id if runtime_device else None,
+        "dev_eui": dev_eui,
+        "last_uplink": (
+            next(iter(runtime.uplinks_by_device.get(clean_dev_eui, [])), None)
+            if runtime else None
+        ),
         "identifiers": sorted(identifiers),
         "entry_id": entry.entry_id if entry else None,
         "connection_name": _entry_name(entry) if entry else None,
@@ -756,6 +763,28 @@ async def _websocket_device_diagnostics(
         connection.send_result(msg["id"], {"raw": None, "remaining": None})
         return
     connection.send_result(msg["id"], runtime.diagnostics_for_device(msg["dev_eui"]))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device_uplinks",
+        vol.Required("entry_id"): str,
+        vol.Required("dev_eui"): str,
+    }
+)
+@websocket_api.async_response
+async def _websocket_device_uplinks(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Return bounded history scoped to the requested LNS and device."""
+    runtime = hass.data.get(DOMAIN, {}).get(msg["entry_id"])
+    records = (
+        runtime.uplinks_by_device.get(_clean_dev_eui(msg["dev_eui"]), [])
+        if runtime is not None else []
+    )
+    connection.send_result(msg["id"], {"uplinks": records})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/subscribe_devices"})
