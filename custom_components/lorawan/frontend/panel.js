@@ -1,4 +1,4 @@
-import "./network.js?v=0.1.34";
+import "./network.js?v=0.1.36";
 
 const TRANSLATIONS = {
   de: {

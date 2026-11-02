@@ -41,8 +41,8 @@ function runNetworkTests(Network, Panel) {
     _paint() {}, _save() {},
   });
   metrics._buildGraph(); metrics._fit();
-  assert(metrics._state.view.scale >= .72, "Realistic 33-device landscape layout keeps 12px labels readable instead of shrinking a vertical list");
-  assert(metrics._groups[0].width / metrics._groups[0].height > 1.25, "Main LNS occupies landscape space");
+  assert(metrics._state.view.scale >= .45, "Complete application circles fit the realistic 33-device landscape fixture");
+  assert(metrics._groups[0].width / metrics._groups[0].height > 1, "Main LNS occupies landscape space");
   assert(new Set(metrics._nodes.filter((n) => n.type === "device").map((n) => Math.round(n.x))).size > 20, "Devices spread spatially rather than in one column");
   let labelCollisions = 0;
   for (let i = 0; i < metrics._nodes.length; i++) for (let j = i + 1; j < metrics._nodes.length; j++) {
@@ -50,12 +50,37 @@ function runNetworkTests(Network, Panel) {
     if (Math.abs(a.x - b.x) < 130 && Math.abs((a.y + a.radius / 2) - (b.y + b.radius / 2)) < 73) labelCollisions++;
   }
   assert(labelCollisions === 0, "Realistic landscape layout separates label areas");
+  for (const app of metrics._nodes.filter((n) => n.type === "application")) {
+    const radii = app.devices.map((n) => Math.hypot(n.x - app.x, n.y - app.y));
+    assert(Math.max(...radii) - Math.min(...radii) < .001, "Devices share a circle centered on their own application");
+    if (app.devices.length > 1) {
+      const dx = app.devices.reduce((sum, n) => sum + n.x - app.x, 0);
+      const dy = app.devices.reduce((sum, n) => sum + n.y - app.y, 0);
+      assert(Math.hypot(dx, dy) < .001, "Devices surround the application on all sides");
+    }
+  }
+  for (const group of metrics._groups) {
+    const infrastructure = group.nodes.filter((n) => ["lns", "gateway"].includes(n.type));
+    const devices = group.nodes.filter((n) => n.type === "device");
+    assert(Math.max(...infrastructure.map((n) => n.x)) + 130 < Math.min(...devices.map((n) => n.x)), "LNS and gateways stay beside the application circles");
+  }
+  const app = metrics._nodes.find((n) => n.type === "application");
+  const appLinks = metrics._relatedEdges(app);
+  assert(app.devices.every((n) => metrics._edges.filter((e) => e.kind === "radio" && e.target === n.key).every((e) => appLinks.has(e))), "Application hover includes radio receptions of every member");
+  assert([...appLinks].filter((e) => e.kind === "radio").every((e) => app.devices.some((n) => n.key === e.target)), "Application hover excludes receptions of other applications");
+  const gateway = metrics._nodes.find((n) => n.type === "gateway");
+  assert([...metrics._relatedEdges(gateway)].every((e) => e.source === gateway.key || e.target === gateway.key), "Gateway hover isolates its own connections");
+  const lns = metrics._nodes.find((n) => n.type === "lns");
+  const lnsKeys = new Set(metrics._groups.find((g) => g.nodes.includes(lns)).nodes.map((n) => n.key));
+  assert([...metrics._relatedEdges(lns)].every((e) => lnsKeys.has(e.source) && lnsKeys.has(e.target)), "LNS hover excludes other networks");
   const positions = JSON.stringify(metrics._nodes.map((n) => [n.key, n.x, n.y]));
   metrics._buildGraph();
   assert(JSON.stringify(metrics._nodes.map((n) => [n.key, n.x, n.y])) === positions, "Layout deterministic across data refreshes");
   assert(metrics._nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)), "All map coordinates finite");
   const markup = metrics._graphMarkup();
+  assert((markup.match(/class="application-area"/g) || []).length === metrics._nodes.filter((n) => n.type === "application").length, "Each application has a visible circular area");
   assert(markup.includes('node-lns') && markup.includes('node-gateway') && !markup.includes('width="970"'), "Map uses compact node symbols and no tall grouping boxes");
+  assert(markup.lastIndexOf('class="edge edge-affiliation"') < markup.indexOf('class="edge edge-radio"'), "Radio links are painted above application membership");
   metrics._svg = { clientWidth: 400, clientHeight: 600 }; metrics.clientWidth = 400; metrics._buildGraph(); metrics._fit();
   assert(metrics._groups[1].y > metrics._groups[0].y && metrics._state.view.scale > 0, "Portrait layout stacks spatial LNS islands");
   assert(graph._receptionTable([{ gateway_id: '<script>"', rssi: 0, snr: 0 }]).includes("&lt;script&gt;&quot;"), "Reception HTML escaped");
@@ -113,7 +138,7 @@ function runNetworkTests(Network, Panel) {
     const preferences = Object.create(Network.prototype);
     Object.assign(preferences, { _state: { positions: {}, view: null, filter: "", search: "" }, _pointers: new Map(), _selected: null, _render() {} });
     preferences.data = { hass: { user: { id: "test-user" } }, devices: [], connections: [] };
-    assert(requestedKey === "lorawan.network.v2.test-user", "Old column-layout viewport is not restored");
+    assert(requestedKey === "lorawan.network.v4.test-user", "Previous sector-layout viewport is not restored");
     assert(preferences._state.view === null, "New layout starts with automatic fit");
   } finally { globalThis.localStorage = previousStorage; }
   return `${checks} JavaScript checks passed`;

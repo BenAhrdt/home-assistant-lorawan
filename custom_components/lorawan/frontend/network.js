@@ -5,7 +5,7 @@ const LABELS = {
     fit: "Alles einpassen", reset: "Layout zurücksetzen", unknown: "Unbekannte Applikation",
     devices: "Geräte", gateways: "Gateways", empty: "Keine passenden Geräte vorhanden.",
     hint: "Knoten ziehen zum Anordnen · Hintergrund ziehen zum Verschieben · Mausrad / zwei Finger zum Zoomen",
-    links: "Linien zeigen Gateway-Empfänge der jeweils letzten Uplinks, keine dauerhaften Verbindungen.",
+    links: "Funklinien bei Mouseover oder Tastaturfokus auf Gerät, Applikation oder Gateway hervorheben. Sie zeigen die letzten Uplink-Empfänge.",
     noGateway: "Keine Gateway-Metadaten", last: "Letzter Uplink", never: "Noch kein Uplink gespeichert",
     lns: "LNS", affiliation: "Applikationszuordnung", reception: "Funkempfang", application: "Applikation", close: "Schließen", page: "HA-Geräteseite öffnen", history: "Letzte Uplinks",
     historyHint: "Maximal 20 Uplinks je Gerät, gespeichert ab dieser Version. Empfangswerte gelten je Gateway.",
@@ -18,7 +18,7 @@ const LABELS = {
     network: "Network", all: "All LNS", search: "Search device, DevEUI, application or gateway",
     fit: "Fit all", reset: "Reset layout", unknown: "Unknown application", devices: "Devices", gateways: "Gateways",
     empty: "No matching devices.", hint: "Drag nodes to arrange · Drag background to pan · Wheel / pinch to zoom",
-    links: "Lines show gateway receptions of the latest uplinks, not permanent connections.", noGateway: "No gateway metadata",
+    links: "Hover or focus a device, application or gateway to highlight radio links from the latest uplinks.", noGateway: "No gateway metadata",
     last: "Last uplink", never: "No uplink saved yet", lns: "LNS", affiliation: "Application membership", reception: "Radio reception", application: "Application", close: "Close", page: "Open HA device page",
     history: "Recent uplinks", historyHint: "Up to 20 uplinks per device, recorded from this version. Reception values belong to each gateway.",
     loading: "Loading uplinks …", error: "Could not load uplinks.", retry: "Retry", online: "Online", offline: "Offline",
@@ -42,7 +42,7 @@ class LoRaWANNetwork extends HTMLElement {
 
   set data(data) {
     this._data = data;
-    const storageKey = `lorawan.network.v2.${data.hass?.user?.id || "local"}`;
+    const storageKey = `lorawan.network.v4.${data.hass?.user?.id || "local"}`;
     if (storageKey !== this._storageKey) {
       this._storageKey = storageKey;
       try {
@@ -114,32 +114,39 @@ class LoRaWANNetwork extends HTMLElement {
           this._edges.push({ source: gatewayKey, target: node.key, kind: "radio", color, reception });
         }
       }
-      // Seed application sectors on an ellipse, then resolve label collisions.
-      // The aspect ratio follows the canvas, not a fixed vertical hierarchy.
-      const viewport = this._canvasSize();
-      const aspect = Math.max(.8, Math.min(2.1, viewport.width / viewport.height));
-      const area = Math.max(6, nodes.length) * 10500;
-      const rx = Math.max(180, Math.sqrt(area * aspect) / 2);
-      const ry = Math.max(150, Math.sqrt(area / aspect) / 2);
-      let ordinal = 0;
-      for (const app of apps.values()) {
-        const middle = (ordinal + (app.devices.length - 1) / 2 + .5) / selected.length * Math.PI * 2 - Math.PI / 2;
-        app.x = Math.cos(middle) * rx * .49;
-        app.y = Math.sin(middle) * ry * .49;
-        for (const node of app.devices) {
-          const angle = (ordinal + .5) / selected.length * Math.PI * 2 - Math.PI / 2;
-          const ring = selected.length > 22 ? (ordinal % 2 ? 1.12 : .84) : 1;
-          node.x = Math.cos(angle) * rx * ring;
-          node.y = Math.sin(angle) * ry * ring;
-          ordinal++;
-        }
-      }
-      [...gateways.values()].forEach((gateway, i) => {
-        const angle = i / gateways.size * Math.PI * 2 + Math.PI * .75;
-        gateway.x = Math.cos(angle) * Math.max(100, rx * .23);
-        gateway.y = Math.sin(angle) * Math.max(85, ry * .23);
+      // Each application owns a complete device circle. Pack whole circles,
+      // rather than moving individual devices away from their application.
+      const clusters = [...apps.values()].map((app) => {
+        const radius = Math.max(145, 166 / (2 * Math.sin(Math.PI / Math.max(2, app.devices.length))));
+        return { app, radius, width: radius * 2 + 170, height: radius * 2 + 135 };
       });
-      this._relax(nodes, lns);
+      const viewport = this._canvasSize();
+      const share = selected.length / Math.max(1, devices.length);
+      const aspect = Math.max(.8, Math.min(2.1, viewport.width * share / viewport.height));
+      const totalArea = clusters.reduce((sum, cluster) => sum + cluster.width * cluster.height, 0);
+      const maxWidth = Math.max(...clusters.map((cluster) => cluster.width));
+      const columns = Math.max(1, Math.ceil(Math.sqrt(totalArea * aspect) / maxWidth));
+      const rowLimit = columns * maxWidth + (columns - 1) * 25;
+      let x = 0, y = 0, rowHeight = 0;
+      for (const { app, radius, width: clusterWidth, height } of clusters) {
+        if (x && x + clusterWidth > rowLimit) { x = 0; y += rowHeight + 25; rowHeight = 0; }
+        app.layoutRadius = radius;
+        app.x = x + clusterWidth / 2;
+        app.y = y + radius + 30;
+        app.devices.forEach((node, i) => {
+          const angle = i / app.devices.length * Math.PI * 2 - Math.PI / 2;
+          node.x = app.x + Math.cos(angle) * radius;
+          node.y = app.y + Math.sin(angle) * radius;
+        });
+        x += clusterWidth + 25;
+        rowHeight = Math.max(rowHeight, height);
+      }
+      // Infrastructure stays beside the circles, outside their device areas.
+      lns.x = -160; lns.y = 30;
+      [...gateways.values()].forEach((gateway, i) => {
+        gateway.x = -160;
+        gateway.y = 180 + i * 135;
+      });
       const minX = Math.min(...nodes.map((n) => n.x - 84));
       const maxX = Math.max(...nodes.map((n) => n.x + 84));
       const minY = Math.min(...nodes.map((n) => n.y - n.radius - 8));
@@ -163,30 +170,6 @@ class LoRaWANNetwork extends HTMLElement {
       offset += (horizontal ? group.width : group.height) + 70;
     }
     this._nodeMap = new Map(this._nodes.map((node) => [node.key, node]));
-  }
-
-  _relax(nodes, root) {
-    // Deterministic label-aware separation, no running physics or jumping nodes.
-    const anchors = nodes.map((node) => ({ x: node.x, y: node.y }));
-    for (let step = 0; step < 180; step++) {
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        if (a !== root) { a.x += (anchors[i].x - a.x) * .012; a.y += (anchors[i].y - a.y) * .012; }
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j];
-          const dx = b.x - a.x, dy = (b.y + b.radius / 2) - (a.y + a.radius / 2);
-          const overlapX = 153 - Math.abs(dx), overlapY = 91 - Math.abs(dy);
-          if (overlapX <= 0 || overlapY <= 0) continue;
-          if (overlapX < overlapY * 1.6) {
-            const shift = Math.sign(dx || (j % 2 ? 1 : -1)) * overlapX * .28;
-            a.x -= shift; b.x += shift;
-          } else {
-            const shift = Math.sign(dy || 1) * overlapY * .28;
-            a.y -= shift; b.y += shift;
-          }
-        }
-      }
-    }
   }
 
   _icon(node) {
@@ -226,7 +209,7 @@ class LoRaWANNetwork extends HTMLElement {
   }
 
   _graphMarkup() {
-    return `${this._edges.map((edge, i) => `<path class="edge edge-${edge.kind}" data-edge="${i}" stroke="${edge.color}"><title>${edge.kind === "radio" ? `${escapeHtml(edge.reception.gateway_id)} · RSSI ${escapeHtml(edge.reception.rssi ?? "—")} dBm · SNR ${escapeHtml(edge.reception.snr ?? "—")} dB` : edge.kind === "infrastructure" ? "LNS / Gateway" : this._t("affiliation")}</title></path>`).join("")}${this._nodes.map((node, i) => this._nodeMarkup(node, i)).join("")}`;
+    return `${this._nodes.filter((node) => node.type === "application").map((node) => `<circle class="application-area" data-area="${this._nodes.indexOf(node)}" cx="${node.x}" cy="${node.y}" r="${node.layoutRadius + 65}" fill="${node.color}" stroke="${node.color}"/>`).join("")}${this._edges.map((edge, i) => ({ edge, i })).sort((a, b) => Number(a.edge.kind === "radio") - Number(b.edge.kind === "radio")).map(({ edge, i }) => `<path class="edge edge-${edge.kind}" data-edge="${i}" stroke="${edge.color}"><title>${edge.kind === "radio" ? `${escapeHtml(edge.reception.gateway_id)} · RSSI ${escapeHtml(edge.reception.rssi ?? "—")} dBm · SNR ${escapeHtml(edge.reception.snr ?? "—")} dB` : edge.kind === "infrastructure" ? "LNS / Gateway" : this._t("affiliation")}</title></path>`).join("")}${this._nodes.map((node, i) => this._nodeMarkup(node, i)).join("")}`;
   }
 
   _render() {
@@ -250,7 +233,7 @@ class LoRaWANNetwork extends HTMLElement {
         svg:active{cursor:grabbing}.node{cursor:grab;outline:none}.node:focus .body{stroke:var(--primary-color);stroke-width:3}.node text{pointer-events:none}
         .body{stroke-width:1.8;filter:drop-shadow(0 2px 3px #0000000d)}.node:hover .body,.node:focus .body{stroke-width:3}
         .label-bg{fill:var(--card-background-color,#fff);fill-opacity:.94}.node-label{fill:var(--primary-text-color,#222);font-size:12px;font-weight:500;font-family:inherit}.node-lns .node-label,.node-application .node-label{font-weight:650}.node-caption{fill:var(--secondary-text-color,#777);font-size:10px;font-family:inherit}
-        .edge{fill:none;vector-effect:non-scaling-stroke;stroke-width:1.5;opacity:.4}.edge-affiliation{stroke-dasharray:3 5;stroke-width:1;opacity:.18}.edge-infrastructure{stroke-dasharray:5 5;opacity:.25}.node:hover{cursor:pointer}
+        .edge{fill:none;vector-effect:non-scaling-stroke;stroke-width:1.5;opacity:.4;pointer-events:none}.application-area{fill-opacity:.025;stroke-opacity:.18;stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}.edge-radio{stroke-width:1.3;opacity:.08;stroke-linecap:round}.edge-affiliation{stroke-dasharray:3 5;stroke-width:1.2;opacity:.65}.edge-infrastructure{stroke-dasharray:5 5;opacity:.06}.node:hover{cursor:pointer}
         .legend{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--divider-color,#eee);font-size:12px;color:var(--secondary-text-color)}.legend span{display:inline-flex;align-items:center;gap:7px}.legend i{display:inline-block;width:10px;height:10px;border:2px solid var(--primary-color);border-radius:50%}.legend .gateway{border-radius:3px;transform:rotate(45deg)}.legend .lns{border-radius:3px;background:var(--primary-color)}.legend .radio{width:24px;height:0;border:0;border-top:2px solid var(--primary-color);border-radius:0}.legend .affiliation{width:24px;height:0;border:0;border-top:1px dashed var(--secondary-text-color);border-radius:0}
         .lns-keys{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.lns-key{display:inline-flex;align-items:center;gap:8px;font-size:12px;padding:6px 10px;min-height:32px;border-radius:20px}.lns-key b{width:9px;height:9px;border-radius:50%;display:inline-block}.lns-key small{color:var(--secondary-text-color)}
         .hint{font-size:12px;color:var(--secondary-text-color);line-height:1.7;margin:10px 2px}.empty{position:absolute;inset:45% 12px auto;text-align:center}
@@ -289,6 +272,10 @@ class LoRaWANNetwork extends HTMLElement {
       const node = this._nodes[Number(element.dataset.node)];
       element.setAttribute("transform", `translate(${node.x} ${node.y})`);
     });
+    this.shadowRoot.querySelectorAll("[data-area]").forEach((element) => {
+      const node = this._nodes[Number(element.dataset.area)];
+      element.setAttribute("cx", node.x); element.setAttribute("cy", node.y);
+    });
     this.shadowRoot.querySelectorAll("[data-edge]").forEach((element) => {
       const edge = this._edges[Number(element.dataset.edge)];
       const a = this._nodeMap.get(edge.source), b = this._nodeMap.get(edge.target);
@@ -321,6 +308,16 @@ class LoRaWANNetwork extends HTMLElement {
     this._paint();
   }
 
+  _relatedEdges(node) {
+    const keys = new Set([node.key]);
+    if (node.type === "application") node.devices.forEach((device) => keys.add(device.key));
+    if (node.type === "lns") {
+      this._groups.find((group) => group.nodes.includes(node))?.nodes.forEach((member) => keys.add(member.key));
+    }
+    // Application hover includes the receptions of all its devices.
+    return new Set(this._edges.filter((edge) => keys.has(edge.source) || keys.has(edge.target)));
+  }
+
   _bind() {
     this.shadowRoot.querySelectorAll("[data-lns]").forEach((button) => {
       button.onclick = () => {
@@ -339,11 +336,12 @@ class LoRaWANNetwork extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-node]").forEach((element) => {
       const highlight = (active) => {
         const node = this._nodes[Number(element.dataset.node)];
+        const related = this._relatedEdges(node);
         this.shadowRoot.querySelectorAll("[data-edge]").forEach((path) => {
           const edge = this._edges[Number(path.dataset.edge)];
-          const selected = edge.source === node.key || edge.target === node.key;
-          path.style.opacity = active ? (selected ? ".95" : ".045") : "";
-          path.style.strokeWidth = active && selected ? "2.5" : "";
+          const selected = related.has(edge);
+          path.style.opacity = active ? (selected ? ".95" : ".025") : "";
+          path.style.strokeWidth = active && selected ? (edge.kind === "radio" ? "3" : "2") : "";
         });
       };
       element.onpointerenter = () => highlight(true);

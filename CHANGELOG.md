@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.36 - 2026-11-02
+
+- Applikationskreise durch dezente farbige Kreisflächen und klarere
+  Zuordnungslinien sichtbar gemacht; LNS und Gateways stehen seitlich abseits.
+- Funklinien im Ruhezustand zurückgenommen. Mouseover und Tastaturfokus auf
+  eine Applikation zeigen auch die Funkwege aller zugehörigen Geräte.
+- Neuer Layoutspeicher verwirft die bisherigen Positionen und den Viewport.
+
+## 0.1.35 - 2026-11-02
+
+- Geräte in vollständigen Kreisen um ihre jeweilige Applikation angeordnet;
+  Gateways stehen separat oberhalb der Applikationsgruppen.
+- Funklinien mit höherem Kontrast und größerer Strichstärke über den
+  gestrichelten Zuordnungslinien dargestellt.
+- Neuer Layoutspeicher übernimmt keine Positionen der bisherigen Anordnung.
+
 ## 0.1.34 - 2026-11-01
 
 - Netzwerkansicht als räumliche Knotenkarte statt einer langen Spaltenansicht
