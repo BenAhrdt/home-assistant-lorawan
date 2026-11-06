@@ -1,0 +1,165 @@
+blueprint:
+  name: "LoRaWAN – Raumtemperatur an Vicki übertragen"
+  description: >-
+    Eine Automation für alle Räume: Reagiert auf lorawan_uplink_schedule,
+    sucht im Raum des auslösenden Geräts genau einen Temperatursensor mit
+    dem gewählten Label und schreibt dessen Celsiuswert in das im Ereignis
+    enthaltene external_temperature-Control. Benötigt LoRaWAN ab 0.1.38.
+    Das Label direkt an die Temperaturentität vergeben. Sensor und Vicki
+    müssen demselben HA-Bereich zugeordnet sein (beim Sensor auch über sein
+    Gerät möglich). Es werden keine Geräte oder Entitäten manuell ausgewählt.
+    Bei fehlender oder mehrdeutiger Zuordnung, ungültigen oder veralteten Werten
+    wird ohne Versand abgebrochen; der Grund ist in der Automationsspur sichtbar.
+    Die vorhandene Downlink-Versandart bleibt maßgeblich. Mode2 wird nicht geändert.
+  domain: automation
+  source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/room_external_temperature.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    temperature_label:
+      name: Label der Raumtemperatur
+      description: >-
+        Zum Beispiel primaryRoomTemperature. Je Raum genau eine externe
+        Temperaturentität (sensor mit Geräteklasse temperature) damit markieren.
+      selector:
+        label: {}
+    maximum_age_minutes:
+      name: Maximales Alter des Temperaturwerts
+      description: >-
+        Bezogen auf den letzten Zustandsbericht in HA (last_reported), nicht
+        auf die letzte Wertänderung. Ob unveränderte Messungen als Bericht
+        ankommen, hängt von der Sensorintegration ab.
+      default: 120
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    minimum_difference:
+      name: Minimale Temperaturabweichung
+      description: >-
+        Nur bei dieser Abweichung vom Control-Wert schreiben. Der Sensorwert
+        wird vorher auf Vickis Auflösung von 0,1 °C gerundet. Gleiche Werte
+        werden unabhängig von dieser Einstellung nicht erneut geschrieben.
+      default: 0.01
+      selector:
+        number:
+          min: 0
+          max: 5
+          step: 0.01
+          unit_of_measurement: °C
+          mode: box
+
+mode: queued
+max: 100
+max_exceeded: warning
+
+variables:
+  temperature_label: !input temperature_label
+  maximum_age_minutes: !input maximum_age_minutes
+  minimum_difference: !input minimum_difference
+
+triggers:
+  - trigger: event
+    event_type: lorawan_uplink_schedule
+    event_data:
+      source: lorawan
+
+actions:
+  - alias: Nur mit echtem Uplink-Zeittrigger fortfahren
+    if:
+      - condition: template
+        value_template: >-
+          {{ trigger is not defined or trigger.event is not defined }}
+    then:
+      - stop: "Kein Ereignis vorhanden. Zum Test auf den nächsten Uplink-Zeittrigger warten."
+  - variables:
+      event_data: "{{ trigger.event.data }}"
+  - variables:
+      room_id: "{{ event_data.get('area_id') or '' }}"
+      thermostat_device: "{{ event_data.get('device_id') or '' }}"
+      controls: "{{ event_data.get('controls', {}) }}"
+  - variables:
+      target_control: >-
+        {{ controls.get('external_temperature', '') if controls is mapping else '' }}
+  - alias: Raum und ExternalTemperature-Control prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {{ not room_id or not thermostat_device
+             or not target_control.startswith('number.')
+             or device_id(target_control) != thermostat_device
+             or not has_value(target_control)
+             or not is_number(states(target_control)) }}
+    then:
+      - stop: "Raum oder verfügbares numerisches ExternalTemperature-Control fehlt."
+  - variables:
+      temperature_candidates: >-
+        {% set ns = namespace(entities=[]) %}
+        {% for entity in label_entities(temperature_label) %}
+          {% if entity.startswith('sensor.')
+                and state_attr(entity, 'device_class') == 'temperature'
+                and area_id(entity) == room_id
+                and device_id(entity) != thermostat_device %}
+            {% set ns.entities = ns.entities + [entity] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.entities }}
+  - alias: Eindeutigen Raumsensor verlangen
+    if:
+      - condition: template
+        value_template: "{{ temperature_candidates | count != 1 }}"
+    then:
+      - stop: >-
+          Raum {{ room_id }}: {{ temperature_candidates | count }} passende
+          Temperatursensoren mit dem gewählten Label gefunden; genau einer erforderlich.
+  - variables:
+      temperature_sensor: "{{ temperature_candidates[0] }}"
+  - alias: Gültigen Celsiuswert verlangen
+    if:
+      - condition: template
+        value_template: >-
+          {{ not has_value(temperature_sensor)
+             or not is_number(states(temperature_sensor))
+             or state_attr(temperature_sensor, 'unit_of_measurement') != '°C' }}
+    then:
+      - stop: "Der gewählte Raumsensor liefert keinen gültigen Celsiuswert."
+  - variables:
+      sensor_age_seconds: >-
+        {{ as_timestamp(now()) - as_timestamp(states[temperature_sensor].last_reported, 0) }}
+      temperature_value: "{{ states(temperature_sensor) | float | round(1) }}"
+  - alias: Alter des letzten Sensorberichts prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {{ sensor_age_seconds < 0
+             or sensor_age_seconds > (maximum_age_minutes | float) * 60 }}
+    then:
+      - stop: "Der letzte Temperaturbericht ist zu alt oder liegt in der Zukunft."
+  - alias: Wertebereich des Controls prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {{ temperature_value < (state_attr(target_control, 'min') | float(-273.15))
+             or temperature_value > (state_attr(target_control, 'max') | float(1000)) }}
+    then:
+      - stop: "Die Raumtemperatur liegt außerhalb des Wertebereichs des Controls."
+  - variables:
+      temperature_difference: >-
+        {{ ((temperature_value | float) - (states(target_control) | float)) | abs | round(6) }}
+  - alias: Nur bei ausreichender Änderung schreiben
+    if:
+      - condition: template
+        value_template: >-
+          {{ temperature_difference == 0
+             or temperature_difference < (minimum_difference | float) }}
+    then:
+      - stop: "Die Temperatur wurde bereits vorgemerkt oder die Abweichung ist zu klein."
+  - alias: Externe Temperatur im Vicki-Control setzen
+    action: number.set_value
+    target:
+      entity_id: "{{ target_control }}"
+    data:
+      value: "{{ temperature_value }}"

@@ -8,6 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, SIGNAL_ADD_DOWNLINK_CONTROL, SIGNAL_REMOVE_DOWNLINK_CONTROL
 from .downlink_entity import LoRaWANDownlinkEntity
 from .runtime import LoRaWANRuntime, add_runtime_listener
+from .schedule_entity import setup_schedule_entities
 
 
 async def async_setup_entry(
@@ -17,6 +18,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up enumerated downlink selects."""
     runtime: LoRaWANRuntime = hass.data[DOMAIN][entry.entry_id]
+    setup_schedule_entities(runtime, entry, async_add_entities, "select")
     added: set[str] = set()
     entities: dict[str, LoRaWANDownlinkSelect] = {}
 

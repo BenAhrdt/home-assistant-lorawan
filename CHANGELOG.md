@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.38 - 2026-11-06
+
+- Optionaler Temperatur-Blueprint mit Label-Auswahl im Repository; Import-Link
+  und ausführliche Wiki-Anleitung für Einrichtung, Diagnose und Updates.
+
+- Drei Uplink-Diagnosezeitstempel standardmäßig deaktiviert; bestehende
+  Aktivierungsentscheidungen bleiben erhalten. Trigger laufen unabhängig davon.
+
+- Uplink-Zeittrigger enthält `controls`: stabile technische Schlüssel auf
+  aktuelle Entity-IDs des auslösenden Geräts, etwa `external_temperature`.
+- Auflösung bei Auslösung berücksichtigt Umbenennungen; deaktivierte, fremde
+  oder mehrdeutige Controls werden nicht als Ziel angeboten.
+
+## 0.1.37 - 2026-11-06
+
+- Optionaler Uplink-Zeittrigger für alle Geräte: automatisch ermittelter
+  Uplink-Abstand mit Vorlauf oder feste Zeit nach einem Uplink.
+- Einstellbarer Mindestabstand filtert Folge-Uplinks, ohne den Zeitanker zu
+  verschieben. Einmalige Timer werden bei neuen maßgeblichen Uplinks ersetzt.
+- Gerätekonfiguration und Diagnosezeitpunkte auf der HA-Geräteseite;
+  Gerätetrigger und Ereignis mit aktuellem Gerätenamen, Raum und Zeitdaten.
+
 ## 0.1.36 - 2026-11-02
 
 - Applikationskreise durch dezente farbige Kreisflächen und klarere

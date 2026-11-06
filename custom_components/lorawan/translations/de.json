@@ -49,5 +49,44 @@
         }
       }
     }
+  },
+  "entity": {
+    "select": {
+      "uplink_schedule_mode": {
+        "name": "LoRaWAN Uplink-Triggermodus",
+        "state": {
+          "disabled": "Deaktiviert",
+          "automatic": "Automatisch",
+          "after_uplink": "Zeit nach Uplink"
+        }
+      }
+    },
+    "number": {
+      "uplink_schedule_lead_seconds": {
+        "name": "LoRaWAN Uplink-Vorlauf"
+      },
+      "uplink_schedule_delay_seconds": {
+        "name": "LoRaWAN Zeit nach Uplink"
+      },
+      "uplink_schedule_minimum_seconds": {
+        "name": "LoRaWAN Uplink-Mindestabstand"
+      }
+    },
+    "sensor": {
+      "uplink_schedule_scheduled_for": {
+        "name": "LoRaWAN nächster berechneter Trigger"
+      },
+      "uplink_schedule_expected_next_uplink": {
+        "name": "LoRaWAN nächster erwarteter Uplink"
+      },
+      "uplink_schedule_last_fired": {
+        "name": "LoRaWAN letzter berechneter Trigger"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "uplink_schedule": "LoRaWAN: berechneter Uplink-Zeitpunkt erreicht"
+    }
   }
 }

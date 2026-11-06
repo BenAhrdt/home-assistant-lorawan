@@ -50,6 +50,17 @@ entities from decoded payload values.
 <img width="1065" height="890" alt="image" src="https://github.com/user-attachments/assets/92530515-aca4-4701-9431-ecdff6a2a89b" />
 
 
+## Temperatur-Blueprint
+
+Optionaler [Blueprint für externe Vicki-Raumtemperaturen](blueprints/automation/lorawan/room_external_temperature.yaml)
+mit Label-Auswahl; eine Automation für alle Räume. Voraussetzung: LoRaWAN ab 0.1.38.
+
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Froom_external_temperature.yaml)
+
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/7.-Blueprint-Raumtemperatur) beschreibt
+Einrichtung, Prüfung und Updates. Bestehende manuelle Installationen können
+erhalten bleiben.
+
 ## Wiki
 
 [Link to HomeAssistant LoRaWAN Wiki](https://github.com/BenAhrdt/home-assistant-lorawan/wiki)
@@ -190,3 +201,111 @@ Network regression checks: `python3 -m unittest discover -s tests -v` and
 Version 0.1.34 replaces the initial column layout with a spatial map and uses a
 new layout-storage key, so the previous tiny viewport is not restored. Solid
 lines indicate radio reception; faint dashed lines indicate logical membership.
+
+## Integration-calculated uplink triggers
+
+Every device has optional **LoRaWAN uplink** configuration entities on its Home
+Assistant device page. This is a calculation performed by the integration, not
+an event reported by the physical device. It does not send downlinks.
+
+- **Trigger mode** defaults to disabled. Choose **Automatic** to estimate the
+  next uplink from the last two accepted uplinks and trigger before it, or
+  **Time after uplink** to trigger a fixed number of seconds after an accepted
+  uplink.
+- **Lead time** defaults to 20 seconds; **time after uplink** to 580 seconds.
+- **Minimum uplink spacing** defaults to 30 seconds. Uplinks arriving sooner
+  than this after the accepted anchor are ignored for scheduling only. They
+  neither change the interval nor move or duplicate the pending trigger.
+- The automatic interval is measured between accepted uplinks, not averaged.
+  Choose a minimum spacing appropriate to the device's normal reporting cycle.
+  Predictions are useful for periodic devices; irregular uplinks remain uncertain.
+- Diagnostic timestamp entities are disabled by default and can be enabled
+  individually on the device page without affecting trigger execution. Existing
+  registry choices are preserved. They show the next calculated trigger, next expected
+  uplink (automatic mode), and last trigger. Names carry the LoRaWAN prefix and
+  attributes identify the integration as the source.
+
+In an automation, choose the device and **LoRaWAN: calculated uplink time
+reached**. Alternatively, listen for the `lorawan_uplink_schedule` event.
+Both expose the payload through `trigger.event.data`:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: lorawan_uplink_schedule
+    event_data:
+      device_id: YOUR_HOME_ASSISTANT_DEVICE_ID
+actions:
+  - action: persistent_notification.create
+    data:
+      message: >-
+        {{ trigger.event.data.device_name }}:
+        {{ trigger.event.data.area_name or 'No area' }}
+```
+
+Payload fields:
+
+| Field | Meaning |
+| --- | --- |
+| `source` | `lorawan` |
+| `mode` | `automatic` or `after_uplink` |
+| `device_id`, `dev_eui`, `config_entry_id` | HA device, radio identity, and LNS entry |
+| `device_name` | Current HA user-defined name, falling back to the device name |
+| `area_id`, `area_name` | Current device area, or `null` if unassigned |
+| `interval_seconds` | Last accepted uplink interval; `null` for the first anchor |
+| `offset_seconds` | Negative lead in automatic mode; positive delay otherwise |
+| `last_uplink` | Accepted anchor's local reception time, in UTC ISO format |
+| `expected_next_uplink` | Predicted UTC ISO timestamp, or `null` in fixed-delay mode |
+| `scheduled_for` | Scheduled UTC ISO trigger timestamp |
+
+Names and area assignments are resolved at trigger time. Settings survive reloads
+and restarts; anchors and pending timers deliberately do not. Changing any setting
+cancels the pending timer and starts learning again with fresh uplinks. Automatic
+mode needs two accepted uplinks; fixed-delay mode needs one. Each plan fires at
+most once and never repeats without a new accepted uplink. If the automatic lead
+is greater than or equal to the observed interval, no trigger is scheduled for
+that cycle. Only actual `up`/`uplink` messages participate, not join, acknowledgement,
+or downlink messages. Predictions do not guarantee a radio receive window.
+
+### Control references in the trigger payload
+
+`trigger.event.data.controls` maps stable technical keys to the current entity
+IDs of writable LoRaWAN entities belonging to the triggering device and LNS.
+For example (actual entity IDs depend on your installation):
+
+```yaml
+controls:
+  external_temperature: number.vicki_externaltemperature
+  target_temperature: number.vicki_targettemperature
+  mode2: switch.vicki_mode2
+```
+
+A Vicki automation can therefore address the target without an entity selector:
+
+```yaml
+action: number.set_value
+target:
+  entity_id: "{{ trigger.event.data.controls.external_temperature }}"
+data:
+  value: "{{ room_temperature }}"
+```
+
+This action fragment assumes the automation has already resolved and validated
+`room_temperature`, and checked that `external_temperature` exists in `controls`.
+An external automation or blueprint can use the trigger's `area_id` and a label
+such as `primaryRoomTemperature` on the preferred sensor entity. Sensor selection
+and label assignment are not performed by the integration.
+
+Downlink keys come from technical profile parameter names, normalized to snake
+case (`ExternalTemperature` → `external_temperature`, `Mode2` → `mode2`), or an
+explicit `automation_key` in the parameter definition. HA friendly-name and
+entity-ID changes do not change these keys. Changing the technical profile name
+changes its key unless an explicit key is provided. Other writable entities,
+including composed entities and configuration controls, use their stable unique-ID
+suffix with the entity domain as prefix (for example `climate_<definition-id>`).
+
+Entity IDs are resolved from the registry when the event fires. Disabled entities,
+read-only sensors, stale downlink entries and entities from other devices or LNS
+entries are excluded. Ambiguous keys are omitted rather than choosing a target
+arbitrarily. An empty device mapping is emitted as `controls: {}`. Availability
+and sensor validity should still be checked by the consuming automation.

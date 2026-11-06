@@ -44,6 +44,7 @@ from .const import (
 from .models import LoRaWANDevice, LoRaWANMessage, LoRaWANValue
 from .normalizer import normalize_message
 from .uplinks import UPLINK_HISTORY_LIMIT, remember_uplink
+from .uplink_scheduler import UplinkScheduler
 from .downlinks import (
     INTERNAL_BASE_PROFILE,
     downlink_message,
@@ -66,6 +67,7 @@ class LoRaWANRuntime:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+        self.uplink_scheduler = UplinkScheduler(self)
         config = dict(entry.data)
         config.update(entry.options)
         self.host: str = config.get(CONF_HOST, "")
@@ -174,6 +176,7 @@ class LoRaWANRuntime:
 
     async def async_stop(self) -> None:
         """Stop the MQTT client."""
+        self.uplink_scheduler.stop()
         if self._unsub_offline_timer is not None:
             self._unsub_offline_timer()
             self._unsub_offline_timer = None
@@ -432,6 +435,8 @@ class LoRaWANRuntime:
             if not value.key.startswith("device_"):
                 value.attributes.update(message.attributes)
             self._store_value(device, value)
+        if message.message_type.casefold() in {"up", "uplink"}:
+            self.uplink_scheduler.observe(device.dev_eui)
         self._send_queued_downlink(device)
         self.hass.async_create_task(self.async_save_cache())
 

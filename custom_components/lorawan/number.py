@@ -9,10 +9,12 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .const import DOMAIN, SIGNAL_ADD_DOWNLINK_CONTROL, SIGNAL_REMOVE_DOWNLINK_CONTROL
 from .downlink_entity import LoRaWANDownlinkEntity
 from .runtime import LoRaWANRuntime, add_runtime_listener
+from .schedule_entity import setup_schedule_entities
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     runtime: LoRaWANRuntime = hass.data[DOMAIN][entry.entry_id]
+    setup_schedule_entities(runtime, entry, async_add_entities, "number")
     added: set[str] = set()
     entities = {}
 

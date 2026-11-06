@@ -854,6 +854,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     runtime = LoRaWANRuntime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
 
+    await runtime.uplink_scheduler.async_load()
     await runtime.async_start()
     _remove_stale_downlink_entities(hass, entry, runtime)
     _remove_stale_climate_entities(hass, entry)

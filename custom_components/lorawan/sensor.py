@@ -14,6 +14,7 @@ from .assigner import assign_value
 from .const import DOMAIN, SIGNAL_ADD_SENSOR
 from .entity import LoRaWANEntity, state_value
 from .runtime import LoRaWANRuntime, add_runtime_listener
+from .schedule_entity import setup_schedule_entities
 
 
 async def async_setup_entry(
@@ -23,6 +24,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up LoRaWAN sensors."""
     runtime: LoRaWANRuntime = hass.data[DOMAIN][entry.entry_id]
+    setup_schedule_entities(runtime, entry, async_add_entities, "sensor")
     added: set[str] = set()
 
     @callback
