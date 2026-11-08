@@ -71,6 +71,13 @@ class ControlReferencesTests(unittest.TestCase):
                      entity_id=f"{domain}.test")
         self.assertEqual(len(self.refs()), 5)
 
+    def test_motor_calibration_button_has_blueprint_contract_key(self):
+        self.add(name="MotorCalibration", suffix="downlink_button_motorcalibration",
+                 entity_id="button.motor_calibration")
+        self.assertEqual(self.refs(), {
+            "motor_calibration": "button.motor_calibration",
+        })
+
 
 if __name__ == "__main__":
     unittest.main()

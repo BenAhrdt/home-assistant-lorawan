@@ -50,16 +50,30 @@ entities from decoded payload values.
 <img width="1065" height="890" alt="image" src="https://github.com/user-attachments/assets/92530515-aca4-4701-9431-ecdff6a2a89b" />
 
 
-## Temperatur-Blueprint
+## Blueprints
+
+### Externe Raumtemperatur
 
 Optionaler [Blueprint für externe Vicki-Raumtemperaturen](blueprints/automation/lorawan/room_external_temperature.yaml)
 mit Label-Auswahl; eine Automation für alle Räume. Voraussetzung: LoRaWAN ab 0.1.38.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Froom_external_temperature.yaml)
 
-Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/7.-Blueprint-Raumtemperatur) beschreibt
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/7.-Blueprint-Room-temperature) beschreibt
 Einrichtung, Prüfung und Updates. Bestehende manuelle Installationen können
 erhalten bleiben.
+
+### Wöchentliche Motorkalibrierung
+
+Optionaler [Blueprint für die regelmäßige Vicki-Motorkalibrierung](blueprints/automation/lorawan/weekly_motor_calibration.yaml).
+Wochentag, Uhrzeit, die Vicki-Geräte sowie der Uplink-Zyklus vor oder nach
+dem Zeitpunkt sind auswählbar. Voraussetzung: LoRaWAN ab 0.1.38 und der
+Uplink-Zeittrigger im Modus `automatic` an jedem ausgewählten Gerät.
+
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fweekly_motor_calibration.yaml)
+
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/8.-Blueprint-Motor-calibration)
+beschreibt Einrichtung, Zeitlogik, Wiederholungsschutz und Diagnose.
 
 ## Wiki
 

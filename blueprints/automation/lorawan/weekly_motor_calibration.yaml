@@ -1,0 +1,203 @@
+blueprint:
+  name: "LoRaWAN – Wöchentliche Vicki-Motorkalibrierung"
+  description: >-
+    Führt die MotorCalibration ausgewählter Vicki-Thermostate einmal pro Woche
+    im letzten vorhergesagten Uplink-Zyklus vor oder im ersten Zyklus nach dem
+    gewählten Zeitpunkt aus. Benötigt LoRaWAN ab 0.1.38 und für jedes Gerät den
+    Uplink-Zeittrigger im Modus automatic. Der Blueprint reagiert ausschließlich
+    auf echte lorawan_uplink_schedule-Ereignisse, prüft das auslösende Gerät und
+    verwendet nur dessen aktuelles motor_calibration-Control. Fehlt oder ist das
+    Control deaktiviert, wird ohne Downlink abgebrochen. Die Vicki-Versandart
+    bleibt maßgeblich; bei "enabled & collect" wird der Befehl bis zum passenden
+    Uplink vorgemerkt. Ein verpasster Uplink kann die tatsächliche Übertragung
+    verschieben. Eine Betätigung des Buttons innerhalb eines halben Wochenabstands
+    zum Termin gilt bereits als Kalibrierung dieses Wochenzeitpunkts.
+  domain: automation
+  source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/weekly_motor_calibration.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    calibration_devices:
+      name: Vicki-Geräte
+      description: >-
+        Die Thermostate, deren Motor regelmäßig kalibriert werden soll. Zur
+        Laufzeit wird zusätzlich geprüft, ob das jeweilige Gerät ein aktives
+        MotorCalibration-Control anbietet.
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+              model: Vicki
+    calibration_weekday:
+      name: Wochentag
+      default: sun
+      selector:
+        select:
+          options:
+            - label: Montag
+              value: mon
+            - label: Dienstag
+              value: tue
+            - label: Mittwoch
+              value: wed
+            - label: Donnerstag
+              value: thu
+            - label: Freitag
+              value: fri
+            - label: Samstag
+              value: sat
+            - label: Sonntag
+              value: sun
+          mode: dropdown
+    calibration_time:
+      name: Uhrzeit
+      description: >-
+        Lokale Home-Assistant-Zeit, um die der ausgewählte Uplink-Zyklus liegen
+        soll. Die tatsächliche Übertragung hängt vom nächsten echten Uplink ab.
+      default: "12:00:00"
+      selector:
+        time: {}
+    calibration_cycle:
+      name: Uplink-Zyklus
+      default: before
+      selector:
+        select:
+          options:
+            - label: Letzter Zyklus vor dem Zeitpunkt (empfohlen)
+              value: before
+            - label: Erster Zyklus nach dem Zeitpunkt
+              value: after
+          mode: list
+
+mode: queued
+max: 100
+max_exceeded: warning
+
+variables:
+  calibration_devices: !input calibration_devices
+  calibration_weekday: !input calibration_weekday
+  calibration_time: !input calibration_time
+  calibration_cycle: !input calibration_cycle
+
+triggers:
+  - trigger: event
+    event_type: lorawan_uplink_schedule
+    event_data:
+      source: lorawan
+
+actions:
+  - alias: Nur mit echtem Uplink-Zeittrigger fortfahren
+    if:
+      - condition: template
+        value_template: >-
+          {{ trigger is not defined or trigger.event is not defined }}
+    then:
+      - stop: "Kein Ereignis vorhanden. Zum Test auf einen Uplink-Zeittrigger warten."
+  - variables:
+      event_data: "{{ trigger.event.data }}"
+      trigger_device: "{{ trigger.event.data.get('device_id') or '' }}"
+  - alias: Automatischen Uplink-Zeittrigger verlangen
+    if:
+      - condition: template
+        value_template: "{{ event_data.get('mode') != 'automatic' }}"
+    then:
+      - stop: >-
+          Der Uplink-Zeittrigger des Geräts ist nicht auf automatic gestellt.
+  - alias: Nur ausgewählte Geräte verwenden
+    if:
+      - condition: template
+        value_template: >-
+          {{ not trigger_device or trigger_device not in calibration_devices }}
+    then:
+      - stop: "Das auslösende Gerät ist nicht für die Motorkalibrierung ausgewählt."
+  - variables:
+      controls: "{{ event_data.get('controls', {}) }}"
+  - variables:
+      target_button: >-
+        {{ controls.get('motor_calibration', '') if controls is mapping else '' }}
+  - alias: MotorCalibration-Control prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {{ not target_button.startswith('button.')
+             or device_id(target_button) != trigger_device
+             or states(target_button) == 'unavailable' }}
+    then:
+      - stop: >-
+          Das Gerät bietet kein aktives und verfügbares MotorCalibration-Control an.
+  - variables:
+      expected_timestamp: >-
+        {{ as_timestamp(event_data.get('expected_next_uplink'), default=none) }}
+      last_uplink_timestamp: >-
+        {{ as_timestamp(event_data.get('last_uplink'), default=none) }}
+      interval_seconds: "{{ event_data.get('interval_seconds') }}"
+  - alias: Vollständige automatische Vorhersage verlangen
+    if:
+      - condition: template
+        value_template: >-
+          {{ not is_number(expected_timestamp)
+             or not is_number(last_uplink_timestamp)
+             or not is_number(interval_seconds)
+             or (interval_seconds | float) <= 0 }}
+    then:
+      - stop: >-
+          Für das Gerät liegt noch keine vollständige automatische Uplink-Vorhersage vor.
+  - variables:
+      target_timestamp: >-
+        {% set weekdays = {
+          'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3,
+          'fri': 4, 'sat': 5, 'sun': 6
+        } %}
+        {% set expected_local = as_local(as_datetime(expected_timestamp)) %}
+        {% set date_offset = (expected_local.date() - now().date()).days %}
+        {% set reference = today_at(calibration_time) + timedelta(days=date_offset) %}
+        {% set selected_weekday = weekdays[calibration_weekday] %}
+        {% if calibration_cycle == 'before' %}
+          {% set days = (selected_weekday - expected_local.weekday()) % 7 %}
+          {% set candidate = reference + timedelta(days=days) %}
+          {% if as_timestamp(candidate) < (expected_timestamp | float) %}
+            {% set candidate = candidate + timedelta(days=7) %}
+          {% endif %}
+        {% else %}
+          {% set days = (expected_local.weekday() - selected_weekday) % 7 %}
+          {% set candidate = reference - timedelta(days=days) %}
+          {% if as_timestamp(candidate) > (expected_timestamp | float) %}
+            {% set candidate = candidate - timedelta(days=7) %}
+          {% endif %}
+        {% endif %}
+        {{ as_timestamp(candidate) }}
+  - alias: Nur den gewählten Zyklus am Wochenzeitpunkt verwenden
+    if:
+      - condition: template
+        value_template: >-
+          {% set expected = expected_timestamp | float %}
+          {% set target = target_timestamp | float %}
+          {% set interval = interval_seconds | float %}
+          {{ not (
+            (calibration_cycle == 'before'
+             and expected <= target < expected + interval)
+            or
+            (calibration_cycle == 'after'
+             and expected - interval < target <= expected)
+          ) }}
+    then:
+      - stop: "Dieser Uplink-Zyklus liegt nicht am gewählten Wochenzeitpunkt."
+  - variables:
+      last_press_timestamp: >-
+        {{ as_timestamp(states(target_button), default=0) }}
+      already_calibrated: >-
+        {{ (last_press_timestamp | float) > 0
+           and (((last_press_timestamp | float) - (target_timestamp | float)) | abs)
+               < 302400 }}
+  - alias: Doppelte Kalibrierung desselben Wochenzeitpunkts vermeiden
+    if:
+      - condition: template
+        value_template: "{{ already_calibrated }}"
+    then:
+      - stop: >-
+          MotorCalibration wurde für diesen Wochenzeitpunkt bereits betätigt.
+  - alias: Motorkalibrierung für den passenden Uplink vormerken
+    action: button.press
+    target:
+      entity_id: "{{ target_button }}"

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Optionaler Blueprint für die wöchentliche Vicki-Motorkalibrierung mit
+  Geräteauswahl, lokalem Wochentag und Uhrzeit sowie Auswahl des letzten
+  Uplink-Zyklus davor oder des ersten danach. Laufzeitprüfung verlangt den
+  automatischen Uplink-Zeittrigger und ein aktives `motor_calibration`-Control.
+
 ## 0.1.38 - 2026-11-06
 
 - Optionaler Temperatur-Blueprint mit Label-Auswahl im Repository; Import-Link
