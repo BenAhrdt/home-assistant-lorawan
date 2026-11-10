@@ -37,7 +37,6 @@ blueprint:
                 date: {}
             time:
               label: Zeitpunkt – Uhrzeit (optional)
-              description: Standard ist 00:05 Uhr.
               required: false
               default: "00:05:00"
               selector:

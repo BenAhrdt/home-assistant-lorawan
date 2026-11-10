@@ -105,6 +105,7 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         self.assertEqual(set(meta["input"]), {"schedule"})
         schedule_selector = meta["input"]["schedule"]["selector"]["object"]
         self.assertTrue(schedule_selector["multiple"])
+        self.assertNotIn("description", schedule_selector["fields"]["time"])
         self.assertEqual(
             self.blueprint["triggers"],
             [{"trigger": "time_pattern", "minutes": "/1"}],

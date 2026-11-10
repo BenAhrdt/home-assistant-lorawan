@@ -4,6 +4,11 @@
 
 _(No unreleased changes.)_
 
+## 0.1.43 - 2026-11-10
+
+- Fehlerkorrektur am verschachtelten AutoIntervall-Object-Selector: ungültige
+  Feldoption entfernt, damit der Blueprint wieder importiert werden kann.
+
 ## 0.1.42 - 2026-11-10
 
 - Der AutoIntervall-Blueprint verwendet wiederholbare Zeitplanzeilen mit
