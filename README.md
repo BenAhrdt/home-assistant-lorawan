@@ -90,7 +90,7 @@ werden berücksichtigt.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml)
 
-Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/10.-Blueprint-Automatic-interval)
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/9.1.-Blueprint-Automatic-interval)
 beschreibt die Zeitraum- und Gerätezuweisungen.
 
 ### Wöchentliche Motorkalibrierung
