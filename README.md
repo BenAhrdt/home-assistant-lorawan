@@ -61,7 +61,7 @@ Voraussetzung: LoRaWAN ab 0.1.39.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Froom_external_temperature.yaml)
 
-Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/7.-Blueprint-Room-temperature) beschreibt
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.-Blueprint-Room-temperature) beschreibt
 Einrichtung, Prüfung und Updates. Bestehende manuelle Installationen können
 erhalten bleiben.
 
@@ -90,7 +90,7 @@ werden berücksichtigt.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml)
 
-Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/9.1.-Blueprint-Automatic-interval)
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/10.-Blueprint-Automatic-interval)
 beschreibt die Zeitraum- und Gerätezuweisungen.
 
 ### Wöchentliche Motorkalibrierung
@@ -104,7 +104,7 @@ können beim Erstellen der Automation angepasst werden.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fweekly_motor_calibration.yaml)
 
-Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/8.-Blueprint-Motor-calibration)
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/08.-Blueprint-Motor-calibration)
 beschreibt Einrichtung, Diagnose und die zeitbasierte Ausführung.
 
 ## Wiki
