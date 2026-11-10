@@ -83,14 +83,13 @@ Optionaler [Blueprint für die regelmäßige Vicki-Motorkalibrierung](blueprints
 Wochentag, Uhrzeit und die Vicki-Geräte sind auswählbar. Die Kalibrierung wird
 direkt zum lokalen Zeitpunkt ausgeführt und benötigt keinen Uplink-Zeittrigger.
 Voraussetzung: LoRaWAN mit dem technischen `lorawan_control_key` an den
-Downlink-Entitäten. Die frühere Uplink-Zyklus-Auswahl bleibt nur für bestehende
-Automationen sichtbar und wird nicht mehr ausgewertet.
+Downlink-Entitäten. Die Standard-Uhrzeit ist 10:00 Uhr; Wochentag und Uhrzeit
+können beim Erstellen der Automation angepasst werden.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fweekly_motor_calibration.yaml)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/8.-Blueprint-Motor-calibration)
-beschreibt Einrichtung und Diagnose; die veröffentlichte Wiki-Seite muss für
-die neue zeitbasierte Ausführung noch aktualisiert werden.
+beschreibt Einrichtung, Diagnose und die zeitbasierte Ausführung.
 
 ## Wiki
 

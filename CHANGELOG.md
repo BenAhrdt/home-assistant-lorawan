@@ -4,6 +4,12 @@
 
 _(No unreleased changes.)_
 
+## 0.1.40 - 2026-11-10
+
+- Der Motorkalibrierungs-Blueprint zeigt keine veraltete Uplink-Zyklus-Auswahl
+  mehr an. Die Standard-Uhrzeit ist 10:00 Uhr; Wochentag und Uhrzeit bleiben
+  frei konfigurierbar.
+
 ## 0.1.39 - 2026-11-10
 
 - Optionaler Blueprint für die wöchentliche Vicki-Motorkalibrierung mit

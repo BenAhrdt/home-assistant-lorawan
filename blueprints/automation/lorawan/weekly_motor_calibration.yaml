@@ -51,23 +51,9 @@ blueprint:
     calibration_time:
       name: Uhrzeit
       description: Lokale Home-Assistant-Zeit, zu der die Kalibrierung ausgeführt wird.
-      default: "12:00:00"
+      default: "10:00:00"
       selector:
         time: {}
-    calibration_cycle:
-      name: Veraltete Uplink-Zyklus-Auswahl
-      description: >-
-        Nur für bestehende Automationen beibehalten. Diese Auswahl wird bei der
-        direkten Zeitsteuerung nicht mehr verwendet.
-      default: before
-      selector:
-        select:
-          options:
-            - label: Vorher (veraltet)
-              value: before
-            - label: Nachher (veraltet)
-              value: after
-          mode: list
 
 mode: single
 max_exceeded: warning

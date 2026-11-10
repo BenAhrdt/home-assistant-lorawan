@@ -30,8 +30,7 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
         self.inputs = {
             "calibration_devices": ["vicki-one", "vicki-two"],
             "calibration_weekday": "sun",
-            "calibration_time": "12:00:00",
-            "calibration_cycle": "before",
+            "calibration_time": "10:00:00",
         }
         self.entities_by_device = {
             "vicki-one": ["button.vicki_one_motor", "button.vicki_one_infos"],
@@ -91,6 +90,7 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
     def test_input_selector_and_time_trigger(self):
         meta = self.blueprint["blueprint"]
         self.assertEqual(set(meta["input"]), set(self.inputs))
+        self.assertEqual(meta["input"]["calibration_time"]["default"], "10:00:00")
         selector = meta["input"]["calibration_devices"]["selector"]["device"]
         self.assertTrue(selector["multiple"])
         self.assertEqual(
@@ -107,8 +107,6 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
             result["target"],
             {"entity_id": ["button.vicki_one_motor", "button.vicki_two_motor"]},
         )
-        self.inputs["calibration_cycle"] = "after"
-        self.assertEqual(self.run_blueprint()["target"], result["target"])
 
     def test_weekday_and_manual_runs_stop(self):
         self.now = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)  # Monday
