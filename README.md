@@ -55,7 +55,9 @@ entities from decoded payload values.
 ### Externe Raumtemperatur
 
 Optionaler [Blueprint für externe Vicki-Raumtemperaturen](blueprints/automation/lorawan/room_external_temperature.yaml)
-mit Label-Auswahl; eine Automation für alle Räume. Voraussetzung: LoRaWAN ab 0.1.38.
+mit Label-Auswahl und optionaler Vicki-Geräteauswahl; eine Automation für alle
+Räume. Eine leere Geräteauswahl lässt alle passenden Vicki-Geräte zu.
+Voraussetzung: LoRaWAN ab 0.1.39.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Froom_external_temperature.yaml)
 
@@ -63,17 +65,32 @@ Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lo
 Einrichtung, Prüfung und Updates. Bestehende manuelle Installationen können
 erhalten bleiben.
 
+### Verzögerter Next Send Push
+
+Der [Blueprint für den verzögerten Next Send Push](blueprints/automation/lorawan/next_send_push.yaml)
+wartet nach dem Uplink-Zeittrigger standardmäßig fünf Sekunden, damit andere
+Blueprints ihre Downlinks sammeln können. Anschließend wird der aktuelle
+`Next Send Hex`-Diagnosewert geprüft und der Push-Button des auslösenden Geräts
+höchstens einmal betätigt. Eine leere Geräteauswahl gilt für alle LoRaWAN-Geräte;
+die Auswahl kann den Push unabhängig von anderen triggerbasierten Blueprints auf
+bestimmte Geräte begrenzen.
+
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fnext_send_push.yaml)
+
 ### Wöchentliche Motorkalibrierung
 
 Optionaler [Blueprint für die regelmäßige Vicki-Motorkalibrierung](blueprints/automation/lorawan/weekly_motor_calibration.yaml).
-Wochentag, Uhrzeit, die Vicki-Geräte sowie der Uplink-Zyklus vor oder nach
-dem Zeitpunkt sind auswählbar. Voraussetzung: LoRaWAN ab 0.1.38 und der
-Uplink-Zeittrigger im Modus `automatic` an jedem ausgewählten Gerät.
+Wochentag, Uhrzeit und die Vicki-Geräte sind auswählbar. Die Kalibrierung wird
+direkt zum lokalen Zeitpunkt ausgeführt und benötigt keinen Uplink-Zeittrigger.
+Voraussetzung: LoRaWAN mit dem technischen `lorawan_control_key` an den
+Downlink-Entitäten. Die frühere Uplink-Zyklus-Auswahl bleibt nur für bestehende
+Automationen sichtbar und wird nicht mehr ausgewertet.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fweekly_motor_calibration.yaml)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/8.-Blueprint-Motor-calibration)
-beschreibt Einrichtung, Zeitlogik, Wiederholungsschutz und Diagnose.
+beschreibt Einrichtung und Diagnose; die veröffentlichte Wiki-Seite muss für
+die neue zeitbasierte Ausführung noch aktualisiert werden.
 
 ## Wiki
 
@@ -309,6 +326,62 @@ This action fragment assumes the automation has already resolved and validated
 An external automation or blueprint can use the trigger's `area_id` and a label
 such as `primaryRoomTemperature` on the preferred sensor entity. Sensor selection
 and label assignment are not performed by the integration.
+
+### Structured device context
+
+The event also carries a versioned context for blueprints that need more than a
+single control:
+
+```yaml
+schema_version: 1
+trigger_id: "entry:DEV_EUI:2026-11-06T12:00:00+00:00"
+triggered_at: "2026-11-06T12:00:00+00:00"
+device:
+  ha_device_id: "..."
+  lorawan_device_id: "..."
+  dev_eui: "..."
+  name: "Vicki living room"
+  network_name: "Vicki-01"
+  device_type: "Vicki"
+  area_id: "..."
+  area_name: "Living room"
+  config_entry_id: "..."
+  network: "ttn"
+  application_id: "..."
+  application_name: "..."
+schedule:
+  mode: automatic
+  interval_seconds: 600
+  offset_seconds: -20
+  last_uplink: "..."
+  expected_next_uplink: "..."
+  scheduled_for: "..."
+entities:
+  controls:
+    external_temperature: number.vicki_external_temperature
+    next_send_push: button.vicki_next_send_push
+  sensors:
+    room_temperature: sensor.room_temperature
+  binary_sensors:
+    online: binary_sensor.vicki_online
+  diagnostics:
+    next_send_hex: sensor.vicki_next_send_hex
+    last_send_hex: sensor.vicki_last_send_hex
+```
+
+The existing top-level fields and `controls` mapping remain for compatibility.
+The structured mappings contain only active, current registry entities for the
+triggering device and LNS entry. Technical keys are derived from integration
+keys and stable unique IDs, not friendly names. Disabled, stale, foreign and
+ambiguous entities are omitted. The event carries entity references rather than
+state snapshots; a blueprint should read the referenced state when it acts,
+which is important after a delay such as a deferred `Next Send Push`.
+
+Each active LoRaWAN downlink control also exposes its normalized technical key
+as the `lorawan_control_key` entity attribute. A time-based blueprint can use
+`device_entities(device_id)` and this attribute to find a specific control such
+as `motor_calibration` without relying on a user-editable entity ID or a prior
+uplink event.
 
 Downlink keys come from technical profile parameter names, normalized to snake
 case (`ExternalTemperature` → `external_temperature`, `Mode2` → `mode2`), or an

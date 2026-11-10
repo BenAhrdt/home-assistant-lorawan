@@ -1,17 +1,15 @@
 blueprint:
   name: "LoRaWAN – Wöchentliche Vicki-Motorkalibrierung"
   description: >-
-    Führt die MotorCalibration ausgewählter Vicki-Thermostate einmal pro Woche
-    im letzten vorhergesagten Uplink-Zyklus vor oder im ersten Zyklus nach dem
-    gewählten Zeitpunkt aus. Benötigt LoRaWAN ab 0.1.38 und für jedes Gerät den
-    Uplink-Zeittrigger im Modus automatic. Der Blueprint reagiert ausschließlich
-    auf echte lorawan_uplink_schedule-Ereignisse, prüft das auslösende Gerät und
-    verwendet nur dessen aktuelles motor_calibration-Control. Fehlt oder ist das
-    Control deaktiviert, wird ohne Downlink abgebrochen. Die Vicki-Versandart
-    bleibt maßgeblich; bei "enabled & collect" wird der Befehl bis zum passenden
-    Uplink vorgemerkt. Ein verpasster Uplink kann die tatsächliche Übertragung
-    verschieben. Eine Betätigung des Buttons innerhalb eines halben Wochenabstands
-    zum Termin gilt bereits als Kalibrierung dieses Wochenzeitpunkts.
+    Betätigt den MotorCalibration-Button ausgewählter Vicki-Thermostate jede
+    Woche am gewählten lokalen Wochentag und zur gewählten Uhrzeit. Die
+    Geräteauswahl ist auf die LoRaWAN-Integration und das Modell Vicki begrenzt.
+    Zur Laufzeit wird zusätzlich geprüft, ob jedes ausgewählte Gerät genau ein
+    aktives MotorCalibration-Control anbietet. Der Blueprint benötigt keinen
+    Uplink-Zeittrigger. Die Vicki-Versandart bleibt maßgeblich; bei
+    "enabled & collect" wird der Befehl vorgemerkt. Der separate Next-Send-
+    Blueprint kann den gesammelten Downlink anschließend vor dem nächsten
+    Uplink pushen.
   domain: automation
   source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/weekly_motor_calibration.yaml
   homeassistant:
@@ -21,8 +19,8 @@ blueprint:
       name: Vicki-Geräte
       description: >-
         Die Thermostate, deren Motor regelmäßig kalibriert werden soll. Zur
-        Laufzeit wird zusätzlich geprüft, ob das jeweilige Gerät ein aktives
-        MotorCalibration-Control anbietet.
+        Laufzeit wird zusätzlich geprüft, ob jedes Gerät ein aktives und
+        eindeutiges MotorCalibration-Control anbietet.
       selector:
         device:
           multiple: true
@@ -52,152 +50,89 @@ blueprint:
           mode: dropdown
     calibration_time:
       name: Uhrzeit
-      description: >-
-        Lokale Home-Assistant-Zeit, um die der ausgewählte Uplink-Zyklus liegen
-        soll. Die tatsächliche Übertragung hängt vom nächsten echten Uplink ab.
+      description: Lokale Home-Assistant-Zeit, zu der die Kalibrierung ausgeführt wird.
       default: "12:00:00"
       selector:
         time: {}
     calibration_cycle:
-      name: Uplink-Zyklus
+      name: Veraltete Uplink-Zyklus-Auswahl
+      description: >-
+        Nur für bestehende Automationen beibehalten. Diese Auswahl wird bei der
+        direkten Zeitsteuerung nicht mehr verwendet.
       default: before
       selector:
         select:
           options:
-            - label: Letzter Zyklus vor dem Zeitpunkt (empfohlen)
+            - label: Vorher (veraltet)
               value: before
-            - label: Erster Zyklus nach dem Zeitpunkt
+            - label: Nachher (veraltet)
               value: after
           mode: list
 
-mode: queued
-max: 100
+mode: single
 max_exceeded: warning
 
 variables:
   calibration_devices: !input calibration_devices
   calibration_weekday: !input calibration_weekday
-  calibration_time: !input calibration_time
-  calibration_cycle: !input calibration_cycle
 
 triggers:
-  - trigger: event
-    event_type: lorawan_uplink_schedule
-    event_data:
-      source: lorawan
+  - trigger: time
+    at: !input calibration_time
 
 actions:
-  - alias: Nur mit echtem Uplink-Zeittrigger fortfahren
+  - alias: Nur mit echtem Zeittrigger fortfahren
     if:
       - condition: template
         value_template: >-
-          {{ trigger is not defined or trigger.event is not defined }}
+          {{ trigger is not defined or trigger.platform != 'time' }}
     then:
-      - stop: "Kein Ereignis vorhanden. Zum Test auf einen Uplink-Zeittrigger warten."
-  - variables:
-      event_data: "{{ trigger.event.data }}"
-      trigger_device: "{{ trigger.event.data.get('device_id') or '' }}"
-  - alias: Automatischen Uplink-Zeittrigger verlangen
-    if:
-      - condition: template
-        value_template: "{{ event_data.get('mode') != 'automatic' }}"
-    then:
-      - stop: >-
-          Der Uplink-Zeittrigger des Geräts ist nicht auf automatic gestellt.
-  - alias: Nur ausgewählte Geräte verwenden
+      - stop: "Kein Zeittrigger vorhanden. Zum nächsten gewählten Zeitpunkt warten."
+  - alias: Gewählten Wochentag prüfen
     if:
       - condition: template
         value_template: >-
-          {{ not trigger_device or trigger_device not in calibration_devices }}
+          {% set weekdays = {
+            'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3,
+            'fri': 4, 'sat': 5, 'sun': 6
+          } %}
+          {{ calibration_weekday not in weekdays
+             or now().weekday() != weekdays[calibration_weekday] }}
     then:
-      - stop: "Das auslösende Gerät ist nicht für die Motorkalibrierung ausgewählt."
+      - stop: "Heute ist nicht der gewählte Wochentag."
   - variables:
-      controls: "{{ event_data.get('controls', {}) }}"
-  - variables:
-      target_button: >-
-        {{ controls.get('motor_calibration', '') if controls is mapping else '' }}
-  - alias: MotorCalibration-Control prüfen
-    if:
-      - condition: template
-        value_template: >-
-          {{ not target_button.startswith('button.')
-             or device_id(target_button) != trigger_device
-             or states(target_button) == 'unavailable' }}
-    then:
-      - stop: >-
-          Das Gerät bietet kein aktives und verfügbares MotorCalibration-Control an.
-  - variables:
-      expected_timestamp: >-
-        {{ as_timestamp(event_data.get('expected_next_uplink'), default=none) }}
-      last_uplink_timestamp: >-
-        {{ as_timestamp(event_data.get('last_uplink'), default=none) }}
-      interval_seconds: "{{ event_data.get('interval_seconds') }}"
-  - alias: Vollständige automatische Vorhersage verlangen
-    if:
-      - condition: template
-        value_template: >-
-          {{ not is_number(expected_timestamp)
-             or not is_number(last_uplink_timestamp)
-             or not is_number(interval_seconds)
-             or (interval_seconds | float) <= 0 }}
-    then:
-      - stop: >-
-          Für das Gerät liegt noch keine vollständige automatische Uplink-Vorhersage vor.
-  - variables:
-      target_timestamp: >-
-        {% set weekdays = {
-          'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3,
-          'fri': 4, 'sat': 5, 'sun': 6
-        } %}
-        {% set expected_local = as_local(as_datetime(expected_timestamp)) %}
-        {% set date_offset = (expected_local.date() - now().date()).days %}
-        {% set reference = today_at(calibration_time) + timedelta(days=date_offset) %}
-        {% set selected_weekday = weekdays[calibration_weekday] %}
-        {% if calibration_cycle == 'before' %}
-          {% set days = (selected_weekday - expected_local.weekday()) % 7 %}
-          {% set candidate = reference + timedelta(days=days) %}
-          {% if as_timestamp(candidate) < (expected_timestamp | float) %}
-            {% set candidate = candidate + timedelta(days=7) %}
+      target_resolution: >-
+        {% set ns = namespace(buttons=[], unresolved=[]) %}
+        {% for selected_device in calibration_devices %}
+          {% set candidates = namespace(entities=[]) %}
+          {% for entity_id in device_entities(selected_device) %}
+            {% if entity_id.startswith('button.')
+                  and device_id(entity_id) == selected_device
+                  and state_attr(entity_id, 'lorawan_control_key') == 'motor_calibration' %}
+              {% set candidates.entities = candidates.entities + [entity_id] %}
+            {% endif %}
+          {% endfor %}
+          {% if candidates.entities | count == 1 %}
+            {% set ns.buttons = ns.buttons + candidates.entities %}
+          {% else %}
+            {% set ns.unresolved = ns.unresolved + [selected_device] %}
           {% endif %}
-        {% else %}
-          {% set days = (expected_local.weekday() - selected_weekday) % 7 %}
-          {% set candidate = reference - timedelta(days=days) %}
-          {% if as_timestamp(candidate) > (expected_timestamp | float) %}
-            {% set candidate = candidate - timedelta(days=7) %}
-          {% endif %}
-        {% endif %}
-        {{ as_timestamp(candidate) }}
-  - alias: Nur den gewählten Zyklus am Wochenzeitpunkt verwenden
+        {% endfor %}
+        {{ {'buttons': ns.buttons, 'unresolved': ns.unresolved} }}
+  - variables:
+      target_buttons: "{{ target_resolution.get('buttons', []) }}"
+      unresolved_devices: "{{ target_resolution.get('unresolved', []) }}"
+  - alias: MotorCalibration-Controls prüfen
     if:
       - condition: template
         value_template: >-
-          {% set expected = expected_timestamp | float %}
-          {% set target = target_timestamp | float %}
-          {% set interval = interval_seconds | float %}
-          {{ not (
-            (calibration_cycle == 'before'
-             and expected <= target < expected + interval)
-            or
-            (calibration_cycle == 'after'
-             and expected - interval < target <= expected)
-          ) }}
-    then:
-      - stop: "Dieser Uplink-Zyklus liegt nicht am gewählten Wochenzeitpunkt."
-  - variables:
-      last_press_timestamp: >-
-        {{ as_timestamp(states(target_button), default=0) }}
-      already_calibrated: >-
-        {{ (last_press_timestamp | float) > 0
-           and (((last_press_timestamp | float) - (target_timestamp | float)) | abs)
-               < 302400 }}
-  - alias: Doppelte Kalibrierung desselben Wochenzeitpunkts vermeiden
-    if:
-      - condition: template
-        value_template: "{{ already_calibrated }}"
+          {{ unresolved_devices | count > 0
+             or target_buttons | count != calibration_devices | count }}
     then:
       - stop: >-
-          MotorCalibration wurde für diesen Wochenzeitpunkt bereits betätigt.
-  - alias: Motorkalibrierung für den passenden Uplink vormerken
+          Mindestens ein ausgewähltes Vicki-Gerät stellt kein eindeutig
+          auflösbares MotorCalibration-Control bereit.
+  - alias: Motorkalibrierung zum gewählten Zeitpunkt betätigen
     action: button.press
     target:
-      entity_id: "{{ target_button }}"
+      entity_id: "{{ target_buttons }}"

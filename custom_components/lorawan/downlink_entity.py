@@ -10,6 +10,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import DOMAIN, SIGNAL_UPDATE_DOWNLINK_CONTROLS, device_identifier
+from .control_references import control_key
 from .runtime import LoRaWANRuntime
 
 
@@ -48,6 +49,18 @@ class LoRaWANDownlinkEntity(Entity):
     @property
     def available(self) -> bool:
         return self.control is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Expose the stable technical key to time-based blueprints."""
+        control = self.control
+        if control is None:
+            return {}
+        parameter = control["parameter"]
+        key = control_key(
+            str(parameter.get("automation_key") or parameter.get("name", ""))
+        )
+        return {"lorawan_control_key": key} if key else {}
 
     def _send(self, value: Any) -> None:
         self.runtime.send_downlink_control(self.entity_key, value)

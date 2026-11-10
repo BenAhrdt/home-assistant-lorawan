@@ -4,10 +4,11 @@ blueprint:
     Eine Automation für alle Räume: Reagiert auf lorawan_uplink_schedule,
     sucht im Raum des auslösenden Geräts genau einen Temperatursensor mit
     dem gewählten Label und schreibt dessen Celsiuswert in das im Ereignis
-    enthaltene external_temperature-Control. Benötigt LoRaWAN ab 0.1.38.
+    enthaltene external_temperature-Control. Benötigt LoRaWAN ab 0.1.39.
     Das Label direkt an die Temperaturentität vergeben. Sensor und Vicki
     müssen demselben HA-Bereich zugeordnet sein (beim Sensor auch über sein
-    Gerät möglich). Es werden keine Geräte oder Entitäten manuell ausgewählt.
+    Gerät möglich). Optional können Vicki-Geräte ausgewählt werden; eine leere
+    Auswahl lässt alle passenden Vicki-Geräte zu.
     Bei fehlender oder mehrdeutiger Zuordnung, ungültigen oder veralteten Werten
     wird ohne Versand abgebrochen; der Grund ist in der Automationsspur sichtbar.
     Die vorhandene Downlink-Versandart bleibt maßgeblich. Mode2 wird nicht geändert.
@@ -16,6 +17,18 @@ blueprint:
   homeassistant:
     min_version: "2024.10.0"
   input:
+    target_devices:
+      name: LoRaWAN-Geräte
+      description: >-
+        Optional: auf diese Vicki-Geräte begrenzen. Leer lassen, um alle
+        passenden Vicki-Geräte zu verarbeiten.
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+              model: Vicki
     temperature_label:
       name: Label der Raumtemperatur
       description: >-
@@ -57,6 +70,7 @@ max: 100
 max_exceeded: warning
 
 variables:
+  target_devices: !input target_devices
   temperature_label: !input temperature_label
   maximum_age_minutes: !input maximum_age_minutes
   minimum_difference: !input minimum_difference
@@ -81,6 +95,14 @@ actions:
       room_id: "{{ event_data.get('area_id') or '' }}"
       thermostat_device: "{{ event_data.get('device_id') or '' }}"
       controls: "{{ event_data.get('controls', {}) }}"
+  - alias: Ausgewählte LoRaWAN-Geräte prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {{ target_devices | count > 0
+             and thermostat_device not in target_devices }}
+    then:
+      - stop: "Das auslösende Gerät ist für diesen Blueprint nicht ausgewählt."
   - variables:
       target_control: >-
         {{ controls.get('external_temperature', '') if controls is mapping else '' }}

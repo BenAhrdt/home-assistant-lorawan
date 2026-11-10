@@ -1,0 +1,114 @@
+blueprint:
+  name: "LoRaWAN – Gesammelten Downlink vor dem Uplink senden"
+  description: >-
+    Reagiert auf den berechneten lorawan_uplink_schedule-Trigger, wartet das
+    konfigurierbare Sammelfenster ab und drückt anschließend genau einmal
+    Next Send Push, wenn für das auslösende Gerät noch ein Downlink wartet.
+    Mehrere fachliche Blueprints können dadurch zuerst Werte sammeln. Eine
+    leere Geräteauswahl gilt für alle LoRaWAN-Geräte. Benötigt den strukturierten
+    Trigger-Kontext mit schema_version 1. Der aktuelle Next Send Hex-Zustand
+    wird erst nach der Verzögerung gelesen; leere Queues werden nicht gedrückt.
+    Next Send Push übergibt alle bis dahin gesammelten Downlink-Daten an den
+    Netzwerkserver und nicht nur den Wert eines einzelnen Blueprints.
+  domain: automation
+  source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/next_send_push.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    target_devices:
+      name: LoRaWAN-Geräte
+      description: >-
+        Optional: auf diese Geräte begrenzen. Leer lassen, um alle passenden
+        LoRaWAN-Geräte zu verarbeiten.
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+    push_delay_seconds:
+      name: Verzögerung vor Next Send Push
+      description: >-
+        Sammelzeit nach dem Uplink-Zeittrigger, damit andere Blueprints ihre
+        Downlinks noch vormerken können.
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 1
+          unit_of_measurement: s
+          mode: box
+
+mode: parallel
+max: 100
+max_exceeded: warning
+
+variables:
+  target_devices: !input target_devices
+  push_delay_seconds: !input push_delay_seconds
+
+triggers:
+  - trigger: event
+    event_type: lorawan_uplink_schedule
+    event_data:
+      source: lorawan
+
+actions:
+  - alias: Nur mit echtem aktivem Uplink-Zeittrigger fortfahren
+    if:
+      - condition: template
+        value_template: >-
+          {{ trigger is not defined or trigger.event is not defined
+             or trigger.event.data.get('mode') not in ['automatic', 'after_uplink'] }}
+    then:
+      - stop: "Kein aktiver Uplink-Zeittrigger vorhanden."
+  - variables:
+      event_data: "{{ trigger.event.data }}"
+  - variables:
+      trigger_device: "{{ event_data.get('device_id') or '' }}"
+      entities: "{{ event_data.get('entities', {}) }}"
+  - variables:
+      controls: >-
+        {{ entities.get('controls', event_data.get('controls', {}))
+           if entities is mapping else event_data.get('controls', {}) }}
+      diagnostics: >-
+        {{ entities.get('diagnostics', {}) if entities is mapping else {} }}
+  - variables:
+      push_button: >-
+        {{ controls.get('button_next_send_push', '')
+           if controls is mapping else '' }}
+      next_send_hex: >-
+        {{ diagnostics.get('next_send_hex', '')
+           if diagnostics is mapping else '' }}
+  - alias: Ausgewählte Geräte und aktuelle Referenzen prüfen
+    if:
+      - condition: template
+        value_template: >-
+          {% set selected = target_devices or [] %}
+          {{ not trigger_device
+             or (selected | count > 0 and trigger_device not in selected)
+             or not push_button.startswith('button.')
+             or not next_send_hex.startswith('sensor.')
+             or device_id(push_button) != trigger_device
+             or device_id(next_send_hex) != trigger_device }}
+    then:
+      - stop: >-
+          Das auslösende Gerät ist nicht ausgewählt oder stellt keine passenden
+          Next-Send-Referenzen bereit.
+  - alias: Zeit zum Sammeln weiterer Downlinks lassen
+    delay:
+      seconds: "{{ push_delay_seconds | int(5) }}"
+  - alias: Nur bei aktuell wartendem Downlink fortfahren
+    if:
+      - condition: template
+        value_template: >-
+          {{ not has_value(next_send_hex)
+             or states(next_send_hex) | string | trim | lower
+                  in ['', '0', 'unknown', 'unavailable'] }}
+    then:
+      - stop: "Für das Gerät wartet kein Downlink auf Next Send."
+  - alias: Gesammelten Downlink vor dem nächsten Uplink pushen
+    action: button.press
+    target:
+      entity_id: "{{ push_button }}"

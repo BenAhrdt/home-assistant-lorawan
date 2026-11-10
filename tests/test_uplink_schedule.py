@@ -77,12 +77,36 @@ class BridgeTests(unittest.TestCase):
         self.events = []
         self.registry_entries = []
         self.saved = None
-        self.device = types.SimpleNamespace(id="device-id", name_by_user="User name", name="Name", area_id="room")
+        self.device = types.SimpleNamespace(
+            id="device-id",
+            name_by_user="User name",
+            name="Name",
+            area_id="room",
+            device_id="lorawan-device",
+            device_type="Vicki",
+            application_id="application",
+            application_name="application@tenant",
+            dev_eui="AABB",
+            network="ttn",
+        )
         self.area = types.SimpleNamespace(name="Living room")
         self.hass = types.SimpleNamespace(bus=types.SimpleNamespace(async_fire=lambda *args: self.events.append(args)))
-        self.runtime = types.SimpleNamespace(hass=self.hass, entry=types.SimpleNamespace(entry_id="lns"),
-                                             devices={"AABB": types.SimpleNamespace(device_name="Radio name")},
-                                             downlink_controls={})
+        self.runtime_device = types.SimpleNamespace(
+            device_name="Radio name",
+            device_id="lorawan-device",
+            device_type="Vicki",
+            application_id="application",
+            application_name="application@tenant",
+            dev_eui="AABB",
+            network="ttn",
+        )
+        self.runtime = types.SimpleNamespace(
+            hass=self.hass,
+            entry=types.SimpleNamespace(entry_id="lns"),
+            devices={"AABB": self.runtime_device},
+            downlink_controls={},
+            values={},
+        )
         outer = self
         class Store:
             def __init__(self, *args):
@@ -152,6 +176,82 @@ class BridgeTests(unittest.TestCase):
         self.callbacks[0]["fn"](START)
         self.assertEqual(self.events[0][1]["controls"], {
             "external_temperature": "number.renamed_after_scheduling"})
+
+    def test_event_includes_structured_device_schedule_and_entity_context(self):
+        self.runtime.values["lns_AABB_room_temperature"] = types.SimpleNamespace(
+            key="room_temperature"
+        )
+        self.runtime.values["lns_AABB_downlink_next_send"] = types.SimpleNamespace(
+            key="downlink_next_send"
+        )
+        self.registry_entries.extend([
+            types.SimpleNamespace(
+                unique_id="lns_AABB_room_temperature",
+                entity_id="sensor.room_temperature",
+                platform="lorawan",
+                config_entry_id="lns",
+                device_id="device-id",
+                disabled_by=None,
+                entity_category=None,
+            ),
+            types.SimpleNamespace(
+                unique_id="lns_AABB_downlink_next_send",
+                entity_id="sensor.next_send_hex",
+                platform="lorawan",
+                config_entry_id="lns",
+                device_id="device-id",
+                disabled_by=None,
+                entity_category="diagnostic",
+            ),
+            types.SimpleNamespace(
+                unique_id="lns_AABB_next_send_push",
+                entity_id="button.next_send_push",
+                platform="lorawan",
+                config_entry_id="lns",
+                device_id="device-id",
+                disabled_by=None,
+                entity_category="diagnostic",
+            ),
+        ])
+        self.scheduler.observe("AABB")
+        self.callbacks[0]["fn"](START)
+        data = self.events[0][1]
+        self.assertEqual(data["schema_version"], 1)
+        self.assertEqual(data["triggered_at"], START.isoformat())
+        self.assertTrue(data["trigger_id"].endswith(START.isoformat()))
+        self.assertEqual(data["device"], {
+            "ha_device_id": "device-id",
+            "lorawan_device_id": "lorawan-device",
+            "dev_eui": "AABB",
+            "name": "User name",
+            "network_name": "Radio name",
+            "device_type": "Vicki",
+            "area_id": "room",
+            "area_name": "Living room",
+            "config_entry_id": "lns",
+            "network": "ttn",
+            "application_id": "application",
+            "application_name": "application@tenant",
+        })
+        self.assertEqual(data["schedule"], {
+            key: data[key]
+            for key in (
+                "mode",
+                "interval_seconds",
+                "offset_seconds",
+                "last_uplink",
+                "expected_next_uplink",
+                "scheduled_for",
+            )
+        })
+        self.assertEqual(data["schedule"]["mode"], "after_uplink")
+        self.assertEqual(data["schedule"]["offset_seconds"], 580)
+        self.assertEqual(data["entities"], {
+            "controls": {"button_next_send_push": "button.next_send_push"},
+            "sensors": {"room_temperature": "sensor.room_temperature"},
+            "binary_sensors": {},
+            "diagnostics": {"next_send_hex": "sensor.next_send_hex"},
+        })
 
     def test_no_room(self):
         self.device.area_id = None

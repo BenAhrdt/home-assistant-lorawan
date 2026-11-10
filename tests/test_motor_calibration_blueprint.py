@@ -1,14 +1,9 @@
-"""Execute the motor-calibration blueprint templates with simulated HA helpers.
-
-PyYAML/Jinja2 are test-only dependencies; this is not full HA schema validation.
-"""
+"""Execute the time-based motor-calibration blueprint with simulated HA helpers."""
 import ast
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace as Obj
-import math
 import unittest
-from zoneinfo import ZoneInfo
 
 try:
     import yaml
@@ -18,7 +13,6 @@ except ImportError:
     yaml = None
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCAL = ZoneInfo("Europe/Berlin")
 
 
 @unittest.skipIf(yaml is None, "Requires PyYAML and Jinja2")
@@ -32,63 +26,33 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
         )
         path = ROOT / "blueprints/automation/lorawan/weekly_motor_calibration.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
-        self.now = datetime(2026, 11, 8, 10, 54, 40, tzinfo=UTC)
+        self.now = datetime(2026, 11, 8, 12, 0, tzinfo=UTC)  # Sunday
         self.inputs = {
-            "calibration_devices": ["vicki"],
+            "calibration_devices": ["vicki-one", "vicki-two"],
             "calibration_weekday": "sun",
             "calibration_time": "12:00:00",
             "calibration_cycle": "before",
         }
-        self.values = {"button.motor_calibration": "unknown"}
-        self.devices = {"button.motor_calibration": "vicki"}
-        self.data = {
-            "source": "lorawan",
-            "mode": "automatic",
-            "device_id": "vicki",
-            "interval_seconds": 600,
-            "last_uplink": "2026-11-08T10:45:00+00:00",
-            "expected_next_uplink": "2026-11-08T10:55:00+00:00",
-            "controls": {"motor_calibration": "button.motor_calibration"},
+        self.entities_by_device = {
+            "vicki-one": ["button.vicki_one_motor", "button.vicki_one_infos"],
+            "vicki-two": ["button.vicki_two_motor"],
+        }
+        self.devices = {
+            "button.vicki_one_motor": "vicki-one",
+            "button.vicki_one_infos": "vicki-one",
+            "button.vicki_two_motor": "vicki-two",
+        }
+        self.attributes = {
+            "button.vicki_one_motor": {"lorawan_control_key": "motor_calibration"},
+            "button.vicki_one_infos": {"lorawan_control_key": "get_infos"},
+            "button.vicki_two_motor": {"lorawan_control_key": "motor_calibration"},
         }
         self.env = NativeEnvironment(undefined=StrictUndefined)
-
-        def states(entity):
-            return self.values.get(entity, "unknown")
-
-        def numeric(value):
-            try:
-                return math.isfinite(float(value))
-            except (ValueError, TypeError):
-                return False
-
-        def as_datetime(value):
-            if isinstance(value, datetime):
-                return value
-            if isinstance(value, (int, float)):
-                return datetime.fromtimestamp(value, UTC)
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-
-        def as_timestamp(value, default=None):
-            try:
-                return as_datetime(value).timestamp()
-            except (AttributeError, TypeError, ValueError):
-                return default
-
-        def today_at(value):
-            parsed = time.fromisoformat(str(value))
-            local_now = self.now.astimezone(LOCAL)
-            return datetime.combine(local_now.date(), parsed, LOCAL)
-
         self.env.globals.update(
-            states=states,
+            now=lambda: self.now,
+            device_entities=lambda device: self.entities_by_device.get(device, []),
             device_id=lambda entity: self.devices.get(entity),
-            is_number=numeric,
-            as_datetime=as_datetime,
-            as_timestamp=as_timestamp,
-            as_local=lambda value: value.astimezone(LOCAL),
-            now=lambda: self.now.astimezone(LOCAL),
-            today_at=today_at,
-            timedelta=timedelta,
+            state_attr=lambda entity, attr: self.attributes.get(entity, {}).get(attr),
         )
 
     def render(self, value, context):
@@ -108,7 +72,7 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
         return value
 
     def run_blueprint(self, manual=False):
-        context = {} if manual else {"trigger": Obj(event=Obj(data=self.data))}
+        context = {} if manual else {"trigger": Obj(platform="time")}
         context.update(self.render(self.blueprint["variables"], context))
         for action in self.blueprint["actions"]:
             if "variables" in action:
@@ -124,105 +88,55 @@ class MotorCalibrationBlueprintTests(unittest.TestCase):
                 return self.render(action, context)
         self.fail("No result")
 
-    def test_inputs_source_and_device_filter(self):
+    def test_input_selector_and_time_trigger(self):
         meta = self.blueprint["blueprint"]
         self.assertEqual(set(meta["input"]), set(self.inputs))
         selector = meta["input"]["calibration_devices"]["selector"]["device"]
         self.assertTrue(selector["multiple"])
         self.assertEqual(
-            selector["filter"], [{"integration": "lorawan", "model": "Vicki"}]
+            selector["filter"],
+            [{"integration": "lorawan", "model": "Vicki"}],
         )
-        self.assertTrue(
-            meta["source_url"].endswith(
-                "/main/blueprints/automation/lorawan/weekly_motor_calibration.yaml"
-            )
-        )
-        self.assertEqual(
-            self.blueprint["triggers"][0]["event_data"], {"source": "lorawan"}
-        )
+        self.assertEqual(self.blueprint["triggers"][0]["trigger"], "time")
+        self.assertEqual(self.blueprint["triggers"][0]["at"], {"input": "calibration_time"})
 
-    def test_last_cycle_before_time_presses_event_button(self):
+    def test_selected_devices_press_only_motor_calibration_buttons(self):
         result = self.run_blueprint()
         self.assertEqual(result["action"], "button.press")
         self.assertEqual(
-            result["target"], {"entity_id": "button.motor_calibration"}
+            result["target"],
+            {"entity_id": ["button.vicki_one_motor", "button.vicki_two_motor"]},
         )
-
-    def test_first_cycle_after_time(self):
         self.inputs["calibration_cycle"] = "after"
-        self.data["last_uplink"] = "2026-11-08T10:55:00+00:00"
-        self.data["expected_next_uplink"] = "2026-11-08T11:05:00+00:00"
-        self.now = datetime(2026, 11, 8, 11, 4, 40, tzinfo=UTC)
-        self.assertEqual(self.run_blueprint()["action"], "button.press")
+        self.assertEqual(self.run_blueprint()["target"], result["target"])
 
-    def test_other_cycles_do_not_press(self):
-        self.data["last_uplink"] = "2026-11-08T10:55:00+00:00"
-        self.data["expected_next_uplink"] = "2026-11-08T11:05:00+00:00"
-        self.now = datetime(2026, 11, 8, 11, 4, 40, tzinfo=UTC)
-        self.assertIn("Uplink-Zyklus", self.run_blueprint()["stop"])
-        self.inputs["calibration_cycle"] = "after"
-        self.data["last_uplink"] = "2026-11-08T10:45:00+00:00"
-        self.data["expected_next_uplink"] = "2026-11-08T10:55:00+00:00"
-        self.now = datetime(2026, 11, 8, 10, 54, 40, tzinfo=UTC)
-        self.assertIn("Uplink-Zyklus", self.run_blueprint()["stop"])
+    def test_weekday_and_manual_runs_stop(self):
+        self.now = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)  # Monday
+        self.assertIn("Wochentag", self.run_blueprint()["stop"])
+        self.assertIn("Zeittrigger", self.run_blueprint(manual=True)["stop"])
 
-    def test_exact_time_is_valid_for_both_preferences(self):
-        self.data["last_uplink"] = "2026-11-08T10:50:00+00:00"
-        self.data["expected_next_uplink"] = "2026-11-08T11:00:00+00:00"
-        self.now = datetime(2026, 11, 8, 10, 59, 40, tzinfo=UTC)
-        self.assertEqual(self.run_blueprint()["action"], "button.press")
-        self.inputs["calibration_cycle"] = "after"
-        self.assertEqual(self.run_blueprint()["action"], "button.press")
-
-    def test_week_boundary_uses_next_monday_for_before(self):
-        self.inputs["calibration_weekday"] = "mon"
-        self.inputs["calibration_time"] = "00:00:00"
-        self.data["last_uplink"] = "2026-11-08T22:45:00+00:00"
-        self.data["expected_next_uplink"] = "2026-11-08T22:55:00+00:00"
-        self.now = datetime(2026, 11, 8, 22, 54, 40, tzinfo=UTC)
-        self.assertEqual(self.run_blueprint()["action"], "button.press")
-
-    def test_requires_real_automatic_selected_device(self):
-        self.assertIn("Kein Ereignis", self.run_blueprint(manual=True)["stop"])
-        for mode in ("after_uplink", "disabled"):
-            with self.subTest(mode=mode):
-                self.data["mode"] = mode
-                self.assertIn("automatic", self.run_blueprint()["stop"])
-        self.data["mode"] = "automatic"
-        self.inputs["calibration_devices"] = ["other"]
-        self.assertIn("nicht", self.run_blueprint()["stop"])
-
-    def test_missing_wrong_or_unavailable_control_stops(self):
-        self.data["controls"] = {}
+    def test_missing_or_ambiguous_motor_control_stops(self):
+        self.entities_by_device["vicki-two"] = []
         self.assertIn("MotorCalibration", self.run_blueprint()["stop"])
-        self.data["controls"] = {
-            "motor_calibration": "number.motor_calibration"
+        self.entities_by_device["vicki-two"] = [
+            "button.vicki_two_motor",
+            "button.vicki_two_motor_duplicate",
+        ]
+        self.devices["button.vicki_two_motor_duplicate"] = "vicki-two"
+        self.attributes["button.vicki_two_motor_duplicate"] = {
+            "lorawan_control_key": "motor_calibration"
         }
         self.assertIn("MotorCalibration", self.run_blueprint()["stop"])
-        self.data["controls"] = {
-            "motor_calibration": "button.motor_calibration"
+
+    def test_renamed_entity_is_resolved_by_stable_control_key(self):
+        self.entities_by_device["vicki-one"] = ["button.renamed_motor"]
+        self.devices["button.renamed_motor"] = "vicki-one"
+        self.attributes["button.renamed_motor"] = {
+            "lorawan_control_key": "motor_calibration"
         }
-        self.devices["button.motor_calibration"] = "other"
-        self.assertIn("MotorCalibration", self.run_blueprint()["stop"])
-        self.devices["button.motor_calibration"] = "vicki"
-        self.values["button.motor_calibration"] = "unavailable"
-        self.assertIn("MotorCalibration", self.run_blueprint()["stop"])
+        result = self.run_blueprint()
+        self.assertIn("button.renamed_motor", result["target"]["entity_id"])
 
-    def test_incomplete_prediction_stops(self):
-        for key, value in (
-            ("expected_next_uplink", None),
-            ("last_uplink", None),
-            ("interval_seconds", None),
-            ("interval_seconds", 0),
-        ):
-            with self.subTest(key=key, value=value):
-                original = self.data[key]
-                self.data[key] = value
-                self.assertIn("Vorhersage", self.run_blueprint()["stop"])
-                self.data[key] = original
 
-    def test_button_timestamp_prevents_duplicate_weekly_occurrence(self):
-        self.values["button.motor_calibration"] = "2026-11-08T10:54:00+00:00"
-        self.assertIn("bereits", self.run_blueprint()["stop"])
-        self.values["button.motor_calibration"] = "2026-11-01T10:54:00+00:00"
-        self.assertEqual(self.run_blueprint()["action"], "button.press")
+if __name__ == "__main__":
+    unittest.main()

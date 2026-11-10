@@ -8,7 +8,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, device_identifier
-from .control_references import control_references
+from .control_references import entity_references
 from .uplink_schedule import DEFAULTS, UplinkSchedule
 
 EVENT = "lorawan_uplink_schedule"
@@ -92,15 +92,55 @@ class UplinkScheduler:
                 area = ar.async_get(self.hass).async_get_area(registry_device.area_id) if registry_device.area_id else None
                 data = {key: value.isoformat() if isinstance(value, datetime) else value
                         for key, value in plan.items()}
+                device_name = (
+                    registry_device.name_by_user
+                    or registry_device.name
+                    or device.device_name
+                )
+                entries = er.async_entries_for_device(
+                    er.async_get(self.hass), registry_device.id
+                )
+                references = entity_references(
+                    self.runtime, dev_eui, registry_device.id, entries
+                )
+                triggered_at = now.isoformat()
                 data.update(source=DOMAIN, device_id=registry_device.id,
-                            device_name=registry_device.name_by_user or registry_device.name or device.device_name,
+                            device_name=device_name,
                             dev_eui=dev_eui, config_entry_id=self.runtime.entry.entry_id,
                             area_id=registry_device.area_id,
                             area_name=area.name if area else None,
-                            controls=control_references(
-                                self.runtime, dev_eui, registry_device.id,
-                                er.async_entries_for_device(er.async_get(self.hass), registry_device.id),
-                            ))
+                            schema_version=1,
+                            trigger_id=(
+                                f"{self.runtime.entry.entry_id}:{dev_eui}:{triggered_at}"
+                            ),
+                            triggered_at=triggered_at,
+                            controls=references["controls"],
+                            entities=references,
+                            device={
+                                "ha_device_id": registry_device.id,
+                                "lorawan_device_id": device.device_id,
+                                "dev_eui": dev_eui,
+                                "name": device_name,
+                                "network_name": device.device_name,
+                                "device_type": device.device_type,
+                                "area_id": registry_device.area_id,
+                                "area_name": area.name if area else None,
+                                "config_entry_id": self.runtime.entry.entry_id,
+                                "network": device.network,
+                                "application_id": device.application_id,
+                                "application_name": device.application_name,
+                            },
+                            schedule={
+                                key: data.get(key)
+                                for key in (
+                                    "mode",
+                                    "interval_seconds",
+                                    "offset_seconds",
+                                    "last_uplink",
+                                    "expected_next_uplink",
+                                    "scheduled_for",
+                                )
+                            })
                 self.last_fired[dev_eui] = now
                 self.hass.bus.async_fire(EVENT, data)
                 self.notify(dev_eui)

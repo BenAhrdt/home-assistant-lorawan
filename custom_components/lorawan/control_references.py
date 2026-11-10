@@ -1,10 +1,16 @@
-"""Stable automation keys mapped to current registered control entity IDs."""
+"""Stable automation keys mapped to current registered entity IDs."""
 from collections import defaultdict
 import re
 
 CONTROL_DOMAINS = {
     "number", "select", "switch", "button", "text", "climate", "cover",
     "light", "humidifier", "lock", "lawn_mower", "vacuum",
+}
+READABLE_DOMAINS = {"sensor", "binary_sensor"}
+
+DIAGNOSTIC_KEY_ALIASES = {
+    "downlink_next_send": "next_send_hex",
+    "downlink_last_send_hex": "last_send_hex",
 }
 
 
@@ -45,3 +51,80 @@ def control_references(runtime, dev_eui, device_id, entries) -> dict[str, str]:
         if key:
             candidates[key].append(entity.entity_id)
     return {key: values[0] for key, values in sorted(candidates.items()) if len(values) == 1}
+
+
+def _is_active_device_entity(entity, runtime, device_id, prefix: str) -> bool:
+    """Return whether a registry entry belongs to this active device scope."""
+    return (
+        entity.platform == "lorawan"
+        and entity.config_entry_id == runtime.entry.entry_id
+        and entity.device_id == device_id
+        and entity.disabled_by is None
+        and str(entity.unique_id).startswith(prefix)
+    )
+
+
+def _is_diagnostic(entity) -> bool:
+    """Handle both HA's stored string and enum-like category values."""
+    category = getattr(entity, "entity_category", None)
+    return category == "diagnostic" or getattr(category, "value", None) == "diagnostic"
+
+
+def _readable_key(runtime, entity, prefix: str) -> str | None:
+    """Return the technical key for a current readable entity."""
+    unique_id = str(entity.unique_id)
+    value = getattr(runtime, "values", {}).get(unique_id)
+    if value is not None:
+        technical_key = str(value.key)
+    else:
+        suffix = unique_id[len(prefix):]
+        if not suffix.startswith("uplink_schedule_"):
+            # A registry entry without a current runtime value is stale. The
+            # integration-generated schedule entities are the one exception:
+            # their state lives in UplinkScheduler rather than runtime.values.
+            return None
+        technical_key = suffix.removeprefix("uplink_schedule_")
+    return control_key(DIAGNOSTIC_KEY_ALIASES.get(technical_key, technical_key))
+
+
+def entity_references(runtime, dev_eui, device_id, entries) -> dict[str, dict[str, str]]:
+    """Resolve active readable entity IDs for one device and LNS entry.
+
+    Technical keys come from the integration value or stable unique-ID suffix,
+    never from display names. Disabled, stale, foreign and ambiguous entries
+    are omitted so a blueprint cannot accidentally target an arbitrary entity.
+    """
+    prefix = f"{runtime.entry.entry_id}_{dev_eui}_"
+    candidates = {
+        "sensors": defaultdict(list),
+        "binary_sensors": defaultdict(list),
+        "diagnostics": defaultdict(list),
+    }
+    controls = control_references(runtime, dev_eui, device_id, entries)
+    control_entity_ids = set(controls.values())
+
+    for entity in entries:
+        if not _is_active_device_entity(entity, runtime, device_id, prefix):
+            continue
+        domain = str(entity.entity_id).partition(".")[0]
+        key = _readable_key(runtime, entity, prefix)
+        if not key:
+            continue
+        if domain in READABLE_DOMAINS:
+            if _is_diagnostic(entity):
+                candidates["diagnostics"][key].append(entity.entity_id)
+            else:
+                candidates["sensors" if domain == "sensor" else "binary_sensors"][key].append(
+                    entity.entity_id
+                )
+        elif _is_diagnostic(entity) and entity.entity_id not in control_entity_ids:
+            candidates["diagnostics"][key].append(entity.entity_id)
+
+    references = {"controls": controls}
+    for category, values in candidates.items():
+        references[category] = {
+            key: entity_ids[0]
+            for key, entity_ids in sorted(values.items())
+            if len(entity_ids) == 1
+        }
+    return references

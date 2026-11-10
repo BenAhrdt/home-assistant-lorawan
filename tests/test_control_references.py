@@ -12,7 +12,7 @@ spec.loader.exec_module(module)
 
 class ControlReferencesTests(unittest.TestCase):
     def setUp(self):
-        self.runtime = Obj(entry=Obj(entry_id="lns"), downlink_controls={})
+        self.runtime = Obj(entry=Obj(entry_id="lns"), downlink_controls={}, values={})
         self.entries = []
 
     def add(self, name="ExternalTemperature", suffix="downlink_number_externaltemperature", **overrides):
@@ -28,6 +28,31 @@ class ControlReferencesTests(unittest.TestCase):
 
     def refs(self):
         return module.control_references(self.runtime, "AABB", "device", self.entries)
+
+    def add_readable(
+        self,
+        key,
+        domain="sensor",
+        suffix=None,
+        entity_category=None,
+        value_key=None,
+        **overrides,
+    ):
+        unique_id = f"lns_AABB_{suffix or key}"
+        entity = Obj(
+            entity_id=f"{domain}.{key}",
+            unique_id=unique_id,
+            device_id="device",
+            config_entry_id="lns",
+            platform="lorawan",
+            disabled_by=None,
+            entity_category=entity_category,
+        )
+        entity.__dict__.update(overrides)
+        self.entries.append(entity)
+        if not (suffix or key).startswith("uplink_schedule_"):
+            self.runtime.values[unique_id] = Obj(key=value_key or key)
+        return entity
 
     def test_technical_key_and_current_renamed_entity_id(self):
         entity = self.add()
@@ -77,6 +102,51 @@ class ControlReferencesTests(unittest.TestCase):
         self.assertEqual(self.refs(), {
             "motor_calibration": "button.motor_calibration",
         })
+
+    def test_entity_references_group_active_current_entities(self):
+        self.add(name=None, suffix="next_send_push", entity_id="button.next_send_push")
+        self.add_readable("room_temperature")
+        self.add_readable("online", domain="binary_sensor")
+        self.add_readable(
+            "next_send",
+            suffix="downlink_next_send",
+            entity_id="sensor.next_send_hex",
+            entity_category="diagnostic",
+            value_key="downlink_next_send",
+        )
+        self.add_readable(
+            "expected",
+            suffix="uplink_schedule_expected_next_uplink",
+            entity_id="sensor.expected_next_uplink",
+            entity_category="diagnostic",
+        )
+
+        references = module.entity_references(self.runtime, "AABB", "device", self.entries)
+
+        self.assertEqual(references["controls"], {
+            "button_next_send_push": "button.next_send_push",
+        })
+        self.assertEqual(references["sensors"], {
+            "room_temperature": "sensor.room_temperature",
+        })
+        self.assertEqual(references["binary_sensors"], {
+            "online": "binary_sensor.online",
+        })
+        self.assertEqual(references["diagnostics"], {
+            "expected_next_uplink": "sensor.expected_next_uplink",
+            "next_send_hex": "sensor.next_send_hex",
+        })
+
+    def test_entity_references_omit_disabled_stale_and_ambiguous_entities(self):
+        self.add_readable("stale", suffix="stale", entity_id="sensor.stale")
+        del self.runtime.values["lns_AABB_stale"]
+        self.add_readable("disabled", entity_id="sensor.disabled", disabled_by="user")
+        self.add_readable("duplicate", entity_id="sensor.first", value_key="same")
+        self.add_readable("other", entity_id="sensor.second", value_key="same")
+
+        references = module.entity_references(self.runtime, "AABB", "device", self.entries)
+
+        self.assertEqual(references["sensors"], {})
 
 
 if __name__ == "__main__":

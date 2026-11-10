@@ -27,7 +27,12 @@ class TemperatureBlueprintTests(unittest.TestCase):
         Loader.add_constructor('!input', lambda loader, node: {'input': loader.construct_scalar(node)})
         self.blueprint = yaml.load((ROOT / 'blueprints/automation/lorawan/room_external_temperature.yaml').read_text(), Loader=Loader)
         self.now = datetime(2026, 11, 6, tzinfo=UTC)
-        self.inputs = dict(temperature_label='primary', maximum_age_minutes=120, minimum_difference=.01)
+        self.inputs = dict(
+            target_devices=[],
+            temperature_label='primary',
+            maximum_age_minutes=120,
+            minimum_difference=.01,
+        )
         self.labelled = ['sensor.temperature', 'sensor.other_room']
         self.areas = {'sensor.temperature': 'room', 'sensor.other_room': 'other'}
         self.devices = {'number.external': 'vicki', 'sensor.temperature': 'external-sensor'}
@@ -89,6 +94,13 @@ class TemperatureBlueprintTests(unittest.TestCase):
     def test_input_compatibility_and_source(self):
         meta = self.blueprint['blueprint']
         self.assertEqual(set(meta['input']), set(self.inputs))
+        device_selector = meta['input']['target_devices']['selector']['device']
+        self.assertTrue(device_selector['multiple'])
+        self.assertEqual(
+            device_selector['filter'],
+            [{'integration': 'lorawan', 'model': 'Vicki'}],
+        )
+        self.assertEqual(meta['input']['target_devices']['default'], [])
         self.assertEqual(meta['input']['temperature_label']['selector'], {'label': {}})
         self.assertTrue(meta['source_url'].endswith('/main/blueprints/automation/lorawan/room_external_temperature.yaml'))
         self.assertEqual(self.blueprint['triggers'][0]['event_data'], {'source': 'lorawan'})
@@ -104,6 +116,13 @@ class TemperatureBlueprintTests(unittest.TestCase):
         self.assertEqual(self.run_blueprint()['data']['value'], 25)
         self.inputs['temperature_label'] = 'different-label'
         self.assertIn('stop', self.run_blueprint())
+
+    def test_optional_device_selection_keeps_all_or_restricts_trigger(self):
+        self.assertEqual(self.run_blueprint()['action'], 'number.set_value')
+        self.inputs['target_devices'] = ['other-device']
+        self.assertIn('nicht ausgewählt', self.run_blueprint()['stop'])
+        self.inputs['target_devices'] = ['vicki']
+        self.assertEqual(self.run_blueprint()['action'], 'number.set_value')
 
     def test_ambiguous_or_own_sensor_stops(self):
         self.areas['sensor.other_room'] = 'room'

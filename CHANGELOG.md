@@ -2,10 +2,27 @@
 
 ## Unreleased
 
+_(No unreleased changes.)_
+
+## 0.1.39 - 2026-11-10
+
 - Optionaler Blueprint für die wöchentliche Vicki-Motorkalibrierung mit
-  Geräteauswahl, lokalem Wochentag und Uhrzeit sowie Auswahl des letzten
-  Uplink-Zyklus davor oder des ersten danach. Laufzeitprüfung verlangt den
-  automatischen Uplink-Zeittrigger und ein aktives `motor_calibration`-Control.
+  Geräteauswahl, lokalem Wochentag und Uhrzeit. Der Blueprint arbeitet direkt
+  mit dem stabilen `lorawan_control_key` der Downlink-Entitäten und benötigt
+  keinen Uplink-Zeittrigger.
+
+- Der `lorawan_uplink_schedule`-Trigger enthält zusätzlich einen versionierten
+  Geräte- und Zeitplankontext sowie aktuelle Entity-Referenzen für Controls,
+  Sensoren, Binary-Sensoren und Diagnose. Die bisherigen flachen Payload-Felder
+  bleiben für bestehende Blueprints erhalten; Zustände werden nicht als veraltete
+  Schnappschüsse mitgegeben.
+
+- Der Raumtemperatur-Blueprint kann optional auf ausgewählte Vicki-Geräte
+  begrenzt werden; die Geräteauswahl filtert die LoRaWAN-Integration auf das
+  Modell `Vicki`. Eine leere Auswahl behält die Verarbeitung aller passenden
+  Geräte bei. Ein neuer Blueprint wartet standardmäßig fünf Sekunden und drückt
+  danach `Next Send Push` nur bei einem aktuell wartenden Downlink des
+  auslösenden Geräts.
 
 ## 0.1.38 - 2026-11-06
 
