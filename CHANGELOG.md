@@ -4,6 +4,11 @@
 
 _(No unreleased changes.)_
 
+## 0.1.46 - 2026-11-10
+
+- AutoIntervall verwendet jetzt auch im Blueprint-Fallback und im Eingabefeld
+  zuverlässig die Standardzeit 10:00:00 Uhr.
+
 ## 0.1.45 - 2026-11-10
 
 - Monatswerte des AutoIntervall-Selectors als Zeichenketten serialisiert, damit

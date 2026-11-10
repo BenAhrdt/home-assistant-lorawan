@@ -134,9 +134,9 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         self.assertEqual(context["active_assignments"][0]["interval"], 30)
         self.assertEqual(context["active_assignments"][1]["interval"], 20)
 
-    def test_optional_time_defaults_to_five_minutes_after_midnight(self):
+    def test_optional_time_defaults_to_ten_am(self):
         self.schedule[0].pop("time")
-        self.now = datetime(2026, 6, 1, 0, 5)
+        self.now = datetime(2026, 6, 1, 10, 0)
         self.assertEqual(len(self.variables_after(1)["active_schedule"]), 1)
 
     def test_non_matching_time_is_not_active(self):

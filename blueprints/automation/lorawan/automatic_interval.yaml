@@ -75,7 +75,7 @@ blueprint:
             time:
               label: Zeitpunkt – Uhrzeit (optional)
               required: false
-              default: "00:05:00"
+              default: "10:00:00"
               selector:
                 time: {}
             assignments:
@@ -133,7 +133,7 @@ actions:
       active_schedule: >-
         {%- set ns = namespace(items=[]) -%}
         {%- for entry in schedule -%}
-          {%- set entry_time = (entry.get('time') or '00:05:00') | string -%}
+          {%- set entry_time = (entry.get('time') or '10:00:00') | string -%}
           {%- if entry.get('month', 0) | int == current_month | int
                 and entry.get('day', 0) | int == current_day | int
                 and entry_time[:5] == current_time -%}
