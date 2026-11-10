@@ -4,6 +4,13 @@
 
 _(No unreleased changes.)_
 
+## 0.1.41 - 2026-11-10
+
+- Neuer zeitbasierter AutoIntervall-Blueprint mit bis zu fünf Jahreszeiträumen
+  und jeweils fünf Geräte-/Intervall-Zuweisungen. Der Blueprint arbeitet ohne
+  Uplink-Trigger, prüft den technischen `intervall`-Control und schreibt nur
+  geänderte Werte.
+
 ## 0.1.40 - 2026-11-10
 
 - Der Motorkalibrierungs-Blueprint zeigt keine veraltete Uplink-Zyklus-Auswahl

@@ -1,0 +1,967 @@
+blueprint:
+  name: "LoRaWAN – Automatische Intervallsteuerung"
+  description: >-
+    Setzt den Intervall-Downlink ausgewählter LoRaWAN-Geräte nach einem
+    wiederkehrenden Jahresplan. Der Blueprint arbeitet ausschließlich mit
+    einem eigenen täglichen Zeittrigger und reagiert nicht auf
+    lorawan_uplink_schedule oder andere Uplink-Ereignisse. Es können bis zu
+    fünf Zeiträume mit jeweils bis zu fünf Geräte-/Intervall-Zuweisungen
+    konfiguriert werden. Innerhalb eines Zeitraums dürfen Geräte nur einmal
+    zugewiesen werden. Geräte ohne eindeutigen Intervall-Control oder mit
+    einem außerhalb des individuellen Wertebereichs liegenden Wert werden
+    sicher übersprungen. Bereits identische Werte werden nicht erneut als
+    Downlink geschrieben.
+  domain: automation
+  source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/automatic_interval.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    evaluation_time:
+      name: Tägliche Prüfzeit
+      description: >-
+        Lokale Home-Assistant-Zeit, zu der der aktuell gültige Zeitraum
+        ausgewertet wird. Die Standardzeit liegt kurz nach Mitternacht.
+      default: "00:05:00"
+      selector:
+        time: {}
+
+    period_1_enabled:
+      name: Zeitraum 1 aktiv
+      default: false
+      selector:
+        boolean: {}
+    period_1_start_month:
+      name: Zeitraum 1 – Startmonat
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_1_start_day:
+      name: Zeitraum 1 – Starttag
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_1_end_month:
+      name: Zeitraum 1 – Endmonat
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_1_end_day:
+      name: Zeitraum 1 – Endtag
+      default: 31
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_1_assignment_1_devices:
+      name: Zeitraum 1 – Zuweisung 1 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_1_assignment_1_interval:
+      name: Zeitraum 1 – Zuweisung 1 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_1_assignment_2_devices:
+      name: Zeitraum 1 – Zuweisung 2 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_1_assignment_2_interval:
+      name: Zeitraum 1 – Zuweisung 2 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_1_assignment_3_devices:
+      name: Zeitraum 1 – Zuweisung 3 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_1_assignment_3_interval:
+      name: Zeitraum 1 – Zuweisung 3 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_1_assignment_4_devices:
+      name: Zeitraum 1 – Zuweisung 4 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_1_assignment_4_interval:
+      name: Zeitraum 1 – Zuweisung 4 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_1_assignment_5_devices:
+      name: Zeitraum 1 – Zuweisung 5 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_1_assignment_5_interval:
+      name: Zeitraum 1 – Zuweisung 5 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    period_2_enabled:
+      name: Zeitraum 2 aktiv
+      default: false
+      selector:
+        boolean: {}
+    period_2_start_month:
+      name: Zeitraum 2 – Startmonat
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_2_start_day:
+      name: Zeitraum 2 – Starttag
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_2_end_month:
+      name: Zeitraum 2 – Endmonat
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_2_end_day:
+      name: Zeitraum 2 – Endtag
+      default: 31
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_2_assignment_1_devices:
+      name: Zeitraum 2 – Zuweisung 1 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_2_assignment_1_interval:
+      name: Zeitraum 2 – Zuweisung 1 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_2_assignment_2_devices:
+      name: Zeitraum 2 – Zuweisung 2 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_2_assignment_2_interval:
+      name: Zeitraum 2 – Zuweisung 2 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_2_assignment_3_devices:
+      name: Zeitraum 2 – Zuweisung 3 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_2_assignment_3_interval:
+      name: Zeitraum 2 – Zuweisung 3 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_2_assignment_4_devices:
+      name: Zeitraum 2 – Zuweisung 4 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_2_assignment_4_interval:
+      name: Zeitraum 2 – Zuweisung 4 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_2_assignment_5_devices:
+      name: Zeitraum 2 – Zuweisung 5 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_2_assignment_5_interval:
+      name: Zeitraum 2 – Zuweisung 5 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    period_3_enabled:
+      name: Zeitraum 3 aktiv
+      default: false
+      selector:
+        boolean: {}
+    period_3_start_month:
+      name: Zeitraum 3 – Startmonat
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_3_start_day:
+      name: Zeitraum 3 – Starttag
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_3_end_month:
+      name: Zeitraum 3 – Endmonat
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_3_end_day:
+      name: Zeitraum 3 – Endtag
+      default: 31
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_3_assignment_1_devices:
+      name: Zeitraum 3 – Zuweisung 1 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_3_assignment_1_interval:
+      name: Zeitraum 3 – Zuweisung 1 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_3_assignment_2_devices:
+      name: Zeitraum 3 – Zuweisung 2 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_3_assignment_2_interval:
+      name: Zeitraum 3 – Zuweisung 2 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_3_assignment_3_devices:
+      name: Zeitraum 3 – Zuweisung 3 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_3_assignment_3_interval:
+      name: Zeitraum 3 – Zuweisung 3 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_3_assignment_4_devices:
+      name: Zeitraum 3 – Zuweisung 4 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_3_assignment_4_interval:
+      name: Zeitraum 3 – Zuweisung 4 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_3_assignment_5_devices:
+      name: Zeitraum 3 – Zuweisung 5 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_3_assignment_5_interval:
+      name: Zeitraum 3 – Zuweisung 5 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    period_4_enabled:
+      name: Zeitraum 4 aktiv
+      default: false
+      selector:
+        boolean: {}
+    period_4_start_month:
+      name: Zeitraum 4 – Startmonat
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_4_start_day:
+      name: Zeitraum 4 – Starttag
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_4_end_month:
+      name: Zeitraum 4 – Endmonat
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_4_end_day:
+      name: Zeitraum 4 – Endtag
+      default: 31
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_4_assignment_1_devices:
+      name: Zeitraum 4 – Zuweisung 1 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_4_assignment_1_interval:
+      name: Zeitraum 4 – Zuweisung 1 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_4_assignment_2_devices:
+      name: Zeitraum 4 – Zuweisung 2 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_4_assignment_2_interval:
+      name: Zeitraum 4 – Zuweisung 2 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_4_assignment_3_devices:
+      name: Zeitraum 4 – Zuweisung 3 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_4_assignment_3_interval:
+      name: Zeitraum 4 – Zuweisung 3 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_4_assignment_4_devices:
+      name: Zeitraum 4 – Zuweisung 4 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_4_assignment_4_interval:
+      name: Zeitraum 4 – Zuweisung 4 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_4_assignment_5_devices:
+      name: Zeitraum 4 – Zuweisung 5 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_4_assignment_5_interval:
+      name: Zeitraum 4 – Zuweisung 5 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    period_5_enabled:
+      name: Zeitraum 5 aktiv
+      default: false
+      selector:
+        boolean: {}
+    period_5_start_month:
+      name: Zeitraum 5 – Startmonat
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_5_start_day:
+      name: Zeitraum 5 – Starttag
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_5_end_month:
+      name: Zeitraum 5 – Endmonat
+      default: 12
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
+    period_5_end_day:
+      name: Zeitraum 5 – Endtag
+      default: 31
+      selector:
+        number:
+          min: 1
+          max: 31
+          step: 1
+          mode: box
+    period_5_assignment_1_devices:
+      name: Zeitraum 5 – Zuweisung 1 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_5_assignment_1_interval:
+      name: Zeitraum 5 – Zuweisung 1 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_5_assignment_2_devices:
+      name: Zeitraum 5 – Zuweisung 2 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_5_assignment_2_interval:
+      name: Zeitraum 5 – Zuweisung 2 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_5_assignment_3_devices:
+      name: Zeitraum 5 – Zuweisung 3 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_5_assignment_3_interval:
+      name: Zeitraum 5 – Zuweisung 3 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_5_assignment_4_devices:
+      name: Zeitraum 5 – Zuweisung 4 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_5_assignment_4_interval:
+      name: Zeitraum 5 – Zuweisung 4 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+    period_5_assignment_5_devices:
+      name: Zeitraum 5 – Zuweisung 5 – Geräte
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: lorawan
+          entity:
+            - integration: lorawan
+              domain: number
+    period_5_assignment_5_interval:
+      name: Zeitraum 5 – Zuweisung 5 – Intervall (Minuten)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+mode: single
+max_exceeded: warning
+
+variables:
+  periods:
+    - enabled: !input period_1_enabled
+      start_month: !input period_1_start_month
+      start_day: !input period_1_start_day
+      end_month: !input period_1_end_month
+      end_day: !input period_1_end_day
+      assignments:
+        - devices: !input period_1_assignment_1_devices
+          interval: !input period_1_assignment_1_interval
+        - devices: !input period_1_assignment_2_devices
+          interval: !input period_1_assignment_2_interval
+        - devices: !input period_1_assignment_3_devices
+          interval: !input period_1_assignment_3_interval
+        - devices: !input period_1_assignment_4_devices
+          interval: !input period_1_assignment_4_interval
+        - devices: !input period_1_assignment_5_devices
+          interval: !input period_1_assignment_5_interval
+    - enabled: !input period_2_enabled
+      start_month: !input period_2_start_month
+      start_day: !input period_2_start_day
+      end_month: !input period_2_end_month
+      end_day: !input period_2_end_day
+      assignments:
+        - devices: !input period_2_assignment_1_devices
+          interval: !input period_2_assignment_1_interval
+        - devices: !input period_2_assignment_2_devices
+          interval: !input period_2_assignment_2_interval
+        - devices: !input period_2_assignment_3_devices
+          interval: !input period_2_assignment_3_interval
+        - devices: !input period_2_assignment_4_devices
+          interval: !input period_2_assignment_4_interval
+        - devices: !input period_2_assignment_5_devices
+          interval: !input period_2_assignment_5_interval
+    - enabled: !input period_3_enabled
+      start_month: !input period_3_start_month
+      start_day: !input period_3_start_day
+      end_month: !input period_3_end_month
+      end_day: !input period_3_end_day
+      assignments:
+        - devices: !input period_3_assignment_1_devices
+          interval: !input period_3_assignment_1_interval
+        - devices: !input period_3_assignment_2_devices
+          interval: !input period_3_assignment_2_interval
+        - devices: !input period_3_assignment_3_devices
+          interval: !input period_3_assignment_3_interval
+        - devices: !input period_3_assignment_4_devices
+          interval: !input period_3_assignment_4_interval
+        - devices: !input period_3_assignment_5_devices
+          interval: !input period_3_assignment_5_interval
+    - enabled: !input period_4_enabled
+      start_month: !input period_4_start_month
+      start_day: !input period_4_start_day
+      end_month: !input period_4_end_month
+      end_day: !input period_4_end_day
+      assignments:
+        - devices: !input period_4_assignment_1_devices
+          interval: !input period_4_assignment_1_interval
+        - devices: !input period_4_assignment_2_devices
+          interval: !input period_4_assignment_2_interval
+        - devices: !input period_4_assignment_3_devices
+          interval: !input period_4_assignment_3_interval
+        - devices: !input period_4_assignment_4_devices
+          interval: !input period_4_assignment_4_interval
+        - devices: !input period_4_assignment_5_devices
+          interval: !input period_4_assignment_5_interval
+    - enabled: !input period_5_enabled
+      start_month: !input period_5_start_month
+      start_day: !input period_5_start_day
+      end_month: !input period_5_end_month
+      end_day: !input period_5_end_day
+      assignments:
+        - devices: !input period_5_assignment_1_devices
+          interval: !input period_5_assignment_1_interval
+        - devices: !input period_5_assignment_2_devices
+          interval: !input period_5_assignment_2_interval
+        - devices: !input period_5_assignment_3_devices
+          interval: !input period_5_assignment_3_interval
+        - devices: !input period_5_assignment_4_devices
+          interval: !input period_5_assignment_4_interval
+        - devices: !input period_5_assignment_5_devices
+          interval: !input period_5_assignment_5_interval
+
+triggers:
+  - trigger: time
+    at: !input evaluation_time
+
+actions:
+  - variables:
+      current_day: "{{ now().month * 100 + now().day }}"
+  - variables:
+      active_periods: >-
+        {%- set ns = namespace(matches=[]) -%}
+        {%- for period in periods -%}
+          {%- if period.get('enabled', false) -%}
+            {%- set start = period.get('start_month', 1) | int * 100
+               + period.get('start_day', 1) | int -%}
+            {%- set end = period.get('end_month', 12) | int * 100
+               + period.get('end_day', 31) | int -%}
+            {%- set today = current_day | int -%}
+            {%- set matches = (start <= today <= end)
+               if start <= end else (today >= start or today <= end) -%}
+            {%- if matches -%}
+              {%- set ns.matches = ns.matches + [period] -%}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- ns.matches -}}
+  - if:
+      - condition: template
+        value_template: "{{ active_periods | count > 1 }}"
+    then:
+      - stop: >-
+          Mehrere AutoIntervall-Zeiträume sind am heutigen Datum aktiv. Bitte
+          die Zeiträume so anpassen, dass sie sich nicht überschneiden.
+  - if:
+      - condition: template
+        value_template: "{{ active_periods | count == 0 }}"
+    then:
+      - stop: "Für das heutige Datum ist kein AutoIntervall-Zeitraum aktiv."
+  - variables:
+      active_period: "{{ active_periods[0] }}"
+      active_assignments: "{{ active_period.get('assignments', []) }}"
+  - variables:
+      assigned_devices: >-
+        {%- set ns = namespace(items=[]) -%}
+        {%- for assignment in active_assignments -%}
+          {%- for selected_device in assignment.get('devices', []) -%}
+            {%- set ns.items = ns.items + [selected_device] -%}
+          {%- endfor -%}
+        {%- endfor -%}
+        {{- ns.items -}}
+  - variables:
+      duplicate_devices: >-
+        {%- set ns = namespace(items=[]) -%}
+        {%- for selected_device in assigned_devices -%}
+          {%- if assigned_devices.count(selected_device) > 1
+                and selected_device not in ns.items -%}
+            {%- set ns.items = ns.items + [selected_device] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- ns.items -}}
+  - if:
+      - condition: template
+        value_template: "{{ duplicate_devices | count > 0 }}"
+    then:
+      - stop: >-
+          Ein Gerät ist im aktiven Zeitraum mehreren Zuweisungen zugeordnet.
+          Bitte jedes Gerät innerhalb eines Zeitraums nur einmal auswählen.
+  - if:
+      - condition: template
+        value_template: "{{ assigned_devices | count == 0 }}"
+    then:
+      - stop: "Im aktiven Zeitraum sind keine Geräte zugewiesen."
+  - repeat:
+      for_each: "{{ active_assignments }}"
+      sequence:
+        - if:
+            - condition: template
+              value_template: "{{ repeat.item.get('devices', []) | count > 0 }}"
+          then:
+            - variables:
+                assignment_devices: "{{ repeat.item.get('devices', []) }}"
+                assignment_interval: "{{ repeat.item.get('interval', 0) | int }}"
+            - variables:
+                resolution: >-
+                  {%- set ns = namespace(targets=[], skipped=[]) -%}
+                  {%- for selected_device in assignment_devices -%}
+                    {%- set candidates = namespace(entities=[]) -%}
+                    {%- for entity_id in device_entities(selected_device) -%}
+                      {%- if entity_id.startswith('number.')
+                            and state_attr(entity_id, 'lorawan_control_key')
+                              in ['intervall', 'interval']
+                            and states(entity_id) != 'unavailable' -%}
+                        {%- set candidates.entities = candidates.entities + [entity_id] -%}
+                      {%- endif -%}
+                    {%- endfor -%}
+                    {%- if candidates.entities | count == 1 -%}
+                      {%- set entity_id = candidates.entities[0] -%}
+                      {%- set minimum = state_attr(entity_id, 'min') | float(-999999) -%}
+                      {%- set maximum = state_attr(entity_id, 'max') | float(999999) -%}
+                      {%- if minimum <= assignment_interval <= maximum -%}
+                        {%- if states(entity_id) | float(-999999) != assignment_interval -%}
+                          {%- set ns.targets = ns.targets + [entity_id] -%}
+                        {%- endif -%}
+                      {%- else -%}
+                        {%- set ns.skipped = ns.skipped + [selected_device] -%}
+                      {%- endif -%}
+                    {%- else -%}
+                      {%- set ns.skipped = ns.skipped + [selected_device] -%}
+                    {%- endif -%}
+                  {%- endfor -%}
+                  {{- {'targets': ns.targets, 'skipped': ns.skipped} -}}
+            - if:
+                - condition: template
+                  value_template: "{{ resolution.get('targets', []) | count > 0 }}"
+              then:
+                - action: number.set_value
+                  target:
+                    entity_id: "{{ resolution.get('targets', []) }}"
+                  data:
+                    value: "{{ assignment_interval }}"
