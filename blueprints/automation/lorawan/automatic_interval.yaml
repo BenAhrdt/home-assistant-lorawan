@@ -3,11 +3,13 @@ blueprint:
   description: >-
     Setzt den Intervall-Downlink ausgewählter LoRaWAN-Geräte anhand beliebig
     vieler wiederholbarer Zeitplanzeilen. Jede Zeitplanzeile enthält ein Datum,
-    optional eine Uhrzeit und beliebig viele Geräte-/Intervall-Zuweisungen.
+    Monat und Tag, optional eine Uhrzeit und beliebig viele
+    Geräte-/Intervall-Zuweisungen.
     Der Blueprint arbeitet ausschließlich zeitbasiert und reagiert nicht auf
-    lorawan_uplink_schedule oder andere Uplink-Ereignisse. Das Jahr des Datums
-    wird ignoriert; der Zeitpunkt wiederholt sich jährlich. Bereits identische
-    Werte werden nicht erneut als Downlink geschrieben.
+    lorawan_uplink_schedule oder andere Uplink-Ereignisse. Monat und Tag
+    wiederholen sich jährlich. Bereits identische
+    Werte werden nicht erneut als Downlink geschrieben. Das Hamburger-Symbol
+    im Editor sortiert Einträge; zum Bearbeiten bitte das Stift-Symbol verwenden.
   domain: automation
   source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/automatic_interval.yaml
   homeassistant:
@@ -16,8 +18,8 @@ blueprint:
     schedule:
       name: AutoIntervall-Zeitplan
       description: >-
-        Beliebig viele Zeitplanzeilen hinzufügen. Jede Zeile enthält ein Datum
-        (das Jahr wird ignoriert), optional eine Uhrzeit und wiederholbare
+        Beliebig viele Zeitplanzeilen hinzufügen. Jede Zeile enthält Monat und
+        Tag, optional eine Uhrzeit und wiederholbare
         Geräte-/Intervall-Zuweisungen.
       default: []
       selector:
@@ -30,11 +32,46 @@ blueprint:
               required: false
               selector:
                 text: {}
-            date:
-              label: Zeitpunkt – Datum
+            month:
+              label: Zeitpunkt – Monat
               required: true
               selector:
-                date: {}
+                select:
+                  options:
+                    - label: Januar
+                      value: 1
+                    - label: Februar
+                      value: 2
+                    - label: März
+                      value: 3
+                    - label: April
+                      value: 4
+                    - label: Mai
+                      value: 5
+                    - label: Juni
+                      value: 6
+                    - label: Juli
+                      value: 7
+                    - label: August
+                      value: 8
+                    - label: September
+                      value: 9
+                    - label: Oktober
+                      value: 10
+                    - label: November
+                      value: 11
+                    - label: Dezember
+                      value: 12
+                  mode: dropdown
+            day:
+              label: Zeitpunkt – Tag
+              required: true
+              selector:
+                number:
+                  min: 1
+                  max: 31
+                  step: 1
+                  mode: box
             time:
               label: Zeitpunkt – Uhrzeit (optional)
               required: false
@@ -96,12 +133,9 @@ actions:
       active_schedule: >-
         {%- set ns = namespace(items=[]) -%}
         {%- for entry in schedule -%}
-          {%- set date_value = entry.get('date', '') | string -%}
-          {%- set parts = date_value.split('-') -%}
           {%- set entry_time = (entry.get('time') or '00:05:00') | string -%}
-          {%- if parts | count == 3
-                and parts[1] | int == current_month | int
-                and parts[2] | int == current_day | int
+          {%- if entry.get('month', 0) | int == current_month | int
+                and entry.get('day', 0) | int == current_day | int
                 and entry_time[:5] == current_time -%}
             {%- set ns.items = ns.items + [entry] -%}
           {%- endif -%}
@@ -162,6 +196,11 @@ actions:
             - variables:
                 assignment_devices: "{{ repeat.item.get('devices', []) }}"
                 assignment_interval: "{{ repeat.item.get('interval', 0) | int }}"
+                assignment_name: >-
+                  {{ repeat.item.get('name')
+                     or (device_attr(repeat.item.get('devices', [])[0], 'name')
+                         if repeat.item.get('devices', []) | count == 1 else '')
+                     or 'Unbenannte Zuweisung' }}
             - variables:
                 resolution: >-
                   {%- set ns = namespace(targets=[], skipped=[]) -%}

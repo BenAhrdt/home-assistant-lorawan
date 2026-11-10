@@ -2,6 +2,7 @@
 import ast
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace as Obj
 import unittest
 
 try:
@@ -28,7 +29,8 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         self.schedule = [
             {
                 "name": "Sommer",
-                "date": "2000-06-01",
+                "month": 6,
+                "day": 1,
                 "time": "12:30:00",
                 "assignments": [
                     {"name": "Langsam", "devices": ["device-a"], "interval": 30},
@@ -69,6 +71,9 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         self.env.globals.update(
             now=lambda: self.now,
             device_entities=lambda device: self.entities_by_device.get(device, []),
+            device_attr=lambda device, attribute: (
+                "Thermostat A" if device == "device-a" and attribute == "name" else None
+            ),
             state_attr=lambda entity, attribute: self.attributes.get(entity, {}).get(attribute),
             states=lambda entity: self.values.get(entity, "unknown"),
         )
@@ -106,6 +111,9 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         schedule_selector = meta["input"]["schedule"]["selector"]["object"]
         self.assertTrue(schedule_selector["multiple"])
         self.assertNotIn("description", schedule_selector["fields"]["time"])
+        self.assertIn("month", schedule_selector["fields"])
+        self.assertIn("day", schedule_selector["fields"])
+        self.assertNotIn("date", schedule_selector["fields"])
         self.assertEqual(
             self.blueprint["triggers"],
             [{"trigger": "time_pattern", "minutes": "/1"}],
@@ -115,7 +123,7 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         device_selector = assignment_selector["fields"]["devices"]["selector"]["device"]
         self.assertTrue(device_selector["multiple"])
 
-    def test_date_year_is_ignored_and_assignments_are_flattened(self):
+    def test_month_day_schedule_and_assignments_are_flattened(self):
         context = self.variables_after(3)
         self.assertEqual(len(context["active_schedule"]), 1)
         self.assertEqual(len(context["active_assignments"]), 2)
@@ -150,6 +158,17 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         resolution = self.render(resolution_template, context)
         self.assertEqual(resolution["targets"], ["number.device_a_interval"])
         self.assertEqual(resolution["skipped"], ["device-c"])
+
+    def test_single_device_without_name_uses_device_name_fallback(self):
+        repeat_action = next(action for action in self.blueprint["actions"] if "repeat" in action)
+        assignment_template = repeat_action["repeat"]["sequence"][0]["then"][0][
+            "variables"
+        ]["assignment_name"]
+        result = self.render(
+            assignment_template,
+            {"repeat": Obj(item={"devices": ["device-a"], "interval": 30})},
+        )
+        self.assertEqual(result, "Thermostat A")
 
 
 if __name__ == "__main__":

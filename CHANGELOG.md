@@ -4,6 +4,13 @@
 
 _(No unreleased changes.)_
 
+## 0.1.44 - 2026-11-10
+
+- AutoIntervall-Zeitplanzeilen verwenden jetzt Monat und Tag ohne Jahresfeld.
+  Die optionale Standardzeit ist 10:00:00 Uhr. Einzelne Zuweisungen ohne
+  Bezeichnung verwenden bei genau einem Gerät dessen Gerätenamen als internen
+  Fallback.
+
 ## 0.1.43 - 2026-11-10
 
 - Fehlerkorrektur am verschachtelten AutoIntervall-Object-Selector: ungültige

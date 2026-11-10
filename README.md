@@ -81,13 +81,14 @@ bestimmte Geräte begrenzen.
 
 Der [zeitbasierte AutoIntervall-Blueprint](blueprints/automation/lorawan/automatic_interval.yaml)
 arbeitet vollständig unabhängig vom Uplink-Trigger. Er bietet beliebig viele
-wiederholbare Zeitplanzeilen; jede Zeile enthält ein Datum, optional eine
-Uhrzeit und beliebig viele wiederholbare Geräte-/Intervall-Zuweisungen. So
-können unterschiedliche Geräte am selben Zeitpunkt unterschiedliche Werte
-erhalten. Das Datum wird jährlich wiederholt. Bereits identische Werte werden
-nicht erneut geschrieben; individuelle Gerätebereiche werden berücksichtigt.
+wiederholbare Zeitplanzeilen; jede Zeile enthält Monat und Tag, optional eine
+Uhrzeit (Standard 10:00:00) und beliebig viele wiederholbare
+Geräte-/Intervall-Zuweisungen. So können unterschiedliche Geräte am selben
+Zeitpunkt unterschiedliche Werte erhalten. Der Zeitpunkt wird jährlich
+wiederholt. Bereits identische Werte werden nicht erneut geschrieben;
+individuelle Gerätebereiche werden berücksichtigt.
 
-[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml%3Fversion%3D0.1.43)
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml%3Fversion%3D0.1.44)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.04.-Blueprint-Automatic-interval)
 beschreibt die Zeitraum- und Gerätezuweisungen.
