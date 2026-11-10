@@ -4,6 +4,11 @@
 
 _(No unreleased changes.)_
 
+## 0.1.45 - 2026-11-10
+
+- Monatswerte des AutoIntervall-Selectors als Zeichenketten serialisiert, damit
+  der Blueprint-Import die Object-Selector-Optionen akzeptiert.
+
 ## 0.1.44 - 2026-11-10
 
 - AutoIntervall-Zeitplanzeilen verwenden jetzt Monat und Tag ohne Jahresfeld.

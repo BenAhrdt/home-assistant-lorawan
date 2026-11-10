@@ -114,6 +114,10 @@ class AutomaticIntervalBlueprintTests(unittest.TestCase):
         self.assertIn("month", schedule_selector["fields"])
         self.assertIn("day", schedule_selector["fields"])
         self.assertNotIn("date", schedule_selector["fields"])
+        month_options = schedule_selector["fields"]["month"]["selector"]["select"][
+            "options"
+        ]
+        self.assertEqual([option["value"] for option in month_options], [str(i) for i in range(1, 13)])
         self.assertEqual(
             self.blueprint["triggers"],
             [{"trigger": "time_pattern", "minutes": "/1"}],

@@ -88,7 +88,7 @@ Zeitpunkt unterschiedliche Werte erhalten. Der Zeitpunkt wird jährlich
 wiederholt. Bereits identische Werte werden nicht erneut geschrieben;
 individuelle Gerätebereiche werden berücksichtigt.
 
-[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml%3Fversion%3D0.1.44)
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml%3Fversion%3D0.1.45)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.04.-Blueprint-Automatic-interval)
 beschreibt die Zeitraum- und Gerätezuweisungen.
