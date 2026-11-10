@@ -80,13 +80,12 @@ bestimmte Geräte begrenzen.
 ### Automatische Intervallsteuerung
 
 Der [zeitbasierte AutoIntervall-Blueprint](blueprints/automation/lorawan/automatic_interval.yaml)
-arbeitet vollständig unabhängig vom Uplink-Trigger. Er prüft täglich zur
-konfigurierten Uhrzeit, welcher Jahreszeitraum aktiv ist, und setzt die
-zugewiesenen `Intervall`-Downlinks der ausgewählten LoRaWAN-Geräte. Bis zu fünf
-Zeiträume mit jeweils fünf optionalen Geräte-/Intervall-Zuweisungen erlauben
-unterschiedliche Werte für unterschiedliche Geräte im selben Zeitraum. Bereits
-identische Werte werden nicht erneut geschrieben; individuelle Gerätebereiche
-werden berücksichtigt.
+arbeitet vollständig unabhängig vom Uplink-Trigger. Er bietet beliebig viele
+wiederholbare Zeitplanzeilen; jede Zeile enthält ein Datum, optional eine
+Uhrzeit und beliebig viele wiederholbare Geräte-/Intervall-Zuweisungen. So
+können unterschiedliche Geräte am selben Zeitpunkt unterschiedliche Werte
+erhalten. Das Datum wird jährlich wiederholt. Bereits identische Werte werden
+nicht erneut geschrieben; individuelle Gerätebereiche werden berücksichtigt.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fautomatic_interval.yaml)
 

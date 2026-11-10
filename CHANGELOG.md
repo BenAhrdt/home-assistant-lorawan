@@ -4,6 +4,13 @@
 
 _(No unreleased changes.)_
 
+## 0.1.42 - 2026-11-10
+
+- Der AutoIntervall-Blueprint verwendet wiederholbare Zeitplanzeilen mit
+  wiederholbaren Geräte-/Intervall-Zuweisungen statt fester Zeitraum- und
+  Zuweisungsfelder. Datumseinträge werden jährlich wiederholt; optionale
+  Uhrzeiten werden minütlich ausgewertet.
+
 ## 0.1.41 - 2026-11-10
 
 - Neuer zeitbasierter AutoIntervall-Blueprint mit bis zu fünf Jahreszeiträumen
