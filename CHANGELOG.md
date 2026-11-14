@@ -4,6 +4,13 @@
 
 _(No unreleased changes.)_
 
+## 0.1.47 - 2026-11-14
+
+- `LastWaterLeakDuration` wird als Minutenwert mit der Einheit `min` erkannt
+  und ohne Nachkommastellen dargestellt.
+- Dauerwerte mit der Einheit `s` werden ebenfalls ohne Nachkommastellen
+  dargestellt.
+
 ## 0.1.46 - 2026-11-10
 
 - AutoIntervall verwendet jetzt auch im Blueprint-Fallback und im Eingabefeld
