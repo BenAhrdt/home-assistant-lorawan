@@ -8,11 +8,13 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .assigner import assign_value
 from .const import DOMAIN, SIGNAL_ADD_SENSOR
 from .entity import LoRaWANEntity, state_value
+from .entity_migrations import migrate_last_open_duration_units
 from .runtime import LoRaWANRuntime, add_runtime_listener
 from .schedule_entity import setup_schedule_entities
 
@@ -24,6 +26,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up LoRaWAN sensors."""
     runtime: LoRaWANRuntime = hass.data[DOMAIN][entry.entry_id]
+    migrate_last_open_duration_units(er.async_get(hass), entry.entry_id)
     setup_schedule_entities(runtime, entry, async_add_entities, "sensor")
     added: set[str] = set()
 

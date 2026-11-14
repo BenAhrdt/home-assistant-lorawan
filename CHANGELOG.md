@@ -4,6 +4,12 @@
 
 _(No unreleased changes.)_
 
+## 0.1.49 - 2026-11-14
+
+- Bestehende `LastOpenDuration`-Entities migrieren einen automatisch
+  gespeicherten Sekunden-Override auf die native Minuten-Einheit; explizite
+  Nutzerüberschreibungen bleiben erhalten.
+
 ## 0.1.48 - 2026-11-14
 
 - `LastOpenDuration` wird entsprechend dem Geräte-Decoder als Minutenwert mit
