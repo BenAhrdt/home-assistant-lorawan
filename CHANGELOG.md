@@ -4,6 +4,10 @@
 
 _(No unreleased changes.)_
 
+## 0.1.51 - 2026-11-14
+
+- Vicki-Profil um die zusätzlichen Bytes der `LastOpenDuration`-Payload ergänzt.
+
 ## 0.1.50 - 2026-11-14
 
 - Korrigiert die Migration bestehender `LastOpenDuration`-Entities für die
