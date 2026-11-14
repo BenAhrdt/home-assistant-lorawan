@@ -4,6 +4,11 @@
 
 _(No unreleased changes.)_
 
+## 0.1.48 - 2026-11-14
+
+- `LastOpenDuration` wird entsprechend dem Geräte-Decoder als Minutenwert mit
+  der Einheit `min` statt als Sekundenwert dargestellt.
+
 ## 0.1.47 - 2026-11-14
 
 - `LastWaterLeakDuration` wird als Minutenwert mit der Einheit `min` erkannt
