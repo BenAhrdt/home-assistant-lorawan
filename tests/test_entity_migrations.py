@@ -47,8 +47,8 @@ class Registry:
 class EntityMigrationTests(unittest.TestCase):
     def test_migrates_automatic_seconds_override(self):
         entry = Entry(
-            "sensor.last_open_duration",
-            "entry_AABB_last_open_duration",
+            "sensor.lastopenduration",
+            "entry_AABB_lastopenduration",
             options={"sensor.private": {"suggested_unit_of_measurement": "s"}},
         )
         registry = Registry(entry)
@@ -59,8 +59,8 @@ class EntityMigrationTests(unittest.TestCase):
 
     def test_preserves_explicit_sensor_override(self):
         entry = Entry(
-            "sensor.last_open_duration",
-            "entry_AABB_last_open_duration",
+            "sensor.lastopenduration",
+            "entry_AABB_lastopenduration",
             options={"sensor": {"unit_of_measurement": "s"}},
         )
         registry = Registry(entry)
@@ -70,8 +70,8 @@ class EntityMigrationTests(unittest.TestCase):
 
     def test_preserves_other_private_options(self):
         entry = Entry(
-            "sensor.last_open_duration",
-            "entry_AABB_last_open_duration",
+            "sensor.lastopenduration",
+            "entry_AABB_lastopenduration",
             options={
                 "sensor.private": {
                     "suggested_unit_of_measurement": "s",
@@ -88,8 +88,8 @@ class EntityMigrationTests(unittest.TestCase):
     def test_does_not_touch_other_entries(self):
         duration = Entry("sensor.duration", "entry_AABB_duration")
         foreign = Entry(
-            "sensor.last_open_duration",
-            "other_AABB_last_open_duration",
+            "sensor.lastopenduration",
+            "other_AABB_lastopenduration",
             config_entry_id="other",
         )
         registry = Registry(duration, foreign)

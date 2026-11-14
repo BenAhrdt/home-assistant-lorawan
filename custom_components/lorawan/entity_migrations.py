@@ -25,7 +25,9 @@ def migrate_last_open_duration_units(
             entry.platform != domain
             or entry.config_entry_id != config_entry_id
             or not str(entry.entity_id).startswith("sensor.")
-            or not str(entry.unique_id).endswith("_last_open_duration")
+            or not str(entry.unique_id).endswith(
+                ("_lastopenduration", "_last_open_duration")
+            )
             or entry.unit_of_measurement != "s"
         ):
             continue

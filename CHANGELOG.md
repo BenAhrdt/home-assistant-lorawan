@@ -4,6 +4,11 @@
 
 _(No unreleased changes.)_
 
+## 0.1.50 - 2026-11-14
+
+- Korrigiert die Migration bestehender `LastOpenDuration`-Entities für die
+  tatsächliche normalisierte Entity-ID `lastopenduration`.
+
 ## 0.1.49 - 2026-11-14
 
 - Bestehende `LastOpenDuration`-Entities migrieren einen automatisch
