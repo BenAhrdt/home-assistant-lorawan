@@ -101,7 +101,10 @@ class TemperatureBlueprintTests(unittest.TestCase):
             [{'integration': 'lorawan', 'model': 'Vicki'}],
         )
         self.assertEqual(meta['input']['target_devices']['default'], [])
-        self.assertEqual(meta['input']['temperature_label']['selector'], {'label': {}})
+        self.assertEqual(
+            meta['input']['temperature_label']['selector'],
+            {'label': {'multiple': True}},
+        )
         self.assertTrue(meta['source_url'].endswith('/main/blueprints/automation/lorawan/room_external_temperature.yaml'))
         self.assertEqual(self.blueprint['triggers'][0]['event_data'], {'source': 'lorawan'})
 
@@ -116,6 +119,12 @@ class TemperatureBlueprintTests(unittest.TestCase):
         self.assertEqual(self.run_blueprint()['data']['value'], 25)
         self.inputs['temperature_label'] = 'different-label'
         self.assertIn('stop', self.run_blueprint())
+
+    def test_multiple_selector_value_requires_exactly_one_label(self):
+        self.inputs['temperature_label'] = ['primary']
+        self.assertEqual(self.run_blueprint()['data']['value'], 21.5)
+        self.inputs['temperature_label'] = ['primary', 'another-label']
+        self.assertIn('ein Label', self.run_blueprint()['stop'])
 
     def test_optional_device_selection_keeps_all_or_restricts_trigger(self):
         self.assertEqual(self.run_blueprint()['action'], 'number.set_value')

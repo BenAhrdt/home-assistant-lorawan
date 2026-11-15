@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.52 - 2026-11-15
 
-_(No unreleased changes.)_
+- Der Raumtemperatur-Blueprint zeigt das ausgewählte Label jetzt über seinen
+  Namen statt nur über die technische Label-ID an. Laufzeitseitig bleibt genau
+  ein Label erforderlich; bestehende Einzelwerte bleiben kompatibel.
 
 ## 0.1.51 - 2026-11-14
 

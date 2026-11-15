@@ -55,8 +55,9 @@ entities from decoded payload values.
 ### Externe Raumtemperatur
 
 Optionaler [Blueprint für externe Vicki-Raumtemperaturen](blueprints/automation/lorawan/room_external_temperature.yaml)
-mit Label-Auswahl und optionaler Vicki-Geräteauswahl; eine Automation für alle
-Räume. Eine leere Geräteauswahl lässt alle passenden Vicki-Geräte zu.
+mit Label-Auswahl (der ausgewählte Label-Name wird angezeigt) und optionaler
+Vicki-Geräteauswahl; eine Automation für alle Räume. Eine leere Geräteauswahl
+lässt alle passenden Vicki-Geräte zu.
 Voraussetzung: LoRaWAN ab 0.1.39.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Froom_external_temperature.yaml)

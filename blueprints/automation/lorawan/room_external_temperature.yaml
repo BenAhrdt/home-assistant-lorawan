@@ -32,10 +32,12 @@ blueprint:
     temperature_label:
       name: Label der Raumtemperatur
       description: >-
-        Zum Beispiel primaryRoomTemperature. Je Raum genau eine externe
-        Temperaturentität (sensor mit Geräteklasse temperature) damit markieren.
+        Genau ein Label auswählen, zum Beispiel primaryRoomTemperature. Je Raum
+        genau eine externe Temperaturentität (sensor mit Geräteklasse
+        temperature) damit markieren.
       selector:
-        label: {}
+        label:
+          multiple: true
     maximum_age_minutes:
       name: Maximales Alter des Temperaturwerts
       description: >-
@@ -117,10 +119,22 @@ actions:
              or not is_number(states(target_control)) }}
     then:
       - stop: "Raum oder verfügbares numerisches ExternalTemperature-Control fehlt."
+  - alias: Genau ein Temperatur-Label verlangen
+    if:
+      - condition: template
+        value_template: >-
+          {{ not temperature_label
+             or (temperature_label is not string
+                 and temperature_label | count != 1) }}
+    then:
+      - stop: "Genau ein Label der Raumtemperatur muss ausgewählt sein."
+  - variables:
+      selected_temperature_label: >-
+        {{ temperature_label if temperature_label is string else temperature_label[0] }}
   - variables:
       temperature_candidates: >-
         {% set ns = namespace(entities=[]) %}
-        {% for entity in label_entities(temperature_label) %}
+        {% for entity in label_entities(selected_temperature_label) %}
           {% if entity.startswith('sensor.')
                 and state_attr(entity, 'device_class') == 'temperature'
                 and area_id(entity) == room_id
