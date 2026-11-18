@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.53 - 2026-11-18
+
+- `CustomSend` unterstützt die ioBroker-Syntax mit Hex-Payload, Port,
+  Confirmed, Priority und optionalem `push`.
+- Ohne `push` folgt `CustomSend` jetzt dem Versandmodus des Geräteprofils und
+  schreibt bei `enabled & collect` in `Next Send`; mit `push` wird direkt
+  gesendet.
+
 ## 0.1.52 - 2026-11-15
 
 - Der Raumtemperatur-Blueprint zeigt das ausgewählte Label jetzt über seinen

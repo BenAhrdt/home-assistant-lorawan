@@ -47,6 +47,7 @@ from .uplinks import UPLINK_HISTORY_LIMIT, remember_uplink
 from .uplink_scheduler import UplinkScheduler
 from .downlinks import (
     INTERNAL_BASE_PROFILE,
+    custom_send_request,
     downlink_message,
     merged_profiles,
     parameter_payload,
@@ -876,8 +877,19 @@ class LoRaWANRuntime:
                     payload_hex = ""
             self._store_downlink_diagnostics(device, payload_hex, payload)
             return
-        payload = parameter_payload(parameter, value)
         network = device.network or ("ttn" if "@" in device.application_name else "chirpstack")
+        if str(parameter.get("name", "")).casefold() == "customsend":
+            device_profile = profile_for_device(
+                merged_profiles(self.downlink_profiles),
+                device.device_type,
+            ) or INTERNAL_BASE_PROFILE
+            payload, custom_profile, push = custom_send_request(value, device_profile)
+            if not push and custom_profile.get("sendWithUplink", "disabled") != "disabled":
+                self._queue_downlink(device, custom_profile, payload)
+                return
+            self.send_downlink(network, device, custom_profile, payload)
+            return
+        payload = parameter_payload(parameter, value)
         if profile.get("sendWithUplink", "disabled") != "disabled":
             self._queue_downlink(device, {**profile, **parameter}, payload)
             return

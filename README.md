@@ -47,6 +47,11 @@ entities from decoded payload values.
 - Adds basic diagnostic attributes like DevEUI, application, topic, RSSI, SNR,
   spreading factor, frequency, frame port, and frame count when available.
 
+`CustomSend` akzeptiert eine Hex-Payload sowie optional Port, `true`/`false`
+für Confirmed, Priority und das Steuerwort `push`, zum Beispiel `40` oder
+`40,10,true,HIGH`. Ohne `push` folgt der Versand dem Geräteprofil; mit
+`40,push` wird direkt gesendet.
+
 <img width="1065" height="890" alt="image" src="https://github.com/user-attachments/assets/92530515-aca4-4701-9431-ecdff6a2a89b" />
 
 

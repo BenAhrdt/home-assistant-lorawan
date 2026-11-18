@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -223,6 +224,64 @@ def parameter_payload(parameter: dict[str, Any], value: Any) -> str:
         raise ValueError(f"Nicht unterstützter Downlink-Typ: {kind}")
     _validate_hex(payload)
     return _with_crc(payload, str(data["crc"]))
+
+
+def custom_send_request(
+    value: Any,
+    profile: dict[str, Any],
+) -> tuple[str, dict[str, Any], bool]:
+    """Parse the ioBroker-compatible CustomSend value.
+
+    The value contains the hexadecimal payload and may override the profile's
+    port, confirmation flag, and priority. ``push`` is an optional transport
+    override that sends immediately instead of using the profile's uplink
+    mode. The payload is taken from the first hexadecimal value; this keeps a
+    numeric payload such as ``40`` distinguishable from a later numeric port.
+    """
+    payload: str | None = None
+    port: int | None = None
+    confirmed = bool(profile.get("confirmed", DEFAULT_PARAMETER["confirmed"]))
+    priority = str(profile.get("priority", DEFAULT_PARAMETER["priority"]))
+    push = False
+
+    for raw_token in str(value).split(","):
+        token = raw_token.strip()
+        if not token:
+            raise ValueError("CustomSend enthält einen leeren Parameter")
+        lowered = token.casefold()
+        if lowered == "push":
+            push = True
+            continue
+        if lowered in {"true", "false"}:
+            confirmed = lowered == "true"
+            continue
+        if re.fullmatch(r"[0-9A-Fa-f]+", token):
+            if payload is None:
+                payload = token.upper()
+            elif token.isdecimal():
+                port = int(token)
+            else:
+                raise ValueError("CustomSend enthält mehrere Hex-Payloads")
+            continue
+        # Priorities such as NORMAL or HIGH are the remaining non-hex values.
+        priority = token
+
+    if payload is None:
+        raise ValueError("CustomSend benötigt eine Hex-Payload")
+    _validate_hex(payload)
+    if port is None:
+        try:
+            port = int(profile.get("port", DEFAULT_PARAMETER["port"]))
+        except (TypeError, ValueError) as err:
+            raise ValueError("CustomSend-Profil enthält keinen gültigen Port") from err
+
+    effective_profile = {
+        **profile,
+        "port": port,
+        "confirmed": confirmed,
+        "priority": priority,
+    }
+    return payload, effective_profile, push
 
 
 def state_options(parameter: dict[str, Any]) -> dict[str, str]:
