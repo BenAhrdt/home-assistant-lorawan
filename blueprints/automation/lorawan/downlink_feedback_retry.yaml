@@ -9,7 +9,7 @@ blueprint:
     neuen aktuellen Wert und einem neuen Uplink-Zähler. Der Blueprint benötigt
     für das Gerät der Downlink-Entität den Uplink-Modus „Zeit nach Uplink“.
   domain: automation
-  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry.yaml?version=1bbe8dd
+  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry.yaml?version=27e7109
   homeassistant:
     min_version: "2024.10.0"
   input:
