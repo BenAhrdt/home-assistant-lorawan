@@ -24,10 +24,9 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         Loader.add_constructor(
             "!input", lambda loader, node: {"input": loader.construct_scalar(node)}
         )
-        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_device.yaml"
+        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.inputs = {
-            "target_device": "vicki",
             "downlink_entity": "number.target_temperature",
             "uplink_entity": "sensor.target_temperature",
             "downlink_filter_operator": "all",
@@ -101,7 +100,6 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.assertEqual(
             set(metadata["input"]),
             {
-                "target_device",
                 "downlink_entity",
                 "uplink_entity",
                 "downlink_filter_operator",
@@ -114,6 +112,16 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         )
         self.assertEqual(self.blueprint["mode"], "restart")
         self.assertEqual(self.blueprint["triggers"][0]["trigger"], "state")
+        derived_device = self.blueprint["actions"][0]["variables"]
+        self.assertEqual(
+            derived_device["downlink_device"],
+            "{{ device_id(downlink_entity) or '' }}",
+        )
+        scope_check = next(
+            action for action in self.blueprint["actions"]
+            if action.get("alias") == "Entitäten und gemeinsames Gerät prüfen"
+        )
+        self.assertIn("device_id(uplink_entity) != downlink_device", scope_check["if"][0]["condition"]["value_template"])
         self.assertNotIn("equality_tolerance", metadata["input"])
         self.assertEqual(
             metadata["input"]["downlink_filter_value"]["visible"],

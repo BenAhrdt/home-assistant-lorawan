@@ -1,36 +1,25 @@
 blueprint:
-  name: "LoRaWAN – Downlink-Rückmeldung überwachen und wiederholen (Gerätescope)"
+  name: "LoRaWAN – Downlink-Rückmeldung überwachen und wiederholen"
   description: >-
     Überwacht eine frei wählbare Downlink-Entität eines LoRaWAN-Geräts und
     vergleicht sie nach einer konfigurierbaren Anzahl von Uplinks mit einer
     Rückmelde-Entität oder einem festen Wert. Bei einem fehlgeschlagenen
     Vergleich wird der aktuell eingestellte Downlink-Wert typabhängig erneut
     geschrieben. Eine Änderung des Downlinks startet die Überwachung mit dem
-    neuen aktuellen Wert und einem neuen Uplink-Zähler. Der Blueprint benötigt
-    für das Gerät der Downlink-Entität den Uplink-Modus „Zeit nach Uplink“.
+    neuen aktuellen Wert und einem neuen Uplink-Zähler. Downlink und
+    Rückmelde-Entität müssen zum selben LoRaWAN-Gerät gehören. Der Blueprint
+    benötigt für dieses Gerät den Uplink-Modus „Zeit nach Uplink“.
   domain: automation
-  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_device.yaml
+  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_entities.yaml
   homeassistant:
     min_version: "2024.10.0"
   input:
-    target_device:
-      name: LoRaWAN-Gerät
-      description: >-
-        Das Gerät, zu dem Downlink- und Rückmelde-Entität gehören müssen.
-        Die Entity-Listen können in Home Assistant nicht dynamisch auf dieses
-        Gerät eingeschränkt werden; die Zuordnung wird deshalb zusätzlich zur
-        Laufzeit geprüft.
-      selector:
-        device:
-          filter:
-            - integration: lorawan
-
     downlink_entity:
       name: Downlink-Entität
       description: >-
         Die steuerbare LoRaWAN-Entität. Unterstützt werden Number, Select,
-        Switch und Text. Die Auswahl zeigt alle passenden LoRaWAN-Entitäten;
-        sie wird zur Laufzeit gegen das ausgewählte Gerät geprüft.
+        Switch und Text. Downlink und Rückmelde-Entität müssen zum selben
+        Gerät gehören.
       selector:
         entity:
           filter:
@@ -181,7 +170,6 @@ mode: restart
 max_exceeded: warning
 
 variables:
-  target_device: !input target_device
   downlink_entity: !input downlink_entity
   uplink_entity: !input uplink_entity
   downlink_filter_operator: !input downlink_filter_operator
@@ -196,20 +184,22 @@ triggers:
     entity_id: !input downlink_entity
 
 actions:
-  - alias: Entitäten und Gerätescope prüfen
+  - variables:
+      downlink_device: "{{ device_id(downlink_entity) or '' }}"
+
+  - alias: Entitäten und gemeinsames Gerät prüfen
     if:
       - condition: template
         value_template: >-
-          {{ not target_device
-             or not downlink_entity
+          {{ not downlink_entity
              or not uplink_entity
-             or device_id(downlink_entity) != target_device
-             or device_id(uplink_entity) != target_device
+             or not downlink_device
+             or device_id(uplink_entity) != downlink_device
              or not has_value(downlink_entity) }}
     then:
       - stop: >-
           Der Downlink muss verfügbar sein und Downlink sowie Rückmelde-Entität
-          müssen zum ausgewählten LoRaWAN-Gerät gehören.
+          müssen zum selben LoRaWAN-Gerät gehören.
 
   - variables:
       downlink_filter_matches: >-
@@ -269,7 +259,7 @@ actions:
                         {{ wait.trigger is defined
                            and wait.trigger.event is defined
                            and wait.trigger.event.data.get('source') == 'lorawan'
-                           and wait.trigger.event.data.get('device_id') == target_device }}
+                           and wait.trigger.event.data.get('device_id') == downlink_device }}
                   sequence:
                     - wait_for_trigger:
                         - trigger: event
