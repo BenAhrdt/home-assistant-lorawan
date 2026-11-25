@@ -7,27 +7,19 @@ blueprint:
     Vergleich wird der aktuell eingestellte Downlink-Wert typabhängig erneut
     geschrieben. Eine Änderung des Downlinks startet die Überwachung mit dem
     neuen aktuellen Wert und einem neuen Uplink-Zähler. Der Blueprint benötigt
-    für das ausgewählte Gerät den Uplink-Modus „Zeit nach Uplink“.
+    für das Gerät der Downlink-Entität den Uplink-Modus „Zeit nach Uplink“.
   domain: automation
   source_url: https://github.com/BenAhrdt/home-assistant-lorawan/blob/main/blueprints/automation/lorawan/downlink_feedback_retry.yaml
   homeassistant:
     min_version: "2024.10.0"
   input:
-    target_device:
-      name: LoRaWAN-Gerät
-      description: >-
-        Das Gerät, zu dem Downlink- und Rückmelde-Entität gehören müssen.
-      selector:
-        device:
-          filter:
-            - integration: lorawan
-
     downlink_entity:
       name: Downlink-Entität
       description: >-
-        Die steuerbare LoRaWAN-Entität, deren aktueller Zustand geschrieben
-        und überwacht werden soll. Unterstützt werden Number, Select, Switch
-        und Text.
+        Die steuerbare LoRaWAN-Entität, deren Gerät den Überwachungsbereich
+        bestimmt. Unterstützt werden Number, Select, Switch und Text. Die
+        Auswahl zeigt alle passenden LoRaWAN-Entitäten; die Rückmelde-Entität
+        wird anschließend auf dasselbe Gerät geprüft.
       selector:
         entity:
           filter:
@@ -178,7 +170,6 @@ mode: restart
 max_exceeded: warning
 
 variables:
-  target_device: !input target_device
   downlink_entity: !input downlink_entity
   uplink_entity: !input uplink_entity
   downlink_filter_operator: !input downlink_filter_operator
@@ -198,11 +189,10 @@ actions:
     if:
       - condition: template
         value_template: >-
-          {{ not target_device
-             or not downlink_entity
+          {{ not downlink_entity
              or not uplink_entity
-             or device_id(downlink_entity) != target_device
-             or device_id(uplink_entity) != target_device
+             or not device_id(downlink_entity)
+             or device_id(uplink_entity) != device_id(downlink_entity)
              or not has_value(downlink_entity) }}
     then:
       - stop: >-
@@ -268,7 +258,7 @@ actions:
                         {{ wait.trigger is defined
                            and wait.trigger.event is defined
                            and wait.trigger.event.data.get('source') == 'lorawan'
-                           and wait.trigger.event.data.get('device_id') == target_device }}
+                           and wait.trigger.event.data.get('device_id') == device_id(downlink_entity) }}
                   sequence:
                     - wait_for_trigger:
                         - trigger: event

@@ -27,7 +27,6 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.inputs = {
-            "target_device": "vicki",
             "downlink_entity": "number.target_temperature",
             "uplink_entity": "sensor.target_temperature",
             "downlink_filter_operator": "all",
@@ -103,7 +102,6 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.assertEqual(
             set(metadata["input"]),
             {
-                "target_device",
                 "downlink_entity",
                 "uplink_entity",
                 "downlink_filter_operator",
@@ -117,6 +115,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         )
         self.assertEqual(self.blueprint["mode"], "restart")
         self.assertEqual(self.blueprint["triggers"][0]["trigger"], "state")
+        self.assertNotIn("target_device", metadata["input"])
         filter_options = metadata["input"]["downlink_filter_operator"]["selector"]["select"]["options"]
         self.assertEqual(filter_options[0]["value"], "all")
         self.assertIn("greater_or_equal", [option["value"] for option in filter_options])
