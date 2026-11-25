@@ -5,12 +5,13 @@ blueprint:
     vergleicht sie nach einer konfigurierbaren Anzahl von Uplinks mit einer
     Rückmelde-Entität oder einem festen Wert. Bei einem fehlgeschlagenen
     Vergleich wird der aktuell eingestellte Downlink-Wert typabhängig erneut
-    geschrieben. Eine Änderung des Downlinks startet die Überwachung mit dem
-    neuen aktuellen Wert und einem neuen Uplink-Zähler. Downlink und
+    geschrieben. Die Überwachung startet beim Home-Assistant-Start und wird
+    regelmäßig neu aktiviert; sie benötigt keine Downlink-Zustandsänderung.
+    Der aktuelle Downlink-Wert wird bei jeder Prüfung gelesen. Downlink und
     Rückmelde-Entität müssen zum selben LoRaWAN-Gerät gehören. Der Blueprint
     benötigt für dieses Gerät den Uplink-Modus „Zeit nach Uplink“.
   domain: automation
-  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_entities_v2.yaml
+  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml
   homeassistant:
     min_version: "2024.10.0"
   input:
@@ -166,7 +167,7 @@ blueprint:
           unit_of_measurement: Versuche
           mode: box
 
-mode: restart
+mode: single
 max_exceeded: warning
 
 variables:
@@ -180,8 +181,10 @@ variables:
   max_retries: !input max_retries
 
 triggers:
-  - trigger: state
-    entity_id: !input downlink_entity
+  - trigger: homeassistant
+    event: start
+  - trigger: time_pattern
+    minutes: "/1"
 
 actions:
   - variables:

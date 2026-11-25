@@ -24,7 +24,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         Loader.add_constructor(
             "!input", lambda loader, node: {"input": loader.construct_scalar(node)}
         )
-        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities_v2.yaml"
+        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.inputs = {
             "downlink_entity": "number.target_temperature",
@@ -110,8 +110,13 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
                 "max_retries",
             },
         )
-        self.assertEqual(self.blueprint["mode"], "restart")
-        self.assertEqual(self.blueprint["triggers"][0]["trigger"], "state")
+        self.assertEqual(self.blueprint["mode"], "single")
+        self.assertEqual(self.blueprint["triggers"][0]["trigger"], "homeassistant")
+        self.assertEqual(self.blueprint["triggers"][0]["event"], "start")
+        self.assertEqual(self.blueprint["triggers"][1], {
+            "trigger": "time_pattern",
+            "minutes": "/1",
+        })
         self.assertEqual(
             self.blueprint["actions"][5]["repeat"]["count"],
             "{{ max_retries | int(1) }}",
