@@ -85,7 +85,7 @@ bestimmte Geräte begrenzen.
 
 ### Downlink-Rückmeldung überwachen und wiederholen
 
-Der allgemeine [Blueprint zur Downlink-Rückmeldung](blueprints/automation/lorawan/downlink_feedback_retry_entities.yaml)
+Der allgemeine [Blueprint zur Downlink-Rückmeldung](blueprints/automation/lorawan/downlink_feedback_retry_entities_v2.yaml)
 verknüpft eine steuerbare Downlink-Entität mit einer Rückmelde-Entität.
 Nach einer konfigurierbaren Anzahl von Uplinks wird
 der aktuelle Downlink-Wert mit der Rückmeldung oder einem festen Wert
@@ -100,7 +100,7 @@ Blueprint speichert keinen früheren Sollwert. Downlink und Rückmelde-Entität
 werden zur Laufzeit auf dasselbe Gerät geprüft; eine fremde oder
 geräteübergreifend kombinierte Entität wird sicher abgewiesen.
 
-[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry_entities.yaml)
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry_entities_v2.yaml)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.05.-Blueprint-Downlink-feedback)
 beschreibt Einrichtung, Vergleichsregeln und die erforderliche Einstellung

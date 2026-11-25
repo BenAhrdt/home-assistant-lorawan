@@ -24,7 +24,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         Loader.add_constructor(
             "!input", lambda loader, node: {"input": loader.construct_scalar(node)}
         )
-        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities.yaml"
+        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities_v2.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.inputs = {
             "downlink_entity": "number.target_temperature",
