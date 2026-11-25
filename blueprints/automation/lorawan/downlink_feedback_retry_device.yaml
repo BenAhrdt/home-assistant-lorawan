@@ -1,5 +1,5 @@
 blueprint:
-  name: "LoRaWAN – Downlink-Rückmeldung überwachen und wiederholen"
+  name: "LoRaWAN – Downlink-Rückmeldung überwachen und wiederholen (Gerätescope)"
   description: >-
     Überwacht eine frei wählbare Downlink-Entität eines LoRaWAN-Geräts und
     vergleicht sie nach einer konfigurierbaren Anzahl von Uplinks mit einer
@@ -9,7 +9,7 @@ blueprint:
     neuen aktuellen Wert und einem neuen Uplink-Zähler. Der Blueprint benötigt
     für das Gerät der Downlink-Entität den Uplink-Modus „Zeit nach Uplink“.
   domain: automation
-  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/93d614d/blueprints/automation/lorawan/downlink_feedback_retry.yaml
+  source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_device.yaml
   homeassistant:
     min_version: "2024.10.0"
   input:

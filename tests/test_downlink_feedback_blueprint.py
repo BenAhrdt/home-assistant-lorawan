@@ -24,7 +24,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         Loader.add_constructor(
             "!input", lambda loader, node: {"input": loader.construct_scalar(node)}
         )
-        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry.yaml"
+        path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_device.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.inputs = {
             "target_device": "vicki",
