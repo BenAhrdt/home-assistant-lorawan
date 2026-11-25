@@ -103,7 +103,7 @@ Home Assistant Entity-Selectoren in Blueprints nicht dynamisch an einen zuvor
 ausgewählten Geräte-Selector binden kann. Eine fremde Entität wird sicher
 abgewiesen. Die Geräteauswahl ist nicht auf Vicki begrenzt.
 
-[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry.yaml%3Fversion%3D811bc36)
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2F93d614d%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry.yaml)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.05.-Blueprint-Downlink-feedback)
 beschreibt Einrichtung, Vergleichsregeln und die erforderliche Einstellung
