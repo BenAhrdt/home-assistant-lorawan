@@ -83,6 +83,29 @@ bestimmte Geräte begrenzen.
 
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fnext_send_push.yaml)
 
+### Downlink-Rückmeldung überwachen und wiederholen
+
+Der allgemeine [Blueprint zur Downlink-Rückmeldung](blueprints/automation/lorawan/downlink_feedback_retry.yaml)
+verknüpft eine steuerbare Downlink-Entität mit einer Rückmelde-Entität
+desselben LoRaWAN-Geräts. Nach einer konfigurierbaren Anzahl von Uplinks wird
+der aktuelle Downlink-Wert mit der Rückmeldung oder einem festen Wert
+verglichen. Bei einem fehlgeschlagenen Vergleich wird der aktuelle Wert
+typabhängig erneut geschrieben. Unterstützt werden `number`, `select`,
+`switch` und `text`.
+
+Der optionale Downlink-Filter kann auf **Alle Werte**, Gleich, Ungleich,
+Größer, Kleiner, Größer/Gleich oder Kleiner/Gleich gesetzt werden. Eine
+Änderung des Downlinks startet die Überwachung mit dem neuen Wert neu; der
+Blueprint speichert keinen früheren Sollwert. Die Geräteauswahl ist nicht auf
+Vicki begrenzt.
+
+[![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry.yaml)
+
+Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.05.-Blueprint-Downlink-feedback)
+beschreibt Einrichtung, Vergleichsregeln und die erforderliche Einstellung
+**Zeit nach Uplink** am Gerät. Der Blueprint wird separat aktualisiert und
+benötigt für diese Funktion keine neue Integrationsversion.
+
 ### Automatische Intervallsteuerung
 
 Der [zeitbasierte AutoIntervall-Blueprint](blueprints/automation/lorawan/automatic_interval.yaml)
