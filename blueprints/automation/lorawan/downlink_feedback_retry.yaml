@@ -13,13 +13,24 @@ blueprint:
   homeassistant:
     min_version: "2024.10.0"
   input:
+    target_device:
+      name: LoRaWAN-Gerät
+      description: >-
+        Das Gerät, zu dem Downlink- und Rückmelde-Entität gehören müssen.
+        Die Entity-Listen können in Home Assistant nicht dynamisch auf dieses
+        Gerät eingeschränkt werden; die Zuordnung wird deshalb zusätzlich zur
+        Laufzeit geprüft.
+      selector:
+        device:
+          filter:
+            - integration: lorawan
+
     downlink_entity:
       name: Downlink-Entität
       description: >-
-        Die steuerbare LoRaWAN-Entität, deren Gerät den Überwachungsbereich
-        bestimmt. Unterstützt werden Number, Select, Switch und Text. Die
-        Auswahl zeigt alle passenden LoRaWAN-Entitäten; die Rückmelde-Entität
-        wird anschließend auf dasselbe Gerät geprüft.
+        Die steuerbare LoRaWAN-Entität. Unterstützt werden Number, Select,
+        Switch und Text. Die Auswahl zeigt alle passenden LoRaWAN-Entitäten;
+        sie wird zur Laufzeit gegen das ausgewählte Gerät geprüft.
       selector:
         entity:
           filter:
@@ -170,6 +181,7 @@ mode: restart
 max_exceeded: warning
 
 variables:
+  target_device: !input target_device
   downlink_entity: !input downlink_entity
   uplink_entity: !input uplink_entity
   downlink_filter_operator: !input downlink_filter_operator
@@ -188,10 +200,11 @@ actions:
     if:
       - condition: template
         value_template: >-
-          {{ not downlink_entity
+          {{ not target_device
+             or not downlink_entity
              or not uplink_entity
-             or not device_id(downlink_entity)
-             or device_id(uplink_entity) != device_id(downlink_entity)
+             or device_id(downlink_entity) != target_device
+             or device_id(uplink_entity) != target_device
              or not has_value(downlink_entity) }}
     then:
       - stop: >-
@@ -256,7 +269,7 @@ actions:
                         {{ wait.trigger is defined
                            and wait.trigger.event is defined
                            and wait.trigger.event.data.get('source') == 'lorawan'
-                           and wait.trigger.event.data.get('device_id') == device_id(downlink_entity) }}
+                           and wait.trigger.event.data.get('device_id') == target_device }}
                   sequence:
                     - wait_for_trigger:
                         - trigger: event
