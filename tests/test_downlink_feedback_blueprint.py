@@ -112,6 +112,10 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         )
         self.assertEqual(self.blueprint["mode"], "restart")
         self.assertEqual(self.blueprint["triggers"][0]["trigger"], "state")
+        self.assertEqual(
+            self.blueprint["actions"][5]["repeat"]["count"],
+            "{{ max_retries | int(1) }}",
+        )
         derived_device = self.blueprint["actions"][0]["variables"]
         self.assertEqual(
             derived_device["downlink_device"],

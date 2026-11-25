@@ -247,6 +247,7 @@ actions:
       retries: 0
 
   - repeat:
+      count: "{{ max_retries | int(1) }}"
       sequence:
         - alias: Auf die konfigurierten Uplinks desselben Geräts warten
           repeat:
