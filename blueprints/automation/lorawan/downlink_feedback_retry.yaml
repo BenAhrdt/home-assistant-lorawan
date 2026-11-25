@@ -75,31 +75,35 @@ blueprint:
         Vergleichswert als Text eintragen, zum Beispiel 5, 22 oder ein
         Select-/Text-Wert. Bei „Alle Werte“ wird dieser Wert ignoriert.
       default: ""
+      visible:
+        field: downlink_filter_operator
+        operator: not_eq
+        value: all
       selector:
         text: {}
 
     comparison_rule:
       name: Rückmeldevergleich
       description: >-
-        Die ersten sechs Regeln vergleichen den aktuellen Downlink mit der
-        aktuellen Rückmeldung. Die letzten sechs vergleichen die Rückmeldung
-        mit dem festen Vergleichswert.
-      default: downlink_equal_uplink
+        Die ersten sechs Regeln beginnen mit der Rückmeldung und vergleichen
+        sie mit dem aktuellen Downlink. Die letzten sechs vergleichen die
+        Rückmeldung mit dem festen Vergleichswert.
+      default: uplink_equal_downlink
       selector:
         select:
           options:
-            - label: Downlink gleich Rückmeldung
-              value: downlink_equal_uplink
-            - label: Downlink ungleich Rückmeldung
-              value: downlink_not_equal_uplink
-            - label: Downlink größer als Rückmeldung
-              value: downlink_greater_uplink
-            - label: Downlink kleiner als Rückmeldung
-              value: downlink_less_uplink
-            - label: Downlink größer oder gleich Rückmeldung
-              value: downlink_greater_or_equal_uplink
-            - label: Downlink kleiner oder gleich Rückmeldung
-              value: downlink_less_or_equal_uplink
+            - label: Rückmeldung gleich Downlink
+              value: uplink_equal_downlink
+            - label: Rückmeldung ungleich Downlink
+              value: uplink_not_equal_downlink
+            - label: Rückmeldung größer als Downlink
+              value: uplink_greater_downlink
+            - label: Rückmeldung kleiner als Downlink
+              value: uplink_less_downlink
+            - label: Rückmeldung größer oder gleich Downlink
+              value: uplink_greater_or_equal_downlink
+            - label: Rückmeldung kleiner oder gleich Downlink
+              value: uplink_less_or_equal_downlink
             - label: Rückmeldung gleich festem Wert
               value: uplink_equal_value
             - label: Rückmeldung ungleich festem Wert
@@ -121,6 +125,16 @@ blueprint:
         Zahlen, Texte und Zustände wie on/off können als Text eingetragen
         werden.
       default: ""
+      visible:
+        field: comparison_rule
+        operator: in
+        value:
+          - uplink_equal_value
+          - uplink_not_equal_value
+          - uplink_greater_value
+          - uplink_less_value
+          - uplink_greater_or_equal_value
+          - uplink_less_or_equal_value
       selector:
         text: {}
 
@@ -152,20 +166,6 @@ blueprint:
           unit_of_measurement: Versuche
           mode: box
 
-    equality_tolerance:
-      name: Toleranz für numerische Gleichheit
-      description: >-
-        Absolute Toleranz für Gleich-/Ungleich-Vergleiche numerischer Werte.
-        Für exakte Werte 0 eintragen. Bei Vicki ist beispielsweise 0,05 oder
-        0,1 °C sinnvoll, abhängig von der gewünschten Auflösung.
-      default: 0.01
-      selector:
-        number:
-          min: 0
-          max: 1000000
-          step: 0.01
-          mode: box
-
 mode: restart
 max_exceeded: warning
 
@@ -178,7 +178,6 @@ variables:
   comparison_value: !input comparison_value
   uplinks_to_check: !input uplinks_to_check
   max_retries: !input max_retries
-  equality_tolerance: !input equality_tolerance
 
 triggers:
   - trigger: state
@@ -204,15 +203,14 @@ actions:
         {% set actual = states(downlink_entity) | string %}
         {% set expected = downlink_filter_value | string %}
         {% set operator = downlink_filter_operator | string %}
-        {% set tolerance = equality_tolerance | float(0) %}
         {% if operator == 'all' %}
           true
         {% elif actual in ['unknown', 'unavailable', 'none', ''] %}
           false
         {% elif operator in ['equal', 'not_equal']
               and is_number(actual) and is_number(expected) %}
-          {% set difference = (actual | float - expected | float) | abs %}
-          {{ difference <= tolerance if operator == 'equal' else difference > tolerance }}
+          {{ (actual | float == expected | float)
+             if operator == 'equal' else (actual | float != expected | float) }}
         {% elif operator == 'equal' %}
           {{ actual == expected }}
         {% elif operator == 'not_equal' %}
@@ -274,15 +272,14 @@ actions:
               {% set actual = states(downlink_entity) | string %}
               {% set expected = downlink_filter_value | string %}
               {% set operator = downlink_filter_operator | string %}
-              {% set tolerance = equality_tolerance | float(0) %}
               {% if operator == 'all' %}
                 true
               {% elif actual in ['unknown', 'unavailable', 'none', ''] %}
                 false
               {% elif operator in ['equal', 'not_equal']
                     and is_number(actual) and is_number(expected) %}
-                {% set difference = (actual | float - expected | float) | abs %}
-                {{ difference <= tolerance if operator == 'equal' else difference > tolerance }}
+                {{ (actual | float == expected | float)
+                   if operator == 'equal' else (actual | float != expected | float) }}
               {% elif operator == 'equal' %}
                 {{ actual == expected }}
               {% elif operator == 'not_equal' %}
@@ -305,24 +302,23 @@ actions:
               {% endif %}
             comparison_matches: >-
               {% set rule = comparison_rule | string %}
-              {% if rule.startswith('downlink_') %}
-                {% set left = states(downlink_entity) | string %}
-                {% set right = states(uplink_entity) | string %}
-                {% set operator = rule[9:-7] %}
+              {% if rule.endswith('_downlink') %}
+                {% set left = states(uplink_entity) | string %}
+                {% set right = states(downlink_entity) | string %}
+                {% set operator = rule[7:-9] %}
               {% else %}
                 {% set left = states(uplink_entity) | string %}
                 {% set right = comparison_value | string %}
                 {% set operator = rule[7:-6] %}
               {% endif %}
-              {% set tolerance = equality_tolerance | float(0) %}
               {% if downlink_filter_matches | string | trim | lower != 'true'
                     or left in ['unknown', 'unavailable', 'none', '']
                     or right in ['unknown', 'unavailable', 'none', ''] %}
                 false
               {% elif operator in ['equal', 'not_equal']
                     and is_number(left) and is_number(right) %}
-                {% set difference = (left | float - right | float) | abs %}
-                {{ difference <= tolerance if operator == 'equal' else difference > tolerance }}
+                {{ (left | float == right | float)
+                   if operator == 'equal' else (left | float != right | float) }}
               {% elif operator == 'equal' %}
                 {{ left == right }}
               {% elif operator == 'not_equal' %}

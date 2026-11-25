@@ -31,11 +31,10 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
             "uplink_entity": "sensor.target_temperature",
             "downlink_filter_operator": "all",
             "downlink_filter_value": "",
-            "comparison_rule": "downlink_equal_uplink",
+            "comparison_rule": "uplink_equal_downlink",
             "comparison_value": "",
             "uplinks_to_check": 1,
             "max_retries": 3,
-            "equality_tolerance": 0.01,
         }
         self.values = {
             "number.target_temperature": "21",
@@ -85,7 +84,6 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
 
     def context(self):
         context = dict(self.inputs)
-        context["equality_tolerance"] = self.inputs["equality_tolerance"]
         context.update(
             downlink_entity=self.inputs["downlink_entity"],
             uplink_entity=self.inputs["uplink_entity"],
@@ -110,12 +108,19 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
                 "comparison_value",
                 "uplinks_to_check",
                 "max_retries",
-                "equality_tolerance",
             },
         )
         self.assertEqual(self.blueprint["mode"], "restart")
         self.assertEqual(self.blueprint["triggers"][0]["trigger"], "state")
         self.assertNotIn("target_device", metadata["input"])
+        self.assertNotIn("equality_tolerance", metadata["input"])
+        self.assertEqual(
+            metadata["input"]["downlink_filter_value"]["visible"],
+            {"field": "downlink_filter_operator", "operator": "not_eq", "value": "all"},
+        )
+        self.assertEqual(
+            metadata["input"]["comparison_value"]["visible"]["operator"], "in"
+        )
         filter_options = metadata["input"]["downlink_filter_operator"]["selector"]["select"]["options"]
         self.assertEqual(filter_options[0]["value"], "all")
         self.assertIn("greater_or_equal", [option["value"] for option in filter_options])
@@ -135,7 +140,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.assertTrue(self.render(self.filter_template(), self.context()))
 
     def test_feedback_compares_current_downlink_or_fixed_value(self):
-        self.inputs["comparison_rule"] = "downlink_equal_uplink"
+        self.inputs["comparison_rule"] = "uplink_equal_downlink"
         self.assertTrue(self.render(self.comparison_template(), self.context()))
 
         self.values["number.target_temperature"] = "20"
