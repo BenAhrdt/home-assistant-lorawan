@@ -12,7 +12,6 @@ from homeassistant.core import callback
 
 from .const import (
     DOMAIN,
-    EVENT_ENTITY_UPDATED,
     SIGNAL_UPDATE_ENTITY,
     device_identifier,
 )
@@ -120,14 +119,7 @@ class LoRaWANEntity(Entity):
     def _handle_update_signal(self, entity_key: str) -> None:
         if entity_key == self.entity_key:
             self.async_write_ha_state()
-            self.hass.bus.async_fire(
-                EVENT_ENTITY_UPDATED,
-                {
-                    "source": DOMAIN,
-                    "config_entry_id": self.runtime.entry.entry_id,
-                    "entity_id": self.entity_id,
-                },
-            )
+            self.runtime.schedule_entity_update(self.entity_id)
 
 
 def state_value(value: Any) -> Any:

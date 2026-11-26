@@ -33,6 +33,8 @@ from .const import (
     DEFAULT_MQTT_PORT,
     DEFAULT_OFFLINE_AFTER_HOURS,
     DEFAULT_TOPIC_FILTERS,
+    DOMAIN,
+    EVENT_ENTITIES_UPDATED,
     SIGNAL_ADD_BINARY_SENSOR,
     SIGNAL_ADD_DOWNLINK_CONTROL,
     SIGNAL_REMOVE_DOWNLINK_CONTROL,
@@ -110,6 +112,8 @@ class LoRaWANRuntime:
         self.values: dict[str, LoRaWANValue] = {}
         self.value_devices: dict[str, LoRaWANDevice] = {}
         self.entity_platforms: dict[str, str] = {}
+        self._pending_entity_updates: set[str] = set()
+        self._entity_update_flush_scheduled = False
         self._mqtt_client: mqtt_client.Client | None = None
         self._unsub_offline_timer: UnsubscribeCallback | None = None
         self.connected = False
@@ -137,6 +141,32 @@ class LoRaWANRuntime:
             hass,
             STORAGE_VERSION,
             f"{STORAGE_KEY_PREFIX}_{entry.entry_id}",
+        )
+
+    @callback
+    def schedule_entity_update(self, entity_id: str) -> None:
+        """Batch entity updates from one MQTT message into one HA event."""
+        self._pending_entity_updates.add(entity_id)
+        if self._entity_update_flush_scheduled:
+            return
+        self._entity_update_flush_scheduled = True
+        self.hass.loop.call_soon(self._flush_entity_updates)
+
+    @callback
+    def _flush_entity_updates(self) -> None:
+        """Publish the entity IDs updated during the current event-loop turn."""
+        self._entity_update_flush_scheduled = False
+        entity_ids = sorted(self._pending_entity_updates)
+        self._pending_entity_updates.clear()
+        if not entity_ids:
+            return
+        self.hass.bus.async_fire(
+            EVENT_ENTITIES_UPDATED,
+            {
+                "source": DOMAIN,
+                "config_entry_id": self.entry.entry_id,
+                "entity_ids": entity_ids,
+            },
         )
 
     async def async_start(self) -> None:

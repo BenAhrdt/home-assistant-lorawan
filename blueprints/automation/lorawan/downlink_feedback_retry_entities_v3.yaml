@@ -179,7 +179,7 @@ actions:
       sequence:
         - wait_for_trigger:
             - trigger: event
-              event_type: lorawan_entity_updated
+              event_type: lorawan_entities_updated
           timeout:
             days: 7
           continue_on_timeout: false
@@ -187,11 +187,11 @@ actions:
         - variables:
             evaluation: >-
               {% set ns = namespace(states=[], actions=[]) %}
-              {% set changed_entity = wait.trigger.event.data.get('entity_id', '') %}
+              {% set event_entities = wait.trigger.event.data.get('entity_ids', []) %}
               {% for rule in rules %}
                 {% set current = rule_states[loop.index0] %}
                 {% set uplink_entity = rule.get('uplink_entity', '') | string %}
-                {% if uplink_entity != changed_entity %}
+                {% if uplink_entity not in event_entities %}
                   {% set ns.states = ns.states + [current] %}
                 {% else %}
                   {% set downlink_entity = rule.get('downlink_entity', '') | string %}
