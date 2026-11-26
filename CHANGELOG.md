@@ -1,11 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.54 - 2026-11-26
 
 - Der Downlink-Feedback-Blueprint unterstützt beliebig viele wiederholbare
   Rückmelderegeln. Jede Regel zählt Aktualisierungen ihrer Uplink-Entität,
   verwendet die bestehende Vergleichslogik und schreibt den aktuellen
   Downlink bei fehlgeschlagener Prüfung typabhängig erneut.
+- Uplinks lösen jetzt unabhängig von einer Wertänderung das interne Ereignis
+  `lorawan_uplink_received` aus. Der Feedback-Blueprint verwendet dieses
+  Ereignis, damit auch unveränderte Rückmeldewerte geprüft werden.
 
 ## 0.1.53 - 2026-11-18
 

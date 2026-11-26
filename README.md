@@ -88,8 +88,8 @@ bestimmte Geräte begrenzen.
 Der allgemeine [Blueprint zur Downlink-Rückmeldung](blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml)
 verknüpft beliebig viele steuerbare Downlink-Entitäten mit ihren jeweiligen
 Rückmelde-Entitäten. Jede Regel wird über **Hinzufügen** angelegt und reagiert
-direkt auf Aktualisierungen ihrer Rückmelde-Entität. Nach einer konfigurierbaren
-Anzahl von Aktualisierungen wird der aktuelle Downlink-Wert mit der Rückmeldung
+direkt auf jeden Uplink der Integration, der die Rückmelde-Entität betrifft. Nach
+einer konfigurierbaren Anzahl von Uplinks wird der aktuelle Downlink-Wert mit der Rückmeldung
 oder einem festen Wert verglichen. Bei einem fehlgeschlagenen Vergleich wird
 der aktuelle Wert typabhängig erneut geschrieben. Unterstützt werden `number`,
 `select`, `switch` und `text`.
@@ -104,9 +104,8 @@ Entität wird sicher abgewiesen.
 [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FBenAhrdt%2Fhome-assistant-lorawan%2Fmain%2Fblueprints%2Fautomation%2Florawan%2Fdownlink_feedback_retry_entities_v3.yaml)
 
 Die ausführliche [Wiki-Anleitung](https://github.com/BenAhrdt/home-assistant-lorawan/wiki/07.05.-Blueprint-Downlink-feedback)
-beschreibt Einrichtung und Vergleichsregeln. Ein Uplink-Zeittrigger am Gerät
-ist für diesen Blueprint nicht erforderlich; die Rückmelde-Entität liefert die
-ausgewerteten Aktualisierungen.
+beschreibt Einrichtung und Vergleichsregeln. Ein Uplink-Zeittrigger am Gerät ist
+für diesen Blueprint nicht erforderlich.
 
 ### Automatische Intervallsteuerung
 

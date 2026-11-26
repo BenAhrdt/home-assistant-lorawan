@@ -100,18 +100,26 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.assertIsNotNone(template)
         return template
 
-    def evaluate(self, *, rule=None, rule_state=None, entity=None):
+    def evaluate(self, *, rule=None, rule_state=None, entity=None, event_entities=None):
         active_rule = rule or self.rule
         context = {
             "rules": [active_rule],
             "rule_states": [rule_state or {"count": 0, "retries": 0}],
             "wait": Obj(
-                trigger=Obj(event=Obj(data={"entity_id": entity or active_rule["uplink_entity"]}))
+                trigger=Obj(
+                    event=Obj(
+                        data={
+                            "entity_ids": event_entities
+                            if event_entities is not None
+                            else [entity or active_rule["uplink_entity"]]
+                        }
+                    )
+                )
             ),
         }
         return self.render(self.evaluation_template(), context)
 
-    def test_repeatable_rule_input_and_uplink_state_trigger(self):
+    def test_repeatable_rule_input_and_uplink_event_trigger(self):
         metadata = self.blueprint["blueprint"]
         self.assertEqual(set(metadata["input"]), {"rules"})
         rules_input = metadata["input"]["rules"]
@@ -142,7 +150,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
             "minutes": "/1",
         })
         wait = self.blueprint["actions"][2]["repeat"]["sequence"][0]["wait_for_trigger"]
-        self.assertEqual(wait, [{"trigger": "event", "event_type": "state_changed"}])
+        self.assertEqual(wait, [{"trigger": "event", "event_type": "lorawan_uplink_received"}])
 
     def test_uplink_updates_are_counted_before_comparison(self):
         rule = {**self.rule, "uplinks_to_check": 2}
@@ -159,8 +167,15 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.assertEqual(second["actions"], [])
 
     def test_only_the_selected_uplink_entity_is_counted(self):
-        result = self.evaluate(entity="sensor.other_entity")
+        result = self.evaluate(event_entities=["sensor.other_entity"])
         self.assertEqual(result, {"states": [{"count": 0, "retries": 0}], "actions": []})
+
+    def test_unchanged_sensor_state_is_still_counted_by_uplink_event(self):
+        result = self.evaluate(
+            rule={**self.rule, "uplinks_to_check": 2},
+            event_entities=[self.rule["uplink_entity"]],
+        )
+        self.assertEqual(result["states"], [{"count": 1, "retries": 0}])
 
     def test_failed_comparison_rewrites_the_current_number_value(self):
         self.values["sensor.target_temperature"] = "20.0"
