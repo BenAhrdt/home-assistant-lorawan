@@ -1,15 +1,15 @@
 # Changelog
 
-## 0.1.55 - 2026-11-26
+## 0.1.56 - 2026-11-26
 
 - Der Downlink-Feedback-Blueprint unterstützt beliebig viele wiederholbare
   Rückmelderegeln. Jede Regel zählt Aktualisierungen ihrer Rückmelde-Entität,
   verwendet die bestehende Vergleichslogik und schreibt den aktuellen
   Downlink bei fehlgeschlagener Prüfung typabhängig erneut.
-- Jede verarbeitete LoRaWAN-Entität löst unabhängig von einer Wertänderung das
-  interne Ereignis `lorawan_entity_updated` aus. Der Feedback-Blueprint wartet
-  direkt auf die ausgewählte Rückmelde-Entität; Uplinks ohne diese Entität
-  werden nicht gezählt.
+- LoRaWAN-Entitäten lösen `lorawan_entity_updated` direkt bei jeder Runtime-
+  Aktualisierung mit ihrer tatsächlichen Home-Assistant-Entity-ID aus. Der
+  Feedback-Blueprint wartet damit direkt auf die ausgewählte Entität; Uplinks
+  ohne diese Entität werden nicht gezählt.
 
 ## 0.1.53 - 2026-11-18
 
