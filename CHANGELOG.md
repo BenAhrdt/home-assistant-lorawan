@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Der Downlink-Feedback-Blueprint unterstützt beliebig viele wiederholbare
+  Rückmelderegeln. Jede Regel zählt Aktualisierungen ihrer Uplink-Entität,
+  verwendet die bestehende Vergleichslogik und schreibt den aktuellen
+  Downlink bei fehlgeschlagener Prüfung typabhängig erneut.
+
 ## 0.1.53 - 2026-11-18
 
 - `CustomSend` unterstützt die ioBroker-Syntax mit Hex-Payload, Port,

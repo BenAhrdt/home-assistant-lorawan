@@ -1,184 +1,151 @@
 blueprint:
   name: "LoRaWAN – Downlink-Rückmeldung überwachen und wiederholen"
   description: >-
-    Überwacht eine frei wählbare Downlink-Entität eines LoRaWAN-Geräts und
-    vergleicht sie nach einer konfigurierbaren Anzahl von Uplinks mit einer
-    Rückmelde-Entität oder einem festen Wert. Bei einem fehlgeschlagenen
-    Vergleich wird der aktuell eingestellte Downlink-Wert typabhängig erneut
-    geschrieben. Die Überwachung startet beim Home-Assistant-Start und wird
-    regelmäßig neu aktiviert; sie benötigt keine Downlink-Zustandsänderung.
-    Der aktuelle Downlink-Wert wird bei jeder Prüfung gelesen. Downlink und
-    Rückmelde-Entität müssen zum selben LoRaWAN-Gerät gehören. Der Blueprint
-    benötigt für dieses Gerät den Uplink-Modus „Zeit nach Uplink“.
+    Überwacht beliebig viele Downlink-/Rückmelde-Regeln. Jede Regel reagiert
+    auf eine Aktualisierung ihrer Rückmelde-Entität, zählt die konfigurierten
+    Uplink-Aktualisierungen und vergleicht danach die Rückmeldung mit dem
+    aktuellen Downlink oder einem festen Wert. Bei einem fehlgeschlagenen
+    Vergleich wird der aktuelle Downlink-Wert typabhängig erneut geschrieben.
+    Der Blueprint benötigt keinen Uplink-Zeittrigger. Downlink und Rückmelde-
+    Entität einer Regel müssen zum selben LoRaWAN-Gerät gehören.
   domain: automation
   source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml
   homeassistant:
     min_version: "2024.10.0"
   input:
-    downlink_entity:
-      name: Downlink-Entität
+    rules:
+      name: Rückmelderegeln
       description: >-
-        Die steuerbare LoRaWAN-Entität. Unterstützt werden Number, Select,
-        Switch und Text. Downlink und Rückmelde-Entität müssen zum selben
-        Gerät gehören.
+        Beliebig viele Regeln hinzufügen. Jede Regel überwacht eine
+        Downlink-Entität und ihre Rückmelde-Entität unabhängig von den anderen
+        Regeln.
+      default: []
       selector:
-        entity:
-          filter:
-            - integration: lorawan
-              domain: number
-            - integration: lorawan
-              domain: select
-            - integration: lorawan
-              domain: switch
-            - integration: lorawan
-              domain: text
-
-    uplink_entity:
-      name: Rückmelde-Entität
-      description: >-
-        Eine Sensor-Entität desselben Geräts, die den vom Gerät gemeldeten
-        Wert enthält.
-      selector:
-        entity:
-          filter:
-            - integration: lorawan
-              domain: sensor
-
-    downlink_filter_operator:
-      name: Downlink-Filter
-      description: >-
-        „Alle Werte“ überwacht jede Änderung. Die anderen Optionen aktivieren
-        die Überwachung nur, wenn der aktuelle Downlink-Wert diese Bedingung
-        erfüllt.
-      default: all
-      selector:
-        select:
-          options:
-            - label: Alle Werte
-              value: all
-            - label: Gleich
-              value: equal
-            - label: Ungleich
-              value: not_equal
-            - label: Größer als
-              value: greater
-            - label: Kleiner als
-              value: less
-            - label: Größer oder gleich
-              value: greater_or_equal
-            - label: Kleiner oder gleich
-              value: less_or_equal
-          mode: dropdown
-
-    downlink_filter_value:
-      name: Downlink-Filterwert
-      description: >-
-        Vergleichswert als Text eintragen, zum Beispiel 5, 22 oder ein
-        Select-/Text-Wert. Bei „Alle Werte“ wird dieser Wert ignoriert.
-      default: ""
-      visible:
-        field: downlink_filter_operator
-        operator: not_eq
-        value: all
-      selector:
-        text: {}
-
-    comparison_rule:
-      name: Rückmeldevergleich
-      description: >-
-        Die ersten sechs Regeln beginnen mit der Rückmeldung und vergleichen
-        sie mit dem aktuellen Downlink. Die letzten sechs vergleichen die
-        Rückmeldung mit dem festen Vergleichswert.
-      default: uplink_equal_downlink
-      selector:
-        select:
-          options:
-            - label: Rückmeldung gleich Downlink
-              value: uplink_equal_downlink
-            - label: Rückmeldung ungleich Downlink
-              value: uplink_not_equal_downlink
-            - label: Rückmeldung größer als Downlink
-              value: uplink_greater_downlink
-            - label: Rückmeldung kleiner als Downlink
-              value: uplink_less_downlink
-            - label: Rückmeldung größer oder gleich Downlink
-              value: uplink_greater_or_equal_downlink
-            - label: Rückmeldung kleiner oder gleich Downlink
-              value: uplink_less_or_equal_downlink
-            - label: Rückmeldung gleich festem Wert
-              value: uplink_equal_value
-            - label: Rückmeldung ungleich festem Wert
-              value: uplink_not_equal_value
-            - label: Rückmeldung größer als fester Wert
-              value: uplink_greater_value
-            - label: Rückmeldung kleiner als fester Wert
-              value: uplink_less_value
-            - label: Rückmeldung größer oder gleich festem Wert
-              value: uplink_greater_or_equal_value
-            - label: Rückmeldung kleiner oder gleich festem Wert
-              value: uplink_less_or_equal_value
-          mode: dropdown
-
-    comparison_value:
-      name: Fester Vergleichswert
-      description: >-
-        Wird nur bei einer Regel „Rückmeldung ... festem Wert“ verwendet.
-        Zahlen, Texte und Zustände wie on/off können als Text eingetragen
-        werden.
-      default: ""
-      visible:
-        field: comparison_rule
-        operator: in
-        value:
-          - uplink_equal_value
-          - uplink_not_equal_value
-          - uplink_greater_value
-          - uplink_less_value
-          - uplink_greater_or_equal_value
-          - uplink_less_or_equal_value
-      selector:
-        text: {}
-
-    uplinks_to_check:
-      name: Uplinks bis zur Prüfung
-      description: >-
-        Nach wie vielen passenden Uplink-Ereignissen die Vergleichsregel
-        ausgewertet wird.
-      default: 1
-      selector:
-        number:
-          min: 1
-          max: 20
-          step: 1
-          unit_of_measurement: Uplinks
-          mode: box
-
-    max_retries:
-      name: Maximale Wiederholungen
-      description: >-
-        Wie oft der aktuelle Downlink bei fehlgeschlagener Rückmeldung erneut
-        geschrieben wird. Danach endet der Lauf ohne weitere Wiederholung.
-      default: 3
-      selector:
-        number:
-          min: 1
-          max: 20
-          step: 1
-          unit_of_measurement: Versuche
-          mode: box
+        object:
+          multiple: true
+          label_field: name
+          fields:
+            name:
+              label: Bezeichnung
+              required: false
+              selector:
+                text: {}
+            downlink_entity:
+              label: Downlink-Entität
+              required: true
+              selector:
+                entity:
+                  filter:
+                    - integration: lorawan
+                      domain: number
+                    - integration: lorawan
+                      domain: select
+                    - integration: lorawan
+                      domain: switch
+                    - integration: lorawan
+                      domain: text
+            uplink_entity:
+              label: Rückmelde-Entität
+              required: true
+              selector:
+                entity:
+                  filter:
+                    - integration: lorawan
+                      domain: sensor
+            downlink_filter_operator:
+              label: Downlink-Filter
+              required: true
+              default: all
+              selector:
+                select:
+                  options:
+                    - label: Alle Werte
+                      value: all
+                    - label: Gleich
+                      value: equal
+                    - label: Ungleich
+                      value: not_equal
+                    - label: Größer als
+                      value: greater
+                    - label: Kleiner als
+                      value: less
+                    - label: Größer oder gleich
+                      value: greater_or_equal
+                    - label: Kleiner oder gleich
+                      value: less_or_equal
+                  mode: dropdown
+            downlink_filter_value:
+              label: Downlink-Filterwert
+              required: false
+              default: ""
+              selector:
+                text: {}
+            comparison_rule:
+              label: Rückmeldevergleich
+              required: true
+              default: uplink_equal_downlink
+              selector:
+                select:
+                  options:
+                    - label: Rückmeldung gleich Downlink
+                      value: uplink_equal_downlink
+                    - label: Rückmeldung ungleich Downlink
+                      value: uplink_not_equal_downlink
+                    - label: Rückmeldung größer als Downlink
+                      value: uplink_greater_downlink
+                    - label: Rückmeldung kleiner als Downlink
+                      value: uplink_less_downlink
+                    - label: Rückmeldung größer oder gleich Downlink
+                      value: uplink_greater_or_equal_downlink
+                    - label: Rückmeldung kleiner oder gleich Downlink
+                      value: uplink_less_or_equal_downlink
+                    - label: Rückmeldung gleich festem Wert
+                      value: uplink_equal_value
+                    - label: Rückmeldung ungleich festem Wert
+                      value: uplink_not_equal_value
+                    - label: Rückmeldung größer als fester Wert
+                      value: uplink_greater_value
+                    - label: Rückmeldung kleiner als fester Wert
+                      value: uplink_less_value
+                    - label: Rückmeldung größer oder gleich festem Wert
+                      value: uplink_greater_or_equal_value
+                    - label: Rückmeldung kleiner oder gleich festem Wert
+                      value: uplink_less_or_equal_value
+                  mode: dropdown
+            comparison_value:
+              label: Fester Vergleichswert
+              required: false
+              default: ""
+              selector:
+                text: {}
+            uplinks_to_check:
+              label: Uplink-Aktualisierungen bis zur Prüfung
+              required: true
+              default: 1
+              selector:
+                number:
+                  min: 1
+                  max: 20
+                  step: 1
+                  unit_of_measurement: Aktualisierungen
+                  mode: box
+            max_retries:
+              label: Maximale Wiederholungen
+              required: true
+              default: 3
+              selector:
+                number:
+                  min: 1
+                  max: 20
+                  step: 1
+                  unit_of_measurement: Versuche
+                  mode: box
 
 mode: single
 max_exceeded: warning
 
 variables:
-  downlink_entity: !input downlink_entity
-  uplink_entity: !input uplink_entity
-  downlink_filter_operator: !input downlink_filter_operator
-  downlink_filter_value: !input downlink_filter_value
-  comparison_rule: !input comparison_rule
-  comparison_value: !input comparison_value
-  uplinks_to_check: !input uplinks_to_check
-  max_retries: !input max_retries
+  rules: !input rules
 
 triggers:
   - trigger: homeassistant
@@ -187,240 +154,184 @@ triggers:
     minutes: "/1"
 
 actions:
-  - variables:
-      downlink_device: "{{ device_id(downlink_entity) or '' }}"
-
-  - alias: Entitäten und gemeinsames Gerät prüfen
+  - alias: Ohne Rückmelderegeln nichts überwachen
     if:
       - condition: template
-        value_template: >-
-          {{ not downlink_entity
-             or not uplink_entity
-             or not downlink_device
-             or device_id(uplink_entity) != downlink_device
-             or not has_value(downlink_entity) }}
+        value_template: "{{ rules | count == 0 }}"
     then:
-      - stop: >-
-          Der Downlink muss verfügbar sein und Downlink sowie Rückmelde-Entität
-          müssen zum selben LoRaWAN-Gerät gehören.
+      - stop: "Es ist keine Rückmelderegel konfiguriert."
 
   - variables:
-      downlink_filter_matches: >-
-        {% set actual = states(downlink_entity) | string %}
-        {% set expected = downlink_filter_value | string %}
-        {% set operator = downlink_filter_operator | string %}
-        {% if operator == 'all' %}
-          true
-        {% elif actual in ['unknown', 'unavailable', 'none', ''] %}
-          false
-        {% elif operator in ['equal', 'not_equal']
-              and is_number(actual) and is_number(expected) %}
-          {{ (actual | float == expected | float)
-             if operator == 'equal' else (actual | float != expected | float) }}
-        {% elif operator == 'equal' %}
-          {{ actual == expected }}
-        {% elif operator == 'not_equal' %}
-          {{ actual != expected }}
-        {% elif operator in ['greater', 'less', 'greater_or_equal', 'less_or_equal']
-              and is_number(actual) and is_number(expected) %}
-          {% set left = actual | float %}
-          {% set right = expected | float %}
-          {% if operator == 'greater' %}
-            {{ left > right }}
-          {% elif operator == 'less' %}
-            {{ left < right }}
-          {% elif operator == 'greater_or_equal' %}
-            {{ left >= right }}
-          {% else %}
-            {{ left <= right }}
-          {% endif %}
-        {% else %}
-          false
-        {% endif %}
+      rule_states: >-
+        {% set ns = namespace(items=[]) %}
+        {% for rule in rules %}
+          {% set ns.items = ns.items + [{'count': 0, 'retries': 0}] %}
+        {% endfor %}
+        {{ ns.items }}
 
-  - alias: Nur bei passendem Downlink-Filter überwachen
-    if:
-      - condition: template
-        value_template: >-
-          {{ downlink_filter_matches | string | trim | lower != 'true' }}
-    then:
-      - stop: "Der aktuelle Downlink erfüllt den Überwachungsfilter nicht."
-
-  - variables:
-      retries: 0
-
-  - repeat:
-      count: "{{ max_retries | int(1) }}"
+  - alias: Alle Rückmelde-Entitäten dauerhaft überwachen
+    repeat:
+      while:
+        - condition: template
+          value_template: "{{ true }}"
       sequence:
-        - alias: Auf die konfigurierten Uplinks desselben Geräts warten
-          repeat:
-            count: "{{ uplinks_to_check | int(1) }}"
+        - wait_for_trigger:
+            - trigger: event
+              event_type: state_changed
+          timeout:
+            days: 7
+          continue_on_timeout: false
+
+        - variables:
+            evaluation: >-
+              {% set ns = namespace(states=[], actions=[]) %}
+              {% set changed_entity = wait.trigger.event.data.get('entity_id', '') %}
+              {% for rule in rules %}
+                {% set current = rule_states[loop.index0] %}
+                {% set uplink_entity = rule.get('uplink_entity', '') | string %}
+                {% if uplink_entity != changed_entity %}
+                  {% set ns.states = ns.states + [current] %}
+                {% else %}
+                  {% set downlink_entity = rule.get('downlink_entity', '') | string %}
+                  {% set downlink_device = device_id(downlink_entity) or '' %}
+                  {% set uplink_device = device_id(uplink_entity) or '' %}
+                  {% set valid_scope = downlink_entity and uplink_entity and downlink_device and uplink_device == downlink_device and has_value(downlink_entity) %}
+                  {% set actual = states(downlink_entity) | string %}
+                  {% set expected = rule.get('downlink_filter_value', '') | string %}
+                  {% set filter_operator = rule.get('downlink_filter_operator', 'all') | string %}
+                  {% set filter_matches = false %}
+                  {% if valid_scope and filter_operator == 'all' %}
+                    {% set filter_matches = true %}
+                  {% elif valid_scope and actual not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% if filter_operator in ['equal', 'not_equal'] and is_number(actual) and is_number(expected) %}
+                      {% set filter_matches = (actual | float == expected | float) if filter_operator == 'equal' else (actual | float != expected | float) %}
+                    {% elif filter_operator == 'equal' %}
+                      {% set filter_matches = actual == expected %}
+                    {% elif filter_operator == 'not_equal' %}
+                      {% set filter_matches = actual != expected %}
+                    {% elif filter_operator in ['greater', 'less', 'greater_or_equal', 'less_or_equal'] and is_number(actual) and is_number(expected) %}
+                      {% set left = actual | float %}
+                      {% set right = expected | float %}
+                      {% if filter_operator == 'greater' %}
+                        {% set filter_matches = left > right %}
+                      {% elif filter_operator == 'less' %}
+                        {% set filter_matches = left < right %}
+                      {% elif filter_operator == 'greater_or_equal' %}
+                        {% set filter_matches = left >= right %}
+                      {% else %}
+                        {% set filter_matches = left <= right %}
+                      {% endif %}
+                    {% endif %}
+                  {% endif %}
+                  {% if not filter_matches %}
+                    {% set ns.states = ns.states + [{'count': 0, 'retries': 0}] %}
+                  {% else %}
+                    {% set count = current.get('count', 0) | int + 1 %}
+                    {% set required = rule.get('uplinks_to_check', 1) | int(1) %}
+                    {% if count < required %}
+                      {% set ns.states = ns.states + [{'count': count, 'retries': current.get('retries', 0) | int}] %}
+                    {% else %}
+                      {% set comparison_rule = rule.get('comparison_rule', 'uplink_equal_downlink') | string %}
+                      {% set left = states(uplink_entity) | string %}
+                      {% if comparison_rule.endswith('_downlink') %}
+                        {% set right = states(downlink_entity) | string %}
+                        {% set comparison_operator = comparison_rule[7:-9] %}
+                      {% else %}
+                        {% set right = rule.get('comparison_value', '') | string %}
+                        {% set comparison_operator = comparison_rule[7:-6] %}
+                      {% endif %}
+                      {% set comparison_matches = false %}
+                      {% if left not in ['unknown', 'unavailable', 'none', ''] and right not in ['unknown', 'unavailable', 'none', ''] %}
+                        {% if comparison_operator in ['equal', 'not_equal'] and is_number(left) and is_number(right) %}
+                          {% set comparison_matches = (left | float == right | float) if comparison_operator == 'equal' else (left | float != right | float) %}
+                        {% elif comparison_operator == 'equal' %}
+                          {% set comparison_matches = left == right %}
+                        {% elif comparison_operator == 'not_equal' %}
+                          {% set comparison_matches = left != right %}
+                        {% elif comparison_operator in ['greater', 'less', 'greater_or_equal', 'less_or_equal'] and is_number(left) and is_number(right) %}
+                          {% set numeric_left = left | float %}
+                          {% set numeric_right = right | float %}
+                          {% if comparison_operator == 'greater' %}
+                            {% set comparison_matches = numeric_left > numeric_right %}
+                          {% elif comparison_operator == 'less' %}
+                            {% set comparison_matches = numeric_left < numeric_right %}
+                          {% elif comparison_operator == 'greater_or_equal' %}
+                            {% set comparison_matches = numeric_left >= numeric_right %}
+                          {% else %}
+                            {% set comparison_matches = numeric_left <= numeric_right %}
+                          {% endif %}
+                        {% endif %}
+                      {% endif %}
+                      {% if comparison_matches %}
+                        {% set ns.states = ns.states + [{'count': 0, 'retries': 0}] %}
+                      {% elif current.get('retries', 0) | int >= rule.get('max_retries', 3) | int(3) %}
+                        {% set ns.states = ns.states + [{'count': 0, 'retries': 0}] %}
+                      {% else %}
+                        {% set ns.states = ns.states + [{'count': 0, 'retries': current.get('retries', 0) | int + 1}] %}
+                        {% set downlink_domain = downlink_entity.split('.')[0] %}
+                        {% set current_downlink_value = states(downlink_entity) | string %}
+                        {% set writable = (downlink_domain == 'number' and is_number(current_downlink_value)) or downlink_domain in ['select', 'text'] or (downlink_domain == 'switch' and current_downlink_value in ['on', 'off']) %}
+                        {% if writable %}
+                          {% set ns.actions = ns.actions + [{'downlink_entity': downlink_entity, 'downlink_domain': downlink_domain, 'current_downlink_value': current_downlink_value}] %}
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ {'states': ns.states, 'actions': ns.actions} }}
+
+        - variables:
+            rule_states: "{{ evaluation.get('states', rule_states) }}"
+
+        - repeat:
+            for_each: "{{ evaluation.get('actions', []) }}"
             sequence:
-              - repeat:
-                  until:
-                    - condition: template
-                      value_template: >-
-                        {{ wait.trigger is defined
-                           and wait.trigger.event is defined
-                           and wait.trigger.event.data.get('source') == 'lorawan'
-                           and wait.trigger.event.data.get('device_id') == downlink_device }}
-                  sequence:
-                    - wait_for_trigger:
-                        - trigger: event
-                          event_type: lorawan_uplink_schedule
-                          event_data:
-                            source: lorawan
-                      timeout:
-                        days: 7
-                      continue_on_timeout: false
-
-        - variables:
-            downlink_filter_matches: >-
-              {% set actual = states(downlink_entity) | string %}
-              {% set expected = downlink_filter_value | string %}
-              {% set operator = downlink_filter_operator | string %}
-              {% if operator == 'all' %}
-                true
-              {% elif actual in ['unknown', 'unavailable', 'none', ''] %}
-                false
-              {% elif operator in ['equal', 'not_equal']
-                    and is_number(actual) and is_number(expected) %}
-                {{ (actual | float == expected | float)
-                   if operator == 'equal' else (actual | float != expected | float) }}
-              {% elif operator == 'equal' %}
-                {{ actual == expected }}
-              {% elif operator == 'not_equal' %}
-                {{ actual != expected }}
-              {% elif operator in ['greater', 'less', 'greater_or_equal', 'less_or_equal']
-                    and is_number(actual) and is_number(expected) %}
-                {% set left = actual | float %}
-                {% set right = expected | float %}
-                {% if operator == 'greater' %}
-                  {{ left > right }}
-                {% elif operator == 'less' %}
-                  {{ left < right }}
-                {% elif operator == 'greater_or_equal' %}
-                  {{ left >= right }}
-                {% else %}
-                  {{ left <= right }}
-                {% endif %}
-              {% else %}
-                false
-              {% endif %}
-            comparison_matches: >-
-              {% set rule = comparison_rule | string %}
-              {% if rule.endswith('_downlink') %}
-                {% set left = states(uplink_entity) | string %}
-                {% set right = states(downlink_entity) | string %}
-                {% set operator = rule[7:-9] %}
-              {% else %}
-                {% set left = states(uplink_entity) | string %}
-                {% set right = comparison_value | string %}
-                {% set operator = rule[7:-6] %}
-              {% endif %}
-              {% if downlink_filter_matches | string | trim | lower != 'true'
-                    or left in ['unknown', 'unavailable', 'none', '']
-                    or right in ['unknown', 'unavailable', 'none', ''] %}
-                false
-              {% elif operator in ['equal', 'not_equal']
-                    and is_number(left) and is_number(right) %}
-                {{ (left | float == right | float)
-                   if operator == 'equal' else (left | float != right | float) }}
-              {% elif operator == 'equal' %}
-                {{ left == right }}
-              {% elif operator == 'not_equal' %}
-                {{ left != right }}
-              {% elif operator in ['greater', 'less', 'greater_or_equal', 'less_or_equal']
-                    and is_number(left) and is_number(right) %}
-                {% set numeric_left = left | float %}
-                {% set numeric_right = right | float %}
-                {% if operator == 'greater' %}
-                  {{ numeric_left > numeric_right }}
-                {% elif operator == 'less' %}
-                  {{ numeric_left < numeric_right }}
-                {% elif operator == 'greater_or_equal' %}
-                  {{ numeric_left >= numeric_right }}
-                {% else %}
-                  {{ numeric_left <= numeric_right }}
-                {% endif %}
-              {% else %}
-                false
-              {% endif %}
-
-        - alias: Überwachung beenden, wenn der aktuelle Downlink nicht mehr passt
-          if:
-            - condition: template
-              value_template: >-
-                {{ downlink_filter_matches | string | trim | lower != 'true' }}
-          then:
-            - stop: "Der aktuelle Downlink erfüllt den Überwachungsfilter nicht mehr."
-
-        - alias: Erfolgreiche Rückmeldung beendet den aktuellen Lauf
-          if:
-            - condition: template
-              value_template: >-
-                {{ comparison_matches | string | trim | lower == 'true' }}
-          then:
-            - stop: "Die Rückmeldung erfüllt die konfigurierte Vergleichsregel."
-
-        - alias: Bei fehlender Rückmeldung weitere Wiederholungen begrenzen
-          if:
-            - condition: template
-              value_template: "{{ retries | int >= max_retries | int }}"
-          then:
-            - stop: >-
-                Die Rückmeldung erfüllt die Vergleichsregel nach {{ retries }}
-                Wiederholungen weiterhin nicht.
-
-        - variables:
-            retries: "{{ retries | int + 1 }}"
-            current_downlink_value: "{{ states(downlink_entity) | string }}"
-            downlink_domain: "{{ downlink_entity.split('.')[0] }}"
-
-        - alias: Aktuellen Downlink typabhängig erneut schreiben
-          choose:
-            - conditions:
-                - condition: template
-                  value_template: "{{ downlink_domain == 'number' and is_number(current_downlink_value) }}"
-              sequence:
-                - action: number.set_value
-                  target:
-                    entity_id: "{{ downlink_entity }}"
-                  data:
-                    value: "{{ current_downlink_value | float }}"
-            - conditions:
-                - condition: template
-                  value_template: "{{ downlink_domain == 'select' }}"
-              sequence:
-                - action: select.select_option
-                  target:
-                    entity_id: "{{ downlink_entity }}"
-                  data:
-                    option: "{{ current_downlink_value }}"
-            - conditions:
-                - condition: template
-                  value_template: "{{ downlink_domain == 'switch' and current_downlink_value == 'on' }}"
-              sequence:
-                - action: switch.turn_on
-                  target:
-                    entity_id: "{{ downlink_entity }}"
-            - conditions:
-                - condition: template
-                  value_template: "{{ downlink_domain == 'switch' and current_downlink_value == 'off' }}"
-              sequence:
-                - action: switch.turn_off
-                  target:
-                    entity_id: "{{ downlink_entity }}"
-            - conditions:
-                - condition: template
-                  value_template: "{{ downlink_domain == 'text' }}"
-              sequence:
-                - action: text.set_value
-                  target:
-                    entity_id: "{{ downlink_entity }}"
-                  data:
-                    value: "{{ current_downlink_value }}"
-          default:
-            - stop: >-
-                Der aktuelle Downlink-Zustand kann für den Domain-Typ nicht
-                erneut geschrieben werden.
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ repeat.item.get('downlink_domain') == 'number'
+                             and is_number(repeat.item.get('current_downlink_value', '')) }}
+                    sequence:
+                      - action: number.set_value
+                        target:
+                          entity_id: "{{ repeat.item.get('downlink_entity') }}"
+                        data:
+                          value: "{{ repeat.item.get('current_downlink_value') | float }}"
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ repeat.item.get('downlink_domain') == 'select' }}"
+                    sequence:
+                      - action: select.select_option
+                        target:
+                          entity_id: "{{ repeat.item.get('downlink_entity') }}"
+                        data:
+                          option: "{{ repeat.item.get('current_downlink_value') }}"
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ repeat.item.get('downlink_domain') == 'switch'
+                             and repeat.item.get('current_downlink_value') == 'on' }}
+                    sequence:
+                      - action: switch.turn_on
+                        target:
+                          entity_id: "{{ repeat.item.get('downlink_entity') }}"
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ repeat.item.get('downlink_domain') == 'switch'
+                             and repeat.item.get('current_downlink_value') == 'off' }}
+                    sequence:
+                      - action: switch.turn_off
+                        target:
+                          entity_id: "{{ repeat.item.get('downlink_entity') }}"
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ repeat.item.get('downlink_domain') == 'text' }}"
+                    sequence:
+                      - action: text.set_value
+                        target:
+                          entity_id: "{{ repeat.item.get('downlink_entity') }}"
+                        data:
+                          value: "{{ repeat.item.get('current_downlink_value') }}"

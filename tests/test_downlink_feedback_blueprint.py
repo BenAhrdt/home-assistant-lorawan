@@ -1,4 +1,5 @@
 """Validate the generic downlink feedback/retry blueprint."""
+
 import ast
 from pathlib import Path
 from types import SimpleNamespace as Obj
@@ -26,7 +27,8 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         )
         path = ROOT / "blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml"
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
-        self.inputs = {
+        self.rule = {
+            "name": "Target temperature",
             "downlink_entity": "number.target_temperature",
             "uplink_entity": "sensor.target_temperature",
             "downlink_filter_operator": "all",
@@ -59,7 +61,13 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
             float(value)
         except (TypeError, ValueError):
             return False
-        return str(value).strip().lower() not in {"nan", "inf", "infinity", "-inf", "-infinity"}
+        return str(value).strip().lower() not in {
+            "nan",
+            "inf",
+            "infinity",
+            "-inf",
+            "-infinity",
+        }
 
     def render(self, template, context):
         result = self.env.from_string(template).render(**context)
@@ -71,35 +79,49 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
                 return result
         return result
 
-    def filter_template(self):
-        return self.blueprint["actions"][1]["variables"]["downlink_filter_matches"]
+    def evaluation_template(self):
+        def find(node):
+            if isinstance(node, list):
+                for item in node:
+                    found = find(item)
+                    if found is not None:
+                        return found
+            elif isinstance(node, dict):
+                variables = node.get("variables")
+                if isinstance(variables, dict) and "evaluation" in variables:
+                    return variables["evaluation"]
+                for value in node.values():
+                    found = find(value)
+                    if found is not None:
+                        return found
+            return None
 
-    def comparison_template(self):
-        action = next(
-            action
-            for action in self.blueprint["actions"]
-            if "variables" in action and "comparison_matches" in action["variables"]
-        )
-        return action["variables"]["comparison_matches"]
+        template = find(self.blueprint["actions"])
+        self.assertIsNotNone(template)
+        return template
 
-    def context(self):
-        context = dict(self.inputs)
-        context.update(
-            downlink_entity=self.inputs["downlink_entity"],
-            uplink_entity=self.inputs["uplink_entity"],
-            downlink_filter_operator=self.inputs["downlink_filter_operator"],
-            downlink_filter_value=self.inputs["downlink_filter_value"],
-            comparison_rule=self.inputs["comparison_rule"],
-            comparison_value=self.inputs["comparison_value"],
-        )
-        context["downlink_filter_matches"] = self.render(self.filter_template(), context)
-        return context
+    def evaluate(self, *, rule=None, rule_state=None, entity=None):
+        active_rule = rule or self.rule
+        context = {
+            "rules": [active_rule],
+            "rule_states": [rule_state or {"count": 0, "retries": 0}],
+            "wait": Obj(
+                trigger=Obj(event=Obj(data={"entity_id": entity or active_rule["uplink_entity"]}))
+            ),
+        }
+        return self.render(self.evaluation_template(), context)
 
-    def test_inputs_and_filters(self):
+    def test_repeatable_rule_input_and_uplink_state_trigger(self):
         metadata = self.blueprint["blueprint"]
+        self.assertEqual(set(metadata["input"]), {"rules"})
+        rules_input = metadata["input"]["rules"]
+        selector = rules_input["selector"]["object"]
+        self.assertTrue(selector["multiple"])
+        self.assertEqual(selector["label_field"], "name")
         self.assertEqual(
-            set(metadata["input"]),
+            set(selector["fields"]),
             {
+                "name",
                 "downlink_entity",
                 "uplink_entity",
                 "downlink_filter_operator",
@@ -111,73 +133,84 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
             },
         )
         self.assertEqual(self.blueprint["mode"], "single")
-        self.assertEqual(self.blueprint["triggers"][0]["trigger"], "homeassistant")
-        self.assertEqual(self.blueprint["triggers"][0]["event"], "start")
+        self.assertEqual(self.blueprint["triggers"][0], {
+            "trigger": "homeassistant",
+            "event": "start",
+        })
         self.assertEqual(self.blueprint["triggers"][1], {
             "trigger": "time_pattern",
             "minutes": "/1",
         })
+        wait = self.blueprint["actions"][2]["repeat"]["sequence"][0]["wait_for_trigger"]
+        self.assertEqual(wait, [{"trigger": "event", "event_type": "state_changed"}])
+
+    def test_uplink_updates_are_counted_before_comparison(self):
+        rule = {**self.rule, "uplinks_to_check": 2}
+        first = self.evaluate(rule=rule, entity=rule["uplink_entity"])
+        self.assertEqual(first["states"], [{"count": 1, "retries": 0}])
+        self.assertEqual(first["actions"], [])
+
+        second = self.evaluate(
+            rule=rule,
+            rule_state=first["states"][0],
+            entity=rule["uplink_entity"],
+        )
+        self.assertEqual(second["states"], [{"count": 0, "retries": 0}])
+        self.assertEqual(second["actions"], [])
+
+    def test_only_the_selected_uplink_entity_is_counted(self):
+        result = self.evaluate(entity="sensor.other_entity")
+        self.assertEqual(result, {"states": [{"count": 0, "retries": 0}], "actions": []})
+
+    def test_failed_comparison_rewrites_the_current_number_value(self):
+        self.values["sensor.target_temperature"] = "20.0"
+        result = self.evaluate()
+        self.assertEqual(result["states"], [{"count": 0, "retries": 1}])
         self.assertEqual(
-            self.blueprint["actions"][5]["repeat"]["count"],
-            "{{ max_retries | int(1) }}",
+            result["actions"],
+            [{
+                "downlink_entity": "number.target_temperature",
+                "downlink_domain": "number",
+                "current_downlink_value": "21",
+            }],
         )
-        derived_device = self.blueprint["actions"][0]["variables"]
+
+    def test_all_existing_comparison_rules_remain_available(self):
+        options = self.blueprint["blueprint"]["input"]["rules"]["selector"]["object"]["fields"][
+            "comparison_rule"
+        ]["selector"]["select"]["options"]
+        values = {option["value"] for option in options}
+        self.assertEqual(len(values), 12)
+        self.assertIn("uplink_equal_downlink", values)
+        self.assertIn("uplink_greater_or_equal_value", values)
+
+        self.values["sensor.target_temperature"] = "22"
         self.assertEqual(
-            derived_device["downlink_device"],
-            "{{ device_id(downlink_entity) or '' }}",
+            self.evaluate(
+                rule={**self.rule, "comparison_rule": "uplink_greater_or_equal_value", "comparison_value": "22"}
+            )["actions"],
+            [],
         )
-        scope_check = next(
-            action for action in self.blueprint["actions"]
-            if action.get("alias") == "Entitäten und gemeinsames Gerät prüfen"
-        )
-        self.assertIn("device_id(uplink_entity) != downlink_device", scope_check["if"][0]["condition"]["value_template"])
-        self.assertNotIn("equality_tolerance", metadata["input"])
+        self.values["sensor.target_temperature"] = "20"
         self.assertEqual(
-            metadata["input"]["downlink_filter_value"]["visible"],
-            {"field": "downlink_filter_operator", "operator": "not_eq", "value": "all"},
+            self.evaluate(
+                rule={**self.rule, "comparison_rule": "uplink_less_downlink"}
+            )["actions"],
+            [],
         )
-        self.assertEqual(
-            metadata["input"]["comparison_value"]["visible"]["operator"], "in"
-        )
-        filter_options = metadata["input"]["downlink_filter_operator"]["selector"]["select"]["options"]
-        self.assertEqual(filter_options[0]["value"], "all")
-        self.assertIn("greater_or_equal", [option["value"] for option in filter_options])
 
-    def test_downlink_filter_is_type_aware(self):
-        context = self.context()
-        self.assertTrue(self.render(self.filter_template(), context))
-
-        self.inputs.update(downlink_filter_operator="equal", downlink_filter_value="21")
-        self.assertTrue(self.render(self.filter_template(), self.context()))
-
-        self.inputs.update(downlink_filter_operator="greater", downlink_filter_value="22")
-        self.assertFalse(self.render(self.filter_template(), self.context()))
-
-        self.values["number.target_temperature"] = "heat"
-        self.inputs.update(downlink_filter_operator="equal", downlink_filter_value="heat")
-        self.assertTrue(self.render(self.filter_template(), self.context()))
-
-    def test_feedback_compares_current_downlink_or_fixed_value(self):
-        self.inputs["comparison_rule"] = "uplink_equal_downlink"
-        self.assertTrue(self.render(self.comparison_template(), self.context()))
-
-        self.values["number.target_temperature"] = "20"
-        self.assertFalse(self.render(self.comparison_template(), self.context()))
-
-        self.inputs.update(
-            comparison_rule="uplink_greater_or_equal_value", comparison_value="20"
-        )
-        self.assertTrue(self.render(self.comparison_template(), self.context()))
+    def test_downlink_filter_prevents_counting_when_it_does_not_match(self):
+        rule = {**self.rule, "downlink_filter_operator": "equal", "downlink_filter_value": "20"}
+        result = self.evaluate(rule=rule)
+        self.assertEqual(result, {"states": [{"count": 0, "retries": 0}], "actions": []})
 
     def test_retry_actions_cover_supported_domains(self):
-        choose = next(action for action in self.blueprint["actions"] if "choose" in action)
-        actions = [
-            item["sequence"][0]["action"]
-            for item in choose["choose"]
-            if item["sequence"] and "action" in item["sequence"][0]
-        ]
+        actions = self.blueprint["actions"][2]["repeat"]["sequence"][3]["repeat"]["sequence"][0]["choose"]
         self.assertEqual(
-            set(actions),
+            {
+                item["sequence"][0]["action"]
+                for item in actions
+            },
             {
                 "number.set_value",
                 "select.select_option",
