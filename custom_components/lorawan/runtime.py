@@ -14,7 +14,6 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_interval
@@ -34,8 +33,7 @@ from .const import (
     DEFAULT_MQTT_PORT,
     DEFAULT_OFFLINE_AFTER_HOURS,
     DEFAULT_TOPIC_FILTERS,
-    device_identifier,
-    EVENT_UPLINK_RECEIVED,
+    EVENT_ENTITY_UPDATED,
     SIGNAL_ADD_BINARY_SENSOR,
     SIGNAL_ADD_DOWNLINK_CONTROL,
     SIGNAL_REMOVE_DOWNLINK_CONTROL,
@@ -439,42 +437,41 @@ class LoRaWANRuntime:
             if not value.key.startswith("device_"):
                 value.attributes.update(message.attributes)
             self._store_value(device, value)
+        self._fire_entity_updated_events(device, message, values)
         if message.message_type.casefold() in {"up", "uplink"}:
-            self._fire_uplink_received(device, values)
             self.uplink_scheduler.observe(device.dev_eui)
         self._send_queued_downlink(device)
         self.hass.async_create_task(self.async_save_cache())
 
     @callback
-    def _fire_uplink_received(
+    def _fire_entity_updated_events(
         self,
         device: LoRaWANDevice,
+        message: LoRaWANMessage,
         values: list[LoRaWANValue],
     ) -> None:
-        """Fire an event for every uplink, including unchanged sensor states."""
+        """Fire an event for every entity value processed from a message."""
         registry = er.async_get(self.hass)
-        entity_ids: list[str] = []
+        entity_ids: set[str] = set()
         for value in values:
             entity_key = self.entity_key(device, value)
             platform = self.entity_platforms.get(entity_key)
             if platform is None:
                 continue
             entity_id = registry.async_get_entity_id(platform, DOMAIN, entity_key)
-            if entity_id is not None and entity_id not in entity_ids:
-                entity_ids.append(entity_id)
-
-        registry_device = dr.async_get(self.hass).async_get_device(
-            identifiers={(DOMAIN, device_identifier(self.entry.entry_id, device.dev_eui))}
-        )
-        event_data: dict[str, Any] = {
-            "source": DOMAIN,
-            "config_entry_id": self.entry.entry_id,
-            "dev_eui": device.dev_eui,
-            "entity_ids": entity_ids,
-        }
-        if registry_device is not None:
-            event_data["device_id"] = registry_device.id
-        self.hass.bus.async_fire(EVENT_UPLINK_RECEIVED, event_data)
+            if entity_id is None or entity_id in entity_ids:
+                continue
+            entity_ids.add(entity_id)
+            self.hass.bus.async_fire(
+                EVENT_ENTITY_UPDATED,
+                {
+                    "source": DOMAIN,
+                    "config_entry_id": self.entry.entry_id,
+                    "dev_eui": device.dev_eui,
+                    "entity_id": entity_id,
+                    "message_type": message.message_type,
+                },
+            )
 
     @callback
     def _store_value(self, device: LoRaWANDevice, value: LoRaWANValue) -> None:

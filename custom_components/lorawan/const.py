@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "lorawan"
-EVENT_UPLINK_RECEIVED = f"{DOMAIN}_uplink_received"
+EVENT_ENTITY_UPDATED = f"{DOMAIN}_entity_updated"
 
 
 def device_identifier(entry_id: str, dev_eui: str) -> str:

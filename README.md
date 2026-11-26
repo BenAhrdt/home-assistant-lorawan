@@ -88,8 +88,9 @@ bestimmte Geräte begrenzen.
 Der allgemeine [Blueprint zur Downlink-Rückmeldung](blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml)
 verknüpft beliebig viele steuerbare Downlink-Entitäten mit ihren jeweiligen
 Rückmelde-Entitäten. Jede Regel wird über **Hinzufügen** angelegt und reagiert
-direkt auf jeden Uplink der Integration, der die Rückmelde-Entität betrifft. Nach
-einer konfigurierbaren Anzahl von Uplinks wird der aktuelle Downlink-Wert mit der Rückmeldung
+direkt auf Aktualisierungen der ausgewählten Rückmelde-Entität, auch wenn deren
+Wert gleich bleibt. Uplinks ohne diese Entität werden nicht gezählt. Nach
+einer konfigurierbaren Anzahl von Aktualisierungen wird der aktuelle Downlink-Wert mit der Rückmeldung
 oder einem festen Wert verglichen. Bei einem fehlgeschlagenen Vergleich wird
 der aktuelle Wert typabhängig erneut geschrieben. Unterstützt werden `number`,
 `select`, `switch` und `text`.

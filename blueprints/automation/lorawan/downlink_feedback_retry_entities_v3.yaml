@@ -7,8 +7,9 @@ blueprint:
     aktuellen Downlink oder einem festen Wert. Bei einem fehlgeschlagenen
     Vergleich wird der aktuelle Downlink-Wert typabhängig erneut geschrieben.
     Der Blueprint benötigt keinen Uplink-Zeittrigger. Die Integration meldet
-    jeden Uplink auch dann, wenn der Sensorwert unverändert bleibt. Downlink
-    und Rückmelde-Entität einer Regel müssen zum selben LoRaWAN-Gerät gehören.
+    jede Aktualisierung der Rückmelde-Entität auch dann, wenn der Sensorwert
+    unverändert bleibt. Downlink und Rückmelde-Entität einer Regel müssen zum
+    selben LoRaWAN-Gerät gehören.
   domain: automation
   source_url: https://raw.githubusercontent.com/BenAhrdt/home-assistant-lorawan/main/blueprints/automation/lorawan/downlink_feedback_retry_entities_v3.yaml
   homeassistant:
@@ -178,7 +179,7 @@ actions:
       sequence:
         - wait_for_trigger:
             - trigger: event
-              event_type: lorawan_uplink_received
+              event_type: lorawan_entity_updated
           timeout:
             days: 7
           continue_on_timeout: false
@@ -186,18 +187,11 @@ actions:
         - variables:
             evaluation: >-
               {% set ns = namespace(states=[], actions=[]) %}
-              {% set event_data = wait.trigger.event.data %}
-              {% set event_entities = event_data.get('entity_ids', []) %}
-              {% set event_device = event_data.get('device_id', '') %}
+              {% set changed_entity = wait.trigger.event.data.get('entity_id', '') %}
               {% for rule in rules %}
                 {% set current = rule_states[loop.index0] %}
                 {% set uplink_entity = rule.get('uplink_entity', '') | string %}
-                {% set uplink_device = device_id(uplink_entity) or '' %}
-                {% set event_matches = uplink_entity in event_entities %}
-                {% if not event_entities and event_device and event_device == uplink_device %}
-                  {% set event_matches = true %}
-                {% endif %}
-                {% if not event_matches %}
+                {% if uplink_entity != changed_entity %}
                   {% set ns.states = ns.states + [current] %}
                 {% else %}
                   {% set downlink_entity = rule.get('downlink_entity', '') | string %}
