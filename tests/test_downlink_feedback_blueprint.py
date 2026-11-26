@@ -127,6 +127,9 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         selector = rules_input["selector"]["object"]
         self.assertTrue(selector["multiple"])
         self.assertEqual(selector["label_field"], "name")
+        self.assertEqual(selector["description_field"], "enabled")
+        self.assertTrue(selector["fields"]["enabled"]["default"])
+        self.assertEqual(selector["fields"]["uplinks_to_check"]["default"], 2)
         self.assertEqual(
             set(selector["fields"]),
             {

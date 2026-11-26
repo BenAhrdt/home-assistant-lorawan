@@ -26,6 +26,7 @@ blueprint:
         object:
           multiple: true
           label_field: name
+          description_field: enabled
           fields:
             name:
               label: Bezeichnung
@@ -35,6 +36,7 @@ blueprint:
             enabled:
               label: Überwachung aktiv
               required: false
+              default: true
               selector:
                 boolean: {}
             downlink_entity:
@@ -128,7 +130,7 @@ blueprint:
             uplinks_to_check:
               label: Uplink-Aktualisierungen bis zur Prüfung
               required: true
-              default: 1
+              default: 2
               selector:
                 number:
                   min: 1

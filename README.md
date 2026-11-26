@@ -97,7 +97,9 @@ der aktuelle Wert typabhängig erneut geschrieben. Unterstützt werden `number`,
 
 Jede Regel kann über **Überwachung aktiv** unabhängig von den anderen Regeln
 vorübergehend deaktiviert werden. Ihr Zähler wird dabei zurückgesetzt; die
-übrigen Regeln laufen weiter.
+übrigen Regeln laufen weiter. Neue Regeln sind standardmäßig aktiviert und
+werden standardmäßig nach zwei passenden Uplink-Aktualisierungen geprüft. Der
+Aktivierungsstatus wird zusätzlich in der Regelübersicht angezeigt.
 
 Der optionale Downlink-Filter kann auf **Alle Werte**, Gleich, Ungleich,
 Größer, Kleiner, Größer/Gleich oder Kleiner/Gleich gesetzt werden. Eine
