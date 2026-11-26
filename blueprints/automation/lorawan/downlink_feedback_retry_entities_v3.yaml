@@ -32,6 +32,11 @@ blueprint:
               required: false
               selector:
                 text: {}
+            enabled:
+              label: Überwachung aktiv
+              required: false
+              selector:
+                boolean: {}
             downlink_entity:
               label: Downlink-Entität
               required: true
@@ -191,7 +196,9 @@ actions:
               {% for rule in rules %}
                 {% set current = rule_states[loop.index0] %}
                 {% set uplink_entity = rule.get('uplink_entity', '') | string %}
-                {% if uplink_entity not in event_entities %}
+                {% if not rule.get('enabled', true) %}
+                  {% set ns.states = ns.states + [{'count': 0, 'retries': 0}] %}
+                {% elif uplink_entity not in event_entities %}
                   {% set ns.states = ns.states + [current] %}
                 {% else %}
                   {% set downlink_entity = rule.get('downlink_entity', '') | string %}

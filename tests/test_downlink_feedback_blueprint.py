@@ -29,6 +29,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
         self.blueprint = yaml.load(path.read_text(), Loader=Loader)
         self.rule = {
             "name": "Target temperature",
+            "enabled": True,
             "downlink_entity": "number.target_temperature",
             "uplink_entity": "sensor.target_temperature",
             "downlink_filter_operator": "all",
@@ -130,6 +131,7 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
             set(selector["fields"]),
             {
                 "name",
+                "enabled",
                 "downlink_entity",
                 "uplink_entity",
                 "downlink_filter_operator",
@@ -168,6 +170,13 @@ class DownlinkFeedbackBlueprintTests(unittest.TestCase):
 
     def test_only_the_selected_uplink_entity_is_counted(self):
         result = self.evaluate(event_entities=["sensor.other_entity"])
+        self.assertEqual(result, {"states": [{"count": 0, "retries": 0}], "actions": []})
+
+    def test_disabled_rule_is_not_counted_or_retried(self):
+        result = self.evaluate(
+            rule={**self.rule, "enabled": False},
+            event_entities=[self.rule["uplink_entity"]],
+        )
         self.assertEqual(result, {"states": [{"count": 0, "retries": 0}], "actions": []})
 
     def test_unchanged_sensor_state_is_still_counted_by_uplink_event(self):

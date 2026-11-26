@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.57 - 2026-11-26
+## 0.1.58 - 2026-11-26
 
 - Der Downlink-Feedback-Blueprint unterstützt beliebig viele wiederholbare
   Rückmelderegeln. Jede Regel zählt Aktualisierungen ihrer Rückmelde-Entität,
@@ -10,6 +10,9 @@
   `lorawan_entities_updated` mit allen aktualisierten Entity-IDs gebündelt.
   Dadurch gehen bei JSON-Nachrichten mit vielen Entitäten keine Rückmelde-
   Ereignisse verloren.
+- Jede Rückmelderegel kann über „Überwachung aktiv“ einzeln deaktiviert werden.
+  Deaktivierte Regeln setzen ihren eigenen Zähler zurück und beeinflussen die
+  übrigen Regeln nicht.
 
 ## 0.1.53 - 2026-11-18
 
